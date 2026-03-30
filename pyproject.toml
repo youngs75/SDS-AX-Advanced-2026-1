@@ -1,0 +1,7 @@
+[project]
+name = "2026-sds-ax-advanced"
+version = "0.1.0"
+description = "Advanced SDS AX project for 2026"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = []
