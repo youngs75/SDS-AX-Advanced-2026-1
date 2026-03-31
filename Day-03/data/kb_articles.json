@@ -1,0 +1,112 @@
+[
+  {
+    "article_id": "KB-001",
+    "category": "network",
+    "title": "VPN 연결 설정 가이드",
+    "tags": ["vpn", "network", "remote"],
+    "content": "## VPN 연결 방법\n\n### 1. VPN 클라이언트 다운로드\n- 내부 포털: https://vpn.company.com\n- Windows/Mac 버전 선택\n\n### 2. 설치 및 실행\n- 설치 파일 실행 → 기본 설정으로 설치\n- VPN 클라이언트 실행\n\n### 3. 연결 정보 입력\n- 서버 주소: vpn.company.com\n- 사용자명: [회사 이메일]\n- 비밀번호: [회사 비밀번호]\n\n### 4. 연결\n- '연결' 버튼 클릭\n- 인증 완료 후 VPN 연결 확인\n\n### 문제 해결\n- 연결 실패 시: 방화벽 설정 확인\n- 인증 오류 시: 비밀번호 재확인\n\n추가 문의: IT 헬프데스크 ext. 1234",
+    "created_at": "2024-12-01T00:00:00Z",
+    "updated_at": "2025-01-15T00:00:00Z",
+    "views": 1250,
+    "helpful_votes": 98
+  },
+  {
+    "article_id": "KB-002",
+    "category": "software",
+    "title": "MS Office 365 라이선스 활성화",
+    "tags": ["office", "license", "microsoft"],
+    "content": "## Office 365 라이선스 활성화 방법\n\n### 자동 활성화 (권장)\n1. Office 앱 실행 (Word, Excel 등)\n2. '로그인' 버튼 클릭\n3. 회사 이메일 계정으로 로그인\n4. 자동으로 라이선스 활성화\n\n### 수동 활성화\n1. Office 앱 → 파일 → 계정\n2. '제품 정보' 확인\n3. '로그인 필요' 메시지가 보이면 로그인\n4. 라이선스 상태: '구독 활성화됨' 확인\n\n### 라이선스 만료 시\n- IT 헬프데스크에 문의 (ext. 1234)\n- 갱신 승인 후 자동 활성화\n\n### FAQ\nQ: 개인 계정으로 로그인했습니다.\nA: 로그아웃 후 회사 계정으로 재로그인\n\nQ: 여전히 활성화 안 됨\nA: Office 재설치 또는 IT 팀 문의",
+    "created_at": "2024-11-15T00:00:00Z",
+    "updated_at": "2025-01-10T00:00:00Z",
+    "views": 2100,
+    "helpful_votes": 187
+  },
+  {
+    "article_id": "KB-003",
+    "category": "account",
+    "title": "비밀번호 정책 및 변경 방법",
+    "tags": ["password", "security", "account"],
+    "content": "## 비밀번호 정책\n\n### 필수 요건\n- 최소 길이: 12자 이상\n- 포함 문자: 영문 대소문자, 숫자, 특수문자 각 1개 이상\n- 금지 패턴: 생일, 전화번호, 단순 패턴 (123456 등)\n- 변경 주기: 90일마다 변경 권장\n\n### 비밀번호 변경 방법\n\n#### 방법 1: 사내 포털\n1. https://portal.company.com 접속\n2. 우측 상단 '프로필' → '비밀번호 변경'\n3. 현재 비밀번호 입력\n4. 새 비밀번호 입력 (2회)\n5. '변경' 버튼 클릭\n\n#### 방법 2: Windows 로그인 화면\n1. Ctrl + Alt + Del 키 입력\n2. '비밀번호 변경' 선택\n3. 현재 및 새 비밀번호 입력\n\n### 비밀번호 분실 시\n- IT 헬프데스크 문의: ext. 1234\n- 신원 확인 후 임시 비밀번호 발급\n- 로그인 후 즉시 변경 필수\n\n### 보안 팁\n- 비밀번호 관리자 사용 (1Password, LastPass)\n- 2단계 인증 활성화\n- 정기적인 비밀번호 변경",
+    "created_at": "2024-10-01T00:00:00Z",
+    "updated_at": "2025-01-20T00:00:00Z",
+    "views": 3500,
+    "helpful_votes": 301
+  },
+  {
+    "article_id": "KB-004",
+    "category": "network",
+    "title": "Wi-Fi 연결 문제 해결",
+    "tags": ["wifi", "network", "troubleshooting"],
+    "content": "## Wi-Fi 연결 문제 해결 가이드\n\n### 1단계: 기본 확인\n- Wi-Fi 스위치가 켜져 있는지 확인 (노트북)\n- 비행기 모드가 꺼져 있는지 확인\n- 올바른 네트워크 선택 (Company-WiFi)\n\n### 2단계: 재연결 시도\n1. 현재 Wi-Fi 끊기\n2. 5초 대기\n3. Company-WiFi 재연결\n4. 비밀번호 재입력\n\n### 3단계: 네트워크 어댑터 재시작\n\n#### Windows\n1. 설정 → 네트워크 및 인터넷\n2. '어댑터 옵션 변경'\n3. Wi-Fi 어댑터 우클릭 → '사용 안 함'\n4. 5초 후 → '사용'\n\n#### Mac\n1. 시스템 환경설정 → 네트워크\n2. Wi-Fi 선택 → 고급\n3. Company-WiFi 삭제 후 재연결\n\n### 4단계: IP 주소 갱신\n\n```bash\n# Windows\nipconfig /release\nipconfig /renew\n\n# Mac\nsudo ifconfig en0 down\nsudo ifconfig en0 up\n```\n\n### 그래도 안 되면\n- IT 헬프데스크 문의: ext. 1234\n- MAC 주소 등록 필요할 수 있음\n\n### 예방 팁\n- 라우터에서 멀리 떨어지지 말기\n- 네트워크 드라이버 최신 버전 유지",
+    "created_at": "2024-11-20T00:00:00Z",
+    "updated_at": "2025-01-18T00:00:00Z",
+    "views": 1800,
+    "helpful_votes": 142
+  },
+  {
+    "article_id": "KB-005",
+    "category": "software",
+    "title": "Slack 사용 가이드 (사내 표준)",
+    "tags": ["slack", "communication", "collaboration"],
+    "content": "## Slack 사내 사용 가이드\n\n### 기본 설정\n1. 프로필 사진 등록 (필수)\n2. 표시 이름: 실명 (한글 또는 영문)\n3. 직위/부서 정보 추가\n\n### 채널 사용 원칙\n\n#### 공개 채널\n- #general: 전사 공지사항\n- #dev-team: 개발팀 업무\n- #help-desk: IT 지원 요청\n- #random: 자유 소통\n\n#### 비공개 채널\n- 프로젝트별 생성 가능\n- 민감한 정보 공유 시 사용\n\n### 에티켓\n- 업무 시간 외 멘션(@) 자제\n- 스레드 기능 활용 (대화 정리)\n- 긴급: DM 대신 전화 권장\n- 이모지 리액션으로 간단한 응답\n\n### 알림 설정\n1. 환경설정 → 알림\n2. '업무 시간에만 알림' 설정\n3. 키워드 알림 추가 (본인 이름, 팀명)\n\n### Slack 앱 연동\n- Google Drive: 파일 공유 간소화\n- Jira: 이슈 알림 자동화\n- GitHub: PR 알림\n\n### 문제 해결\n- 알림 안 옴: 알림 설정 → '키워드' 확인\n- 로그인 실패: IT 헬프데스크 (ext. 1234)\n\n### 팁\n- `/remind` 명령어로 리마인더 설정\n- Cmd/Ctrl + K: 빠른 채널 이동\n- Cmd/Ctrl + Shift + A: 읽지 않은 메시지 바로가기",
+    "created_at": "2024-09-15T00:00:00Z",
+    "updated_at": "2025-01-12T00:00:00Z",
+    "views": 2800,
+    "helpful_votes": 245
+  },
+  {
+    "article_id": "KB-006",
+    "category": "hardware",
+    "title": "프린터 연결 및 설정 (Windows/Mac)",
+    "tags": ["printer", "hardware", "setup"],
+    "content": "## 프린터 연결 가이드\n\n### 사내 프린터 목록\n- 1층 로비: Printer-1F-Lobby (Canon iR-ADV C5550)\n- 2층 개발팀: Printer-2F-Dev (HP LaserJet Pro)\n- 3층 회의실: Printer-3F-Meeting (Xerox Phaser)\n\n### Windows 연결 방법\n\n#### 자동 검색\n1. 설정 → 프린터 및 스캐너\n2. '프린터 또는 스캐너 추가'\n3. 네트워크 프린터 검색 (자동)\n4. 원하는 프린터 선택 → '장치 추가'\n\n#### 수동 추가 (IP 주소)\n1. 설정 → 프린터 및 스캐너\n2. '프린터 또는 스캐너 추가' → '원하는 항목이 목록에 없습니다'\n3. 'TCP/IP 주소로 프린터 추가' 선택\n4. IP 주소 입력 (IT 팀 문의)\n5. 드라이버 자동 설치\n\n### Mac 연결 방법\n1. 시스템 환경설정 → 프린터 및 스캐너\n2. '+' 버튼 클릭\n3. 네트워크 프린터 검색\n4. 프린터 선택 → '추가'\n\n### 기본 프린터 설정\n- 양면 인쇄: 기본 켜기 (환경 보호)\n- 컬러/흑백: 흑백 기본 (비용 절감)\n- 용지 크기: A4 (한국 표준)\n\n### 문제 해결\n- 프린터 안 보임: 같은 Wi-Fi 네트워크 확인\n- 인쇄 안 됨: 프린터 큐 확인 (대기 작업 삭제)\n- 용지 걸림: 프린터 전면 덮개 열고 용지 제거\n\n### 추가 문의\nIT 헬프데스크: ext. 1234",
+    "created_at": "2024-10-10T00:00:00Z",
+    "updated_at": "2025-01-05T00:00:00Z",
+    "views": 1200,
+    "helpful_votes": 95
+  },
+  {
+    "article_id": "KB-007",
+    "category": "account",
+    "title": "2단계 인증 (2FA) 설정 가이드",
+    "tags": ["2fa", "security", "authentication"],
+    "content": "## 2단계 인증 (2FA) 설정\n\n### 2FA란?\n비밀번호 외에 추가 인증 수단 (SMS, 앱)을 사용하여 보안 강화\n\n### 설정 방법\n\n#### 1단계: 인증 앱 다운로드\n권장 앱:\n- Google Authenticator (iOS/Android)\n- Microsoft Authenticator (iOS/Android)\n- Authy (iOS/Android/Desktop)\n\n#### 2단계: 사내 포털에서 활성화\n1. https://portal.company.com 접속\n2. 프로필 → 보안 설정\n3. '2단계 인증 활성화' 클릭\n4. QR 코드 스캔 (인증 앱 사용)\n5. 인증 코드 입력 (6자리)\n6. 백업 코드 저장 (안전한 곳에 보관)\n\n#### 3단계: 로그인 테스트\n1. 로그아웃\n2. 비밀번호 입력\n3. 인증 앱에서 6자리 코드 확인\n4. 코드 입력 → 로그인 완료\n\n### 백업 코드 사용\n- 인증 앱 사용 불가 시 (휴대폰 분실 등)\n- 백업 코드 1회 사용 후 무효화\n- 새 백업 코드는 보안 설정에서 재생성\n\n### 문제 해결\n- 인증 코드가 안 맞음: 시간 동기화 확인 (앱 설정)\n- 휴대폰 분실: IT 헬프데스크에 백업 코드 요청\n- 앱 재설치 시: 2FA 재설정 필요\n\n### 보안 팁\n- 백업 코드는 암호화된 곳에 보관\n- 정기적으로 백업 코드 확인 및 갱신\n- 인증 앱 백업 기능 사용 (Authy 권장)",
+    "created_at": "2024-11-01T00:00:00Z",
+    "updated_at": "2025-01-22T00:00:00Z",
+    "views": 950,
+    "helpful_votes": 78
+  },
+  {
+    "article_id": "KB-008",
+    "category": "software",
+    "title": "엑셀 매크로 오류 해결 가이드",
+    "tags": ["excel", "macro", "office", "troubleshooting"],
+    "content": "## 엑셀 매크로 오류 해결\n\n### 1단계: 매크로 보안 설정 확인\n1. 파일 → 옵션 → 보안 센터\n2. '보안 센터 설정' 클릭\n3. 매크로 설정 → '모든 매크로 포함' 선택\n4. 확인 후 엑셀 재시작\n\n⚠️ 주의: 신뢰할 수 있는 파일만 열기\n\n### 2단계: 개발 도구 탭 활성화\n1. 파일 → 옵션 → 리본 메뉴 사용자 지정\n2. '개발 도구' 체크박스 선택\n3. 확인\n\n### 3단계: VBA 편집기에서 매크로 확인\n1. 개발 도구 → Visual Basic (Alt + F11)\n2. 매크로 코드 확인\n3. 오류 라인 찾기 (빨간색 표시)\n\n### 흔한 오류 및 해결\n\n#### 오류 1: \"실행 오류 '1004'\"\n원인: 시트 이름, 범위 오류\n해결: 시트 이름 및 셀 범위 확인\n\n#### 오류 2: \"컴파일 오류: Sub 또는 Function이 정의되지 않음\"\n원인: 참조 라이브러리 누락\n해결:\n1. VBA 편집기 → 도구 → 참조\n2. 누락된 라이브러리 체크 (MISSING 표시)\n3. 체크 해제 후 올바른 라이브러리 선택\n\n#### 오류 3: \"런타임 오류 '9': 인덱스가 유효 범위를 벗어남\"\n원인: 존재하지 않는 시트 참조\n해결: 시트 이름 재확인\n\n### 매크로 디버깅\n1. VBA 편집기에서 F8 키 (한 줄씩 실행)\n2. 변수 값 확인 (Locals 창)\n3. 중단점 설정 (F9)\n\n### 추가 문의\nIT 헬프데스크: ext. 1234\n엑셀 전문가: dev-team@company.com",
+    "created_at": "2024-12-10T00:00:00Z",
+    "updated_at": "2025-01-08T00:00:00Z",
+    "views": 680,
+    "helpful_votes": 52
+  },
+  {
+    "article_id": "KB-009",
+    "category": "network",
+    "title": "방화벽 예외 추가 요청 절차",
+    "tags": ["firewall", "security", "network"],
+    "content": "## 방화벽 예외 추가 요청\n\n### 언제 필요한가?\n- 외부 API 연동 (새로운 도메인/IP)\n- 특정 포트 오픈 필요 (예: 8080, 3000)\n- VPN 외부에서 사내 서버 접근\n\n### 요청 절차\n\n#### 1단계: 요청서 작성\n필수 정보:\n- **요청자**: 이름, 부서, 이메일\n- **사유**: 비즈니스 목적 명확히 기술\n- **대상**:\n  - 도메인 또는 IP 주소\n  - 포트 번호\n  - 프로토콜 (TCP/UDP)\n- **기간**: 영구 또는 임시 (종료 날짜)\n\n#### 2단계: IT 보안팀 승인\n1. 요청서를 security@company.com으로 발송\n2. 보안 검토 (1-2 영업일)\n3. 승인 또는 거부 통보\n\n#### 3단계: 방화벽 규칙 추가\n- IT 팀이 방화벽 규칙 설정\n- 설정 완료 후 이메일 통보\n- 테스트 수행\n\n### 예시 요청서\n\n```\n제목: 방화벽 예외 추가 요청 - Stripe API 연동\n\n요청자: 홍길동 (개발팀, hong@company.com)\n사유: 결제 시스템 Stripe API 연동을 위해 외부 통신 필요\n대상:\n  - 도메인: api.stripe.com\n  - 포트: 443 (HTTPS)\n  - 프로토콜: TCP\n기간: 영구\n\n비고: 프로덕션 환경 배포를 위해 긴급 처리 부탁드립니다.\n```\n\n### 거부 사유 (예시)\n- 보안 위험이 높은 도메인/IP\n- 사유가 불명확\n- 대체 방법 존재 (VPN, Proxy)\n\n### 문의\nIT 보안팀: security@company.com\nIT 헬프데스크: ext. 1234",
+    "created_at": "2024-11-25T00:00:00Z",
+    "updated_at": "2025-01-14T00:00:00Z",
+    "views": 520,
+    "helpful_votes": 41
+  },
+  {
+    "article_id": "KB-010",
+    "category": "software",
+    "title": "Outlook 메일 서명 설정 방법",
+    "tags": ["outlook", "email", "signature"],
+    "content": "## Outlook 메일 서명 설정 ### 회사 메일 서명 표준 양식\n\n```\n홍길동 | Hong Gildong\n개발팀 | Development Team\n\n📧 hong@company.com\n📞 02-1234-5678 (ext. 1001)\n🏢 서울시 강남구 테헤란로 123, ABC빌딩 5층\n\n🌐 https://www.company.com\n```\n\n### Windows Outlook 설정\n\n#### 신규 메일 서명\n1. Outlook → 파일 → 옵션 → 메일\n2. '서명' 버튼 클릭\n3. '새로 만들기' → 서명 이름 입력 (예: \"회사 공식\")\n4. 아래 편집 창에 서명 내용 입력\n5. 폰트, 색상, 이미지 추가 가능\n6. '확인' 클릭\n\n#### 자동 삽입 설정\n1. 서명 설정 창에서\n2. '새 메시지': 방금 만든 서명 선택\n3. '회신/전달': 서명 없음 (또는 동일 서명)\n4. '확인'\n\n### Mac Outlook 설정\n1. Outlook → 환경설정 → 서명\n2. '+' 버튼으로 새 서명 추가\n3. 서명 내용 입력\n4. '기본 서명' 체크박스 선택\n5. 닫기\n\n### 모바일 (iOS/Android) 설정\n1. Outlook 앱 → 설정 ⚙️\n2. 메일 계정 선택\n3. '서명' 탭\n4. 서명 내용 입력 (간결하게)\n5. 저장\n\n### 팁\n- 이미지는 최대 100KB (로딩 속도)\n- 소셜 미디어 아이콘 추가 가능\n- 법적 고지사항은 회사 정책 확인\n\n### HTML 서명 (고급)\n1. HTML 파일로 서명 작성\n2. Outlook → 서명 설정 → '편집기에서 붙여넣기'\n3. Ctrl+V로 HTML 서명 붙여넣기\n\n### 문의\nIT 헬프데스크: ext. 1234",
+    "created_at": "2024-09-30T00:00:00Z",
+    "updated_at": "2025-01-06T00:00:00Z",
+    "views": 1600,
+    "helpful_votes": 128
+  }
+]

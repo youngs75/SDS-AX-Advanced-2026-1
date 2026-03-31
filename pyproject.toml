@@ -6,7 +6,13 @@ readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "chonkie[all]>=1.6.1",
+    "faiss-cpu>=1.13.2",
     "langchain>=1.2.13",
+    "langchain-anthropic>=1.4.0",
+    "langchain-community>=0.4.1",
+    "langchain-openai>=1.1.12",
+    "langchain-teddynote>=0.5.4",
+    "pdfplumber>=0.11.9",
     "pymupdf4llm>=1.27.2.2",
     "python-dotenv>=1.2.2",
 ]
