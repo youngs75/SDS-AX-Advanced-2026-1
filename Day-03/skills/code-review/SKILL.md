@@ -1,75 +1,48 @@
 ---
 name: code-review
-description: >
-  로컬 변경사항과 원격 Pull Request에 대한 자동화된 코드 리뷰를 수행하는 스킬.
-  정확성, 유지보수성, 가독성, 효율성, 보안, 엣지 케이스 처리, 테스트 커버리지의
-  7가지 관점에서 구조화된 분석과 피드백을 제공합니다.
+description: 코드 리뷰 요청시 꼭 이 스킬을 활용하세요.
 ---
 
-# Code Reviewer
+# The code review skill
 
-이 스킬은 로컬 개발 변경사항과 원격 Pull Request에 대해 전문적이고 철저한 코드 리뷰를 수행하는 가이드입니다.
+IMPORTANT: Whole code context is need to be read!
 
-## Workflow
+## Process
+Analyze the code changes based on the following pillars:
 
-### 1. 리뷰 대상 결정
+- Correctness: Does the code achieve its stated purpose without bugs or logical errors?
+- Maintainability: Is the code clean, well-structured, and easy to understand and modify in the future? Consider factors like code clarity, modularity, and adherence to established design patterns.
+- Readability: Is the code well-commented (where necessary) and consistently formatted according to our project's coding style guidelines?
+- Efficiency: Are there any obvious performance bottlenecks or resource inefficiencies introduced by the changes?
+- Security: Are there any potential security vulnerabilities or insecure coding practices?
+- Edge Cases and Error Handling: Does the code appropriately handle edge cases and potential errors?
+- Testability: Is the new or modified code adequately covered by tests (even if preflight checks pass)? Suggest additional test cases that would improve coverage or robustness.
 
-- **원격 PR**: 사용자가 PR 번호나 URL을 제공한 경우 (예: "Review PR #123"), 해당 원격 PR을 대상으로 합니다.
-- **로컬 변경사항**: 특정 PR이 언급되지 않거나 "내 변경사항을 리뷰해줘"라고 요청한 경우, 현재 로컬 파일 시스템의 staged/unstaged 변경사항을 대상으로 합니다.
+## Best practices
 
-### 2. 준비
+- Review promptly: Don't make authors wait
+- Be respectful: Focus on code, not the person
+- Explain why: Don't just say what's wrong
+- Suggest alternatives: Show better approaches
+- Use examples: Code examples clarify feedback
+- Pick your battles: Focus on important issues
+- Acknowledge good work: Positive feedback matters
+- Review your own code first: Catch obvious issues
+- Use automated tools: Let tools catch style issues
+- Be consistent: Apply same standards to all code
 
-#### 원격 PR의 경우:
+## Feedback
 
-1. **Checkout**: GitHub CLI를 사용하여 PR을 체크아웃합니다.
-   ```
-   gh pr checkout <PR_NUMBER>
-   ```
+### Structure
+1. Summary: A high-level overview of the review.
 
-2. **Preflight**: 프로젝트의 표준 검증 스위트를 실행하여 자동화된 실패를 조기에 감지합니다.
-   ```
-   npm run preflight
-   ```
+2. Findings:
+  - Critical: Bugs, security issues, or breaking changes.
+  - Improvements: Suggestions for better code quality or performance.
+  - Nitpicks: Formatting or minor style issues (optional).
+  - Conclusion: Clear recommendation (Approved / Request Changes).
 
-3. **컨텍스트 파악**: PR 설명과 기존 코멘트를 읽어 목표와 히스토리를 이해합니다.
-
-#### 로컬 변경사항의 경우:
-
-1. **변경사항 식별**:
-   - 상태 확인: `git status`
-   - 디프 읽기: `git diff` (워킹 트리) 및 `git diff --staged` (스테이지된 변경사항)
-
-2. **Preflight (선택)**: 변경사항이 큰 경우, 리뷰 전에 `npm run preflight`를 실행할지 사용자에게 확인합니다.
-
-### 3. 심층 분석
-
-다음 7가지 관점에서 코드 변경사항을 분석합니다:
-
-- **정확성(Correctness)**: 코드가 의도한 목적을 버그나 논리적 오류 없이 달성하는가?
-- **유지보수성(Maintainability)**: 코드가 깔끔하고, 잘 구조화되어 있으며, 미래에 이해하고 수정하기 쉬운가? 코드 명확성, 모듈성, 확립된 디자인 패턴 준수 여부를 고려합니다.
-- **가독성(Readability)**: 코드에 (필요한 곳에) 주석이 잘 달려있고, 프로젝트의 코딩 스타일 가이드라인에 맞게 일관되게 포맷팅되어 있는가?
-- **효율성(Efficiency)**: 변경사항으로 인해 발생하는 명백한 성능 병목이나 리소스 비효율이 있는가?
-- **보안(Security)**: 잠재적인 보안 취약점이나 안전하지 않은 코딩 관행이 있는가?
-- **엣지 케이스 및 에러 처리(Edge Cases)**: 코드가 엣지 케이스와 잠재적 오류를 적절히 처리하는가?
-- **테스트 가능성(Testability)**: 새로운/수정된 코드가 테스트로 충분히 커버되는가? (preflight 검사를 통과하더라도) 커버리지나 견고성을 개선할 추가 테스트 케이스를 제안합니다.
-
-### 4. 피드백 제공
-
-#### 구조
-
-- **요약(Summary)**: 리뷰의 전체적인 개요
-- **발견사항(Findings)**:
-  - **Critical**: 버그, 보안 이슈, 또는 브레이킹 체인지
-  - **Improvements**: 코드 품질이나 성능 개선을 위한 제안
-  - **Nitpicks**: 포맷팅이나 사소한 스타일 이슈 (선택사항)
-- **결론(Conclusion)**: 명확한 권고사항 (Approved / Request Changes)
-
-#### 톤
-
-- 건설적이고, 전문적이며, 친절하게 작성합니다.
-- 변경을 요청할 때는 *왜* 필요한지 설명합니다.
-- 승인 시에는 기여의 구체적인 가치를 인정합니다.
-
-### 5. 정리 (원격 PR만 해당)
-
-- 리뷰 후, 기본 브랜치(예: `main` 또는 `master`)로 돌아갈지 사용자에게 확인합니다.
+### Tone
+Be constructive, professional, and friendly.
+Explain why a change is requested.
+For approvals, acknowledge the specific value of the contribution.
