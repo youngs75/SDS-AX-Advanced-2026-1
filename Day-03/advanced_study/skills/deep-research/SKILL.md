@@ -32,9 +32,11 @@ allowed-tools: web_search think_tool write_todos task
 4. **Verify**: `fact-checker` 서브에이전트로 사실 검증
    - 핵심 주장의 교차 검증
    - 오류 발견 시 수정
-5. **Report**: 최종 보고서 작성
+5. **Report**: 최종 보고서 작성 및 파일 저장
    - 구조화된 섹션 (배경, 분석, 결론)
    - 인용 형식: [1], [2], ... + 출처 섹션
+   - 반드시 `edit_file` 도구로 `/reports/` 폴더에 마크다운 파일로 저장
+   - 파일명 형식: `/reports/{주제_요약}.md`
 
 ## think_tool 사용 시기
 - 검색 결과를 받은 직후 (결과 분석)
@@ -69,3 +71,8 @@ allowed-tools: web_search think_tool write_todos task
 [1] 제목, URL, 날짜
 [2] ...
 ```
+
+## 파일 저장 규칙
+- 보고서 완성 후 반드시 `edit_file` 도구로 `/reports/` 경로에 저장
+- 파일명은 주제를 요약한 영문 snake_case: `/reports/ai_agent_frameworks.md`
+- 저장 완료 후 사용자에게 파일 경로를 안내
