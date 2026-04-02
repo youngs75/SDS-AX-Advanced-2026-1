@@ -1,5 +1,4 @@
-"""Small Language Model Tool Calling 이슈 시연.
-
+"""
 ## 학습 목표
 - Small Language Model (SLM)의 Tool Calling 불안정성 이해
 - 다양한 모델 간 Tool Calling 성능 비교

@@ -66,7 +66,7 @@ def person_db_crud(type: Literal["C", "R", "U", "D"], query: str) -> dict:
         "column_description": [
             {"column_name": "name", "description": "사실 이름아님. ID임."}
         ],
-        "data": {"column": ["name()", "age"], "row": [("홍길동", 10), ("이영희", 20)]},
+        "data": {"column": ["name", "age"], "row": [("홍길동", 10), ("이영희", 20)]},
     }
 
 

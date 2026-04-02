@@ -15,9 +15,15 @@ dependencies = [
     "langchain-community>=0.4.1",
     "langchain-neo4j>=0.9.0",
     "langchain-openai>=1.1.12",
+    "langchain-tavily>=0.2.17",
     "langchain-teddynote>=0.5.4",
     "mcp[cli]>=1.26.0",
     "pdfplumber>=0.11.9",
     "pymupdf4llm>=1.27.2.2",
     "python-dotenv>=1.2.2",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.2.0",
 ]
