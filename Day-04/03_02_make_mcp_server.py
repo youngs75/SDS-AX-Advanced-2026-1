@@ -38,14 +38,19 @@ import ast
 import json
 import logging
 import operator
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
+from tavily import TavilyClient
 
+# 환경변수 로드
+load_dotenv(Path(__file__).parent.parent / "Day-03" / ".env")
 
 # 로깅 설정
 logging.basicConfig(
@@ -54,6 +59,9 @@ logging.basicConfig(
     stream=sys.stderr,  # MCP는 stdout을 통신에 사용하므로 stderr에 로깅
 )
 logger = logging.getLogger(__name__)
+
+# Tavily 클라이언트 초기화
+tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
 
 # ============================================================================
@@ -67,39 +75,48 @@ mcp = FastMCP(
 
 
 # ============================================================================
-# Tool 정의: 상태 변경 가능한 기능
+# Tool 정의: Discriminated Union 패턴으로 3개 도구를 1개로 통합
 # ============================================================================
 
 
-class WeatherQuery(BaseModel):
-    """날씨 조회 요청 스키마."""
+class AssistantRequest(BaseModel):
+    """통합 도구 요청 스키마 (Discriminated Union 패턴).
 
-    city: str = Field(..., description="조회할 도시 이름 (예: Seoul, Tokyo, New York)")
-    units: str = Field(
-        default="metric",
-        description="온도 단위: 'metric' (섭씨) 또는 'imperial' (화씨)",
-        pattern="^(metric|imperial)$",
+    action 필드의 값에 따라 필요한 payload 필드가 달라집니다.
+    """
+
+    action: Literal["weather", "calculate", "write_note"] = Field(
+        ...,
+        description=(
+            "수행할 작업 종류: "
+            "'weather' (날씨 조회), "
+            "'calculate' (수식 계산), "
+            "'write_note' (노트 저장)"
+        ),
+    )
+    # weather용 필드
+    city: str | None = Field(
+        default=None,
+        description="[weather] 조회할 도시 이름 (예: Seoul, Tokyo, New York)",
+    )
+    # calculate용 필드
+    expression: str | None = Field(
+        default=None,
+        description="[calculate] 계산할 수식 (예: '2 + 3 * 4')",
+    )
+    # write_note용 필드
+    content: str | None = Field(
+        default=None,
+        description="[write_note] 저장할 노트 내용",
+    )
+    filename: str = Field(
+        default="note.txt",
+        description="[write_note] 저장할 파일명 (기본값: note.txt)",
     )
 
 
-class CalculationRequest(BaseModel):
-    """계산 요청 스키마."""
-
-    expression: str = Field(..., description="계산할 수식 (예: '2 + 3 * 4')")
-
-
 def safe_eval(expression: str) -> float | int:
-    """AST를 사용한 안전한 수식 평가.
-
-    Args:
-        expression: 평가할 수학 표현식
-
-    Returns:
-        계산 결과
-
-    Raises:
-        ValueError: 허용되지 않는 연산이 포함된 경우
-    """
+    """AST를 사용한 안전한 수식 평가."""
     allowed_operators = {
         ast.Add: operator.add,
         ast.Sub: operator.sub,
@@ -109,7 +126,7 @@ def safe_eval(expression: str) -> float | int:
     }
 
     def eval_node(node: ast.AST) -> float | int:
-        if isinstance(node, ast.Constant):  # Python 3.8+
+        if isinstance(node, ast.Constant):
             return node.value
         if isinstance(node, ast.BinOp):
             left = eval_node(node.left)
@@ -133,124 +150,82 @@ def safe_eval(expression: str) -> float | int:
     return eval_node(tree.body)
 
 
-@mcp.tool(structured_output=True)
-def get_weather(query: WeatherQuery) -> dict[str, Any]:
-    """지정된 도시의 날씨 정보를 조회합니다.
+def _handle_weather(req: AssistantRequest) -> dict[str, Any]:
+    """Tavily를 사용한 실제 날씨 조회."""
+    if not req.city:
+        return {"success": False, "error": "city 필드가 필요합니다."}
 
-    Args:
-        query: 날씨 조회 요청 (도시명, 온도 단위 포함)
-
-    Returns:
-        날씨 정보를 포함한 딕셔너리
-
-    Note:
-        이것은 시뮬레이션된 응답입니다.
-        실제 환경에서는 외부 날씨 API를 호출하게 됩니다.
-    """
-    logger.info("Tool 호출: get_weather(city=%s, units=%s)", query.city, query.units)
-
-    # 시뮬레이션된 날씨 데이터
-    weather_data = {
-        "city": query.city,
-        "temperature": 22 if query.units == "metric" else 72,
-        # "unit": "°C" if query.units == "metric" else "°F",
-        "condition": "맑음",
-        "humidity": 60,
-        "wind_speed": 12,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-
-    logger.info(
-        "날씨 조회 완료: %s - %s%s",
-        query.city,
-        weather_data["temperature"],
-        weather_data["unit"],
+    logger.info("날씨 조회: city=%s", req.city)
+    result = tavily.search(
+        query=f"{req.city} 현재 날씨 기온 습도",
+        max_results=3,
     )
-
+    # Tavily 검색 결과를 요약하여 반환
+    answers = [r["content"] for r in result.get("results", [])]
     return {
         "success": True,
-        "data": weather_data,
-        # "message": f"{query.city}의 현재 날씨는 {weather_data['condition']}입니다. "
-        # f"온도: {weather_data['temperature']}{weather_data['unit']}, "
-        # f"습도: {weather_data['humidity']}%",
+        "city": req.city,
+        "search_results": answers,
     }
 
 
-@mcp.tool()
-def calculate(request: CalculationRequest) -> dict[str, Any]:
-    """수학 표현식을 계산합니다.
+def _handle_calculate(req: AssistantRequest) -> dict[str, Any]:
+    """안전한 수식 계산."""
+    if not req.expression:
+        return {"success": False, "error": "expression 필드가 필요합니다."}
 
-    Args:
-        request: 계산 요청 (수식 포함)
-
-    Returns:
-        계산 결과를 포함한 딕셔너리
-
-    Note:
-        보안상 AST를 사용하여 제한된 연산자만 허용합니다.
-    """
-    logger.info("Tool 호출: calculate(expression=%s)", request.expression)
-
+    logger.info("계산: expression=%s", req.expression)
     try:
-        # AST를 사용한 안전한 수식 평가
-        result = safe_eval(request.expression)
-        logger.info("계산 완료: %s = %s", request.expression, result)
-
-        return {
-            "success": 0,
-            # "expression": request.expression,
-            "result": result,
-            # "message": f"{request.expression} = {result}",
-        }
-
+        result = safe_eval(req.expression)
+        return {"success": True, "expression": req.expression, "result": result}
     except Exception as e:
-        logger.exception("계산 오류: %s", e)
-        return {
-            "success": False,
-            "error": f"계산 중 오류 발생: {e!s}",
-        }
+        return {"success": False, "error": f"계산 오류: {e!s}"}
 
 
-@mcp.tool()
-def write_note(content: str, filename: str = "note.txt") -> dict[str, str]:
-    """간단한 텍스트 노트를 파일로 저장합니다.
+def _handle_write_note(req: AssistantRequest) -> dict[str, Any]:
+    """노트 파일 저장."""
+    if not req.content:
+        return {"success": False, "error": "content 필드가 필요합니다."}
 
-    Args:
-        content: 저장할 노트 내용
-        filename: 저장할 파일명 (기본값: note.txt)
-
-    Returns:
-        저장 결과 메시지
-
-    Note:
-        실제 파일 시스템에 저장됩니다. (Side effect 있음)
-    """
-    logger.info(
-        "Tool 호출: write_note(filename=%s, content_length=%d)", filename, len(content)
-    )
-
+    logger.info("노트 저장: filename=%s", req.filename)
     try:
-        # 임시 디렉토리에 저장
         notes_dir = Path("./mcp_notes")
         notes_dir.mkdir(exist_ok=True)
-
-        filepath = notes_dir / filename
-        filepath.write_text(content, encoding="utf-8")
-
-        logger.info("노트 저장 완료: %s", filepath)
-
+        filepath = notes_dir / req.filename
+        filepath.write_text(req.content, encoding="utf-8")
         return {
             "success": True,
             "path": str(filepath.absolute()),
             "message": f"노트가 저장되었습니다: {filepath}",
         }
+    except Exception as e:
+        return {"success": False, "error": f"노트 저장 오류: {e!s}"}
 
-    except Exception:
-        logger.exception("노트 저장 오류")
-        return {
-            "success": False,
-            "error": f"노트 저장 중 오류 발생: {e!s}",
-        }
+
+# 액션 → 핸들러 매핑 (라우팅 테이블)
+_ACTION_HANDLERS = {
+    "weather": _handle_weather,
+    "calculate": _handle_calculate,
+    "write_note": _handle_write_note,
+}
+
+
+@mcp.tool()
+def assistant(req: AssistantRequest) -> dict[str, Any]:
+    """통합 도구: 날씨 조회, 수식 계산, 노트 저장을 하나의 도구로 수행합니다.
+
+    action 파라미터로 수행할 작업을 선택하고,
+    해당 action에 필요한 필드를 함께 전달하세요.
+
+    예시:
+    - 날씨: {"action": "weather", "city": "Seoul"}
+    - 계산: {"action": "calculate", "expression": "2 + 3 * 4"}
+    - 노트: {"action": "write_note", "content": "메모 내용", "filename": "memo.txt"}
+    """
+    logger.info("Tool 호출: assistant(action=%s)", req.action)
+
+    handler = _ACTION_HANDLERS[req.action]
+    return handler(req)
 
 
 # ============================================================================
@@ -534,23 +509,24 @@ async def test_server() -> None:
     logger.info("=" * 70)
 
     # 날씨 조회
-    weather_result = get_weather(WeatherQuery(city="Seoul", units="metric"))
+    weather_result = assistant(AssistantRequest(action="weather", city="Seoul"))
     logger.info(
         "날씨 조회 결과: %s\n", json.dumps(weather_result, ensure_ascii=False, indent=2)
     )
 
     # 계산
-    calc_result = calculate(CalculationRequest(expression="2 + 3 * 4"))
+    calc_result = assistant(AssistantRequest(action="calculate", expression="2 + 3 * 4"))
     logger.info(
         "계산 결과: %s\n", json.dumps(calc_result, ensure_ascii=False, indent=2)
     )
 
     # 노트 작성
-    note_result = write_note(
+    note_result = assistant(AssistantRequest(
+        action="write_note",
         content="MCP 서버 테스트 노트입니다.\n날짜: "
         + datetime.now(timezone.utc).isoformat(),
         filename="test_note.txt",
-    )
+    ))
     logger.info(
         "노트 저장 결과: %s\n", json.dumps(note_result, ensure_ascii=False, indent=2)
     )

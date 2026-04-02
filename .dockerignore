@@ -1,0 +1,11 @@
+.venv/
+.git/
+.claude/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+.env.example
+Day-01/
+Day-02/
+Day-03/
