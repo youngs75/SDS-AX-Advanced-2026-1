@@ -7,8 +7,6 @@
 - 프로젝트 전체 개요: [../code_index.md](../code_index.md)
 - A2A 통합: [a2a_integration/code_index.md](a2a_integration/code_index.md)
 - 설정: [config/code_index.md](config/code_index.md)
-- HITL 코어: [hitl/code_index.md](hitl/code_index.md)
-- HITL 웹 UI/API: [hitl_web/code_index.md](hitl_web/code_index.md)
 - LangGraph 에이전트: [lg_agents/code_index.md](lg_agents/code_index.md)
   - 베이스: [lg_agents/base/code_index.md](lg_agents/base/code_index.md)
   - Deep Research: [lg_agents/deep_research/code_index.md](lg_agents/deep_research/code_index.md)

@@ -57,7 +57,7 @@ def _build_request_handler(
     Args:
         executor: LangGraph를 래핑한 AgentExecutor 인스턴스.
         queue_manager: 커스텀 QueueManager. None이면 기본 InMemoryQueueManager 사용.
-        request_context_builder: 커스텀 RequestContextBuilder. 
+        request_context_builder: 커스텀 RequestContextBuilder.
             None이면 기본 SimpleRequestContextBuilder 사용.
 
     Returns:
@@ -106,7 +106,9 @@ def _build_request_handler(
             async def _auth_injector(request):
                 try:
                     if default_token:
-                        request.headers.setdefault("X-A2A-Notification-Token", default_token)
+                        request.headers.setdefault(
+                            "X-A2A-Notification-Token", default_token
+                        )
                     if hmac_secret:
                         ts = str(int(time.time()))
                         body = request.content or b""
@@ -115,7 +117,9 @@ def _build_request_handler(
                                 body = bytes(body)
                             except Exception:
                                 body = b""
-                        mac = hmac.new(hmac_secret.encode(), body + ts.encode(), hashlib.sha256).hexdigest()
+                        mac = hmac.new(
+                            hmac_secret.encode(), body + ts.encode(), hashlib.sha256
+                        ).hexdigest()
                         request.headers.setdefault("X-A2A-Timestamp", ts)
                         request.headers.setdefault("X-A2A-Signature", f"sha256={mac}")
                 except Exception:
@@ -131,8 +135,7 @@ def _build_request_handler(
     # TODO: MQ 기반 푸시 알림 구현 필요
     push_config_store = InMemoryPushNotificationConfigStore()
     push_sender = BasePushNotificationSender(
-        httpx_client=httpx_client, 
-        config_store=push_config_store
+        httpx_client=httpx_client, config_store=push_config_store
     )
     # TaskStore 선택: 환경변수로 Redis 전환 지원
     task_store = InMemoryTaskStore()
@@ -140,6 +143,7 @@ def _build_request_handler(
         use_redis = os.getenv("A2A_TASK_STORE", "memory").strip().lower() == "redis"
         if use_redis:
             from .redis_task_store import RedisTaskStore
+
             redis_url = os.getenv("A2A_TASK_REDIS_URL", "redis://localhost:6379/0")
             ttl = int(os.getenv("A2A_TASK_TTL_SECONDS", "0") or "0")
             task_store = RedisTaskStore(redis_url=redis_url, ttl_seconds=ttl)
@@ -153,14 +157,15 @@ def _build_request_handler(
         "push_config_store": push_config_store,
         "push_sender": push_sender,
     }
-    
+
     # 선택적 파라미터 추가 (None이 아닌 경우에만)
     if queue_manager is not None:
         handler_kwargs["queue_manager"] = queue_manager
     if request_context_builder is not None:
         handler_kwargs["request_context_builder"] = request_context_builder
-    
+
     return DefaultRequestHandler(**handler_kwargs)
+
 
 def _build_a2a_application(
     agent_card: AgentCard,
@@ -187,7 +192,7 @@ def _build_a2a_application(
         "agent_card": agent_card,
         "http_handler": handler,
     }
-    
+
     # 선택적 파라미터 추가 (None이 아닌 경우에만)
     if extended_agent_card is not None:
         app_kwargs["extended_agent_card"] = extended_agent_card
@@ -197,8 +202,9 @@ def _build_a2a_application(
         app_kwargs["card_modifier"] = card_modifier
     if extended_card_modifier is not None:
         app_kwargs["extended_card_modifier"] = extended_card_modifier
-    
+
     return A2AStarletteApplication(**app_kwargs)
+
 
 def create_agent_card(
     *,
@@ -242,6 +248,7 @@ def create_agent_card(
         capabilities=capabilities,
         skills=list(skills),
     )
+
 
 def to_a2a_starlette_server(
     *,
@@ -294,7 +301,10 @@ def to_a2a_starlette_server(
             ... )
     """
     from .a2a_lg_agent_executor import LangGraphWrappedA2AExecutor
-    executor = LangGraphWrappedA2AExecutor(graph=graph, result_extractor=result_extractor)
+
+    executor = LangGraphWrappedA2AExecutor(
+        graph=graph, result_extractor=result_extractor
+    )
     handler = _build_request_handler(
         executor,
         queue_manager=queue_manager,
@@ -309,6 +319,7 @@ def to_a2a_starlette_server(
         extended_card_modifier=extended_card_modifier,
     )
 
+
 def to_a2a_run_uvicorn(
     *,
     server_app: A2AStarletteApplication,
@@ -317,15 +328,17 @@ def to_a2a_run_uvicorn(
 ):
     import uvicorn
     from starlette.routing import Route
-    from starlette.responses import JSONResponse    
-    
+    from starlette.responses import JSONResponse
+
     app = server_app.build()
+
     async def health_check(request):
         return JSONResponse({"status": "healthy", "port": port})
 
     app.router.routes.append(Route("/health", health_check, methods=["GET"]))
 
-    config = uvicorn.Config(app, host=host, port=port, log_level="info", access_log=False)
+    config = uvicorn.Config(
+        app, host=host, port=port, log_level="info", access_log=False
+    )
     server = uvicorn.Server(config)
     server.run()
-

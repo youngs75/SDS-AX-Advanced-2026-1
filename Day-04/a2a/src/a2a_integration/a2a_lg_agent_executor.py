@@ -15,13 +15,25 @@ A2A SDK 0.3.11 기반으로 공식 AgentExecutor 패턴을 구현합니다.
 from typing import Any, Callable
 import json
 from langgraph.graph.state import CompiledStateGraph
-from langchain_core.messages import AIMessage, HumanMessage, convert_to_messages, filter_messages
+from langchain_core.messages import (
+    AIMessage,
+    HumanMessage,
+    convert_to_messages,
+    filter_messages,
+)
 from src.utils.logging_config import get_logger
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.tasks import TaskUpdater
-from a2a.types import InternalError, Part, TaskState, TextPart, DataPart, TaskNotFoundError
+from a2a.types import (
+    InternalError,
+    Part,
+    TaskState,
+    TextPart,
+    DataPart,
+    TaskNotFoundError,
+)
 from a2a.utils import new_agent_text_message, new_task, get_data_parts
 from a2a.utils.errors import ServerError
 from langgraph.types import Command
@@ -72,6 +84,7 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             """Annotated 타입을 언랩핑."""
             try:
                 from typing import get_origin, get_args
+
                 try:
                     from typing import Annotated as _Annotated  # Py3.9+
                 except ImportError:
@@ -95,11 +108,16 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             # Pydantic 모델(v2: model_fields, v1: __fields__) 처리 우선 시도
             try:
                 from pydantic import BaseModel as _PDBase
+
                 if isinstance(obj, type) and issubclass(obj, _PDBase):
-                    fields = getattr(obj, "model_fields", None) or getattr(obj, "__fields__", None)
+                    fields = getattr(obj, "model_fields", None) or getattr(
+                        obj, "__fields__", None
+                    )
                     return set(fields.keys()) if isinstance(fields, dict) else set()
                 if isinstance(obj, _PDBase):
-                    fields = getattr(obj, "model_fields", None) or getattr(obj, "__fields__", None)
+                    fields = getattr(obj, "model_fields", None) or getattr(
+                        obj, "__fields__", None
+                    )
                     return set(fields.keys()) if isinstance(fields, dict) else set()
             except Exception:
                 pass
@@ -116,6 +134,7 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             # typing generics (e.g., Dict[str, TypedDictClass] 등) 내부 타입들 검사
             try:
                 from typing import get_origin, get_args
+
                 origin = get_origin(obj)
                 if origin is not None:
                     args = get_args(obj) or ()
@@ -131,6 +150,7 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             # get_type_hints 시도 (include_extras=True -> Annotated 등 포함해서 해석)
             try:
                 from typing import get_type_hints
+
                 try:
                     hints = get_type_hints(obj, include_extras=True)
                 except TypeError:
@@ -166,6 +186,7 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             # 제네릭/튜플 내부의 가능한 타입들을 먼저 시도
             try:
                 from typing import get_origin, get_args
+
                 origin = get_origin(unwrapped_schema)
                 if origin is not None:
                     args = get_args(unwrapped_schema) or ()
@@ -203,7 +224,9 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             return value
         return value
 
-    def _build_graph_input_from_payload(self, payload: dict[str, Any] | None, query: str | None) -> dict[str, Any]:
+    def _build_graph_input_from_payload(
+        self, payload: dict[str, Any] | None, query: str | None
+    ) -> dict[str, Any]:
         """그래프 입력 스키마를 반영해 DataPart payload를 범용적으로 매핑한다.
 
         우선순위:
@@ -214,7 +237,9 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
            둘 다 없으면 {"messages": [HumanMessage(query)]}
         """
         expected_fields = self._get_graph_input_field_names()
-        base_messages = [HumanMessage(content=str(query))] if (query and str(query)) else []
+        base_messages = (
+            [HumanMessage(content=str(query))] if (query and str(query)) else []
+        )
         if not isinstance(payload, dict):
             payload = {}
 
@@ -226,7 +251,9 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                 if field in payload:
                     value = payload[field]
                     if self._looks_like_messages_field(field):
-                        graph_input[field] = self._convert_to_lc_messages_if_needed(value)
+                        graph_input[field] = self._convert_to_lc_messages_if_needed(
+                            value
+                        )
                     else:
                         graph_input[field] = value
                 else:
@@ -244,12 +271,14 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             return graph_input
 
         # 스키마가 없는 경우: 관용적 처리
-        input_messages = (
-            payload.get("messages")
-            or (payload.get("conversation", {}) or {}).get("messages")
-        )
+        input_messages = payload.get("messages") or (
+            payload.get("conversation", {}) or {}
+        ).get("messages")
         if isinstance(input_messages, list) and input_messages:
-            return {"messages": self._convert_to_lc_messages_if_needed(input_messages), **{k: v for k, v in payload.items() if k not in ("messages",)}}
+            return {
+                "messages": self._convert_to_lc_messages_if_needed(input_messages),
+                **{k: v for k, v in payload.items() if k not in ("messages",)},
+            }
         return {"messages": base_messages or [HumanMessage(content="")], **payload}
 
     def _default_extract_text(self, result: dict[str, Any]) -> str:
@@ -284,11 +313,13 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                         if isinstance(part.get("text"), str):
                             pieces.append(part["text"])
                         # 출력 전용 텍스트 타입
-                        elif part.get("type") in {"output_text", "text"} and isinstance(part.get("text"), str):
-                            pieces.append(part["text"]) 
+                        elif part.get("type") in {"output_text", "text"} and isinstance(
+                            part.get("text"), str
+                        ):
+                            pieces.append(part["text"])
                         # 일부 라이브러리는 content에 텍스트를 실을 수 있음
                         elif isinstance(part.get("content"), str):
-                            pieces.append(part["content"]) 
+                            pieces.append(part["content"])
                     else:
                         text_attr = getattr(part, "text", None)
                         if isinstance(text_attr, str):
@@ -387,7 +418,9 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
         # 최종 완전 대체: 중첩 구조에서 문자열 수집 후 반환
         strings = collect_strings(result)
         if strings:
-            return "\n".join([s for s in strings if isinstance(s, str) and s.strip()][:3]).strip()
+            return "\n".join(
+                [s for s in strings if isinstance(s, str) and s.strip()][:3]
+            ).strip()
         return ""
 
     def _extract_interrupt_payload(self, chunk: Any) -> Any | None:
@@ -442,15 +475,24 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
         - 메시지 객체 등 비직렬화 가능한 값은 제외하고, 최소 필드만 반환
         - 허용 키: notes(list[str]), raw_notes(list[str]), research_brief(str), final_report(str)
         """
-        allowed_keys: set[str] = {"notes", "raw_notes", "research_brief", "final_report"}
+        allowed_keys: set[str] = {
+            "notes",
+            "raw_notes",
+            "research_brief",
+            "final_report",
+        }
 
         def is_json_compat(value: Any) -> bool:
             if isinstance(value, (str, int, float, bool)) or value is None:
                 return True
             if isinstance(value, list):
-                return all(isinstance(x, (str, int, float, bool)) or x is None for x in value)
+                return all(
+                    isinstance(x, (str, int, float, bool)) or x is None for x in value
+                )
             if isinstance(value, dict):
-                return all(isinstance(k, str) and is_json_compat(v) for k, v in value.items())
+                return all(
+                    isinstance(k, str) and is_json_compat(v) for k, v in value.items()
+                )
             return False
 
         extracted: dict[str, Any] = {}
@@ -488,7 +530,6 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
         # notes/raw_notes가 없고 research_brief만 있는 경우도 허용
         safe_extracted = {k: v for k, v in extracted.items() if is_json_compat(v)}
         return safe_extracted
-
 
     def _find_messages_list(self, result: dict[str, Any]) -> list[Any] | None:
         """청크(dict)에서 messages 리스트를 탐색해 반환.
@@ -556,10 +597,11 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
         if not task:
             task = new_task(context.message)
             await event_queue.enqueue_event(task)
-        
+
         # 태스크 업데이트 준비
         updater = TaskUpdater(event_queue, task.id, task.context_id)
-        await updater.update_status(TaskState.submitted) # Submitted 상태로 변경
+        await updater.update_status(TaskState.submitted)  # Submitted 상태로 변경
+
         try:
             # 그래프 입력 구성: JSON(DataPart) 이면 메시지 필드를 LangChain 메시지로 변환,
             # 아니면 기본 텍스트 입력을 안전한 기본 키들에 주입
@@ -573,20 +615,26 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                     else:
                         root = getattr(last_part, "root", None)
                         payload = getattr(root, "data", None)
-                    logger.info(f"A2A Agent 요청 처리 시작 - DataPart payload: {payload}")
+                    logger.info(
+                        f"A2A Agent 요청 처리 시작 - DataPart payload: {payload}"
+                    )
                     if isinstance(payload, dict) and payload:
-                        graph_input = self._build_graph_input_from_payload(payload, query)
+                        graph_input = self._build_graph_input_from_payload(
+                            payload, query
+                        )
                     else:
                         graph_input = self._build_graph_input_from_payload({}, query)
                 except Exception as e:
-                    logger.warning(f"DataPart 파싱 실패, 기본 텍스트 입력으로 진행: {e}")
+                    logger.warning(
+                        f"DataPart 파싱 실패, 기본 텍스트 입력으로 진행: {e}"
+                    )
                     graph_input = self._build_graph_input_from_payload({}, query)
             else:
                 graph_input = self._build_graph_input_from_payload({}, query)
 
             last_result: Any | None = None
             accumulated_text: str = ""
-            await updater.start_work() # Working 상태로 변경
+            await updater.start_work()  # Working 상태로 변경
             logger.info(f"A2A Agent 요청 처리 시작 - LangGraph Input: {graph_input}")
 
             # 동일한 대화 쓰레드를 위해 thread_id 지정 (태스크 ID 기반 고정)
@@ -597,7 +645,9 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             is_resume = False
             try:
                 task_status = getattr(task, "status", None)
-                state_value = getattr(getattr(task_status, "state", None), "value", None) or getattr(task_status, "state", None)
+                state_value = getattr(
+                    getattr(task_status, "state", None), "value", None
+                ) or getattr(task_status, "state", None)
                 # state 가 Enum 이면 .value, 문자열이면 그대로 비교
                 if str(state_value) in {"input-required", "input_required"}:
                     is_resume = True
@@ -612,7 +662,13 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                 payload = None
                 if incoming_parts:
                     try:
-                        payload = incoming_parts[-1] if isinstance(incoming_parts[-1], dict) else getattr(getattr(incoming_parts[-1], "root", None), "data", None)
+                        payload = (
+                            incoming_parts[-1]
+                            if isinstance(incoming_parts[-1], dict)
+                            else getattr(
+                                getattr(incoming_parts[-1], "root", None), "data", None
+                            )
+                        )
                     except Exception:
                         payload = None
                 if isinstance(payload, dict):
@@ -624,23 +680,30 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                 if resume_value is None and isinstance(query, str) and query.strip():
                     resume_value = query.strip()
 
-            invoke_input: Any = Command(resume=resume_value) if is_resume else graph_input
+            invoke_input: Any = (
+                Command(resume=resume_value) if is_resume else graph_input
+            )
 
             import asyncio
+
             # 스트리밍 코얼레싱: 시간/문자 기준 + 최대 지연 캡 적용
-            emit_interval = float(os.getenv("A2A_STREAM_EMIT_INTERVAL_MS", "100")) / 1000.0
+            emit_interval = (
+                float(os.getenv("A2A_STREAM_EMIT_INTERVAL_MS", "100")) / 1000.0
+            )
             min_chars = int(os.getenv("A2A_STREAM_MIN_CHARS", "24"))
             max_latency = float(os.getenv("A2A_STREAM_MAX_LATENCY_MS", "300")) / 1000.0
             last_emit_ts = 0.0
             last_any_emit_ts = 0.0
             accum_buffer: list[str] = []
             current_task_id = str(thread_id)
-
+            # 에이전트: 랭그래프 / CrewAI, ...
             gen = self.graph.astream(invoke_input, config=config)
 
             # 스트림 전 구간에서 발견되는 구조화 데이터를 누적 수집한다
             # (일부 그래프는 마지막 청크에 최종 상태가 실리지 않아 notes가 손실될 수 있음)
-            def _merge_structured_dicts(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
+            def _merge_structured_dicts(
+                a: dict[str, Any], b: dict[str, Any]
+            ) -> dict[str, Any]:
                 merged: dict[str, Any] = dict(a or {})
                 if not isinstance(b, dict):
                     return merged
@@ -653,13 +716,20 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                     if isinstance(prev, list) and isinstance(v, list):
                         seen: set[str] = set()
                         combined: list[Any] = []
+
                         def _as_key(item: Any) -> str:
                             try:
-                                if isinstance(item, (str, int, float, bool)) or item is None:
+                                if (
+                                    isinstance(item, (str, int, float, bool))
+                                    or item is None
+                                ):
                                     return str(item)
-                                return __import__("json").dumps(item, sort_keys=True, default=str)
+                                return __import__("json").dumps(
+                                    item, sort_keys=True, default=str
+                                )
                             except Exception:
                                 return str(item)
+
                         for item in prev + v:
                             key = _as_key(item)
                             if key in seen:
@@ -686,9 +756,11 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             hb_task = None
             start_monotonic = asyncio.get_event_loop().time()
             flush_count = 0
+
             async def _heartbeat_loop():
                 import asyncio as _aio
                 from datetime import datetime as _dt
+
                 while True:
                     await _aio.sleep(max(0.1, heartbeat_interval))
                     if heartbeat_interval <= 0:
@@ -711,6 +783,7 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             # 하트비트 태스크 시작
             if heartbeat_interval and heartbeat_interval > 0:
                 import asyncio as _aio
+
                 hb_task = _aio.create_task(_heartbeat_loop())
             async for chunk in gen:
                 # 외부에서 취소 요청이 온 경우 조기 종료
@@ -739,8 +812,12 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                     # 메시지 구성: payload 에 question/action 키가 있으면 우선 사용
                     try:
                         if isinstance(interrupt_payload, dict):
-                            question = interrupt_payload.get("question") or interrupt_payload.get("action")
-                            prompt_str = question or json.dumps(interrupt_payload, ensure_ascii=False)
+                            question = interrupt_payload.get(
+                                "question"
+                            ) or interrupt_payload.get("action")
+                            prompt_str = question or json.dumps(
+                                interrupt_payload, ensure_ascii=False
+                            )
                         else:
                             prompt_str = str(interrupt_payload)
                     except Exception:
@@ -774,7 +851,9 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                 try:
                     chunk_struct = self._extract_structured_output(chunk)
                     if chunk_struct:
-                        structured_accumulated = _merge_structured_dicts(structured_accumulated, chunk_struct)
+                        structured_accumulated = _merge_structured_dicts(
+                            structured_accumulated, chunk_struct
+                        )
                 except Exception:
                     pass
 
@@ -782,12 +861,18 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                     partial_text = self._extract_ai_text_for_stream(chunk) or ""
                     if partial_text:
                         # 증가분 계산
-                        if accumulated_text and partial_text.startswith(accumulated_text):
-                            delta = partial_text[len(accumulated_text):]
+                        if accumulated_text and partial_text.startswith(
+                            accumulated_text
+                        ):
+                            delta = partial_text[len(accumulated_text) :]
                         else:
                             common_prefix_len = 0
                             max_len = min(len(accumulated_text), len(partial_text))
-                            while common_prefix_len < max_len and accumulated_text[common_prefix_len] == partial_text[common_prefix_len]:
+                            while (
+                                common_prefix_len < max_len
+                                and accumulated_text[common_prefix_len]
+                                == partial_text[common_prefix_len]
+                            ):
                                 common_prefix_len += 1
                             delta = partial_text[common_prefix_len:]
 
@@ -815,7 +900,9 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                                     flush_count += 1
                                     await updater.update_status(
                                         TaskState.working,
-                                        new_agent_text_message(text_to_send, task.context_id, task.id),
+                                        new_agent_text_message(
+                                            text_to_send, task.context_id, task.id
+                                        ),
                                     )
                 except Exception:
                     pass
@@ -860,26 +947,28 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                         first = False
                         start = end
                 else:
-                    await updater.add_artifact(
-                        [Part(root=TextPart(text=final_text))]
-                    )
+                    await updater.add_artifact([Part(root=TextPart(text=final_text))])
             except Exception:
                 # 청크 전송 실패 시 단일 아티팩트로 폴백
                 try:
-                    await updater.add_artifact(
-                        [Part(root=TextPart(text=final_text))]
-                    )
+                    await updater.add_artifact([Part(root=TextPart(text=final_text))])
                 except Exception:
                     pass
 
             # Markdown 파트로 최종 보고서를 함께 제공 (text/markdown 힌트 포함)
             try:
-                await updater.add_artifact([
-                    Part(root=DataPart(data={
-                        "content_type": "text/markdown",
-                        "text": final_text
-                    }))
-                ])
+                await updater.add_artifact(
+                    [
+                        Part(
+                            root=DataPart(
+                                data={
+                                    "content_type": "text/markdown",
+                                    "text": final_text,
+                                }
+                            )
+                        )
+                    ]
+                )
             except Exception:
                 pass
 
@@ -887,9 +976,15 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             try:
                 # 누적 수집된 구조화 데이터가 있으면 우선 사용하며,
                 # 클라이언트 병합의 편의를 위해 최상위 키로 바로 내보낸다.
-                structured_payload = dict(structured_accumulated) if structured_accumulated else self._extract_structured_output(last_result or {})
+                structured_payload = (
+                    dict(structured_accumulated)
+                    if structured_accumulated
+                    else self._extract_structured_output(last_result or {})
+                )
                 if structured_payload:
-                    await updater.add_artifact([Part(root=DataPart(data=structured_payload))])
+                    await updater.add_artifact(
+                        [Part(root=DataPart(data=structured_payload))]
+                    )
             except Exception:
                 # 구조 데이터가 직렬화 불가한 경우 무시하고 텍스트만 제공
                 pass
@@ -908,7 +1003,7 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                 pass
 
         except Exception as e:
-            logger.error(f'A2A 실행 중 오류: {e}')
+            logger.error(f"A2A 실행 중 오류: {e}")
             # TaskStatus.message 는 Message 타입이어야 함
             error_message = new_agent_text_message(
                 f"A2A 실행 중 오류: {e}", task.context_id, task.id
@@ -916,11 +1011,20 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
             await updater.failed(message=error_message)
             # 구조화 에러 아티팩트 동봉
             try:
-                await updater.add_artifact([
-                    Part(root=DataPart(data={
-                        "error": {"type": type(e).__name__, "message": str(e)}
-                    }))
-                ])
+                await updater.add_artifact(
+                    [
+                        Part(
+                            root=DataPart(
+                                data={
+                                    "error": {
+                                        "type": type(e).__name__,
+                                        "message": str(e),
+                                    }
+                                }
+                            )
+                        )
+                    ]
+                )
             except Exception:
                 pass
             # 취소 플래그 정리 (오류 시)
@@ -930,17 +1034,18 @@ class LangGraphWrappedA2AExecutor(AgentExecutor):
                 pass
             raise ServerError(error=InternalError()) from e
 
-    async def cancel(
-        self,
-        context: RequestContext,
-        event_queue: EventQueue
-    ) -> None:
+    async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
         task = context.current_task
         if not task:
             raise ServerError(error=TaskNotFoundError())
 
         updater = TaskUpdater(event_queue, task.id, task.context_id)
-        message = new_agent_text_message("사용자의 요청으로 작업이 취소되었습니다.", task.context_id, task.id)
+        message = new_agent_text_message(
+            "사용자의 요청으로 작업이 취소되었습니다.", task.context_id, task.id
+        )
+        # NOTE: 랭그래프 작업의 취소.
+        await graph.ainvoke([{}], confi={})
+
         await event_queue.enqueue_event(message)
         await updater.cancel(message)
 
