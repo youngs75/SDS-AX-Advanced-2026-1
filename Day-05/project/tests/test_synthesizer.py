@@ -115,3 +115,5 @@ class TestCSVExportImport:
         items = import_reviewed_csv(csv_path, golden_path, only_approved=False)
 
         assert len(items) == 2
+        assert items[0]["approved"] is True
+        assert items[1]["approved"] is False

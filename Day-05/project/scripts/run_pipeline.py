@@ -1,8 +1,22 @@
 #!/usr/bin/env python3
-"""Day3 AI Agent Ops 통합 파이프라인 실행 스크립트.
+"""프로젝트 전체 루프를 제어하는 통합 실행 스크립트.
 
-8개 단계를 하나의 CLI로 통합하여 순서대로 실행할 수 있습니다.
-각 단계는 독립적으로 실행하거나, 범위를 지정하여 연속 실행할 수 있습니다.
+이 파일은 "Golden 생성 이후의 평가/모니터링/개선까지 포함한 전체 흐름"을
+한 곳에서 실행하기 위한 오케스트레이터입니다.
+
+언제 이 파일을 쓰면 되는가?
+    - Loop 1만이 아니라 Loop 2 평가까지 이어서 돌리고 싶을 때
+    - 특정 단계만 골라서 실행하고 싶을 때
+    - `--step`, `--from`, `--to`로 실행 범위를 세밀하게 제어하고 싶을 때
+
+언제 이 파일보다 `run_golden_openai.py`가 더 적합한가?
+    - OpenAI direct 기본값으로 Golden Dataset만 빠르게 만들고 싶을 때
+    - 초보자 입장에서 가장 간단한 Golden 생성 명령이 필요할 때
+
+중요한 구조:
+    - 예전처럼 step별 스크립트 파일을 여러 개 두지 않고,
+      이제는 이 파일 안의 `stepX_*` 함수들이 내부 단계 역할을 담당합니다.
+    - 즉, Step 1~8은 여전히 존재하지만, 별도 파일이 아니라 이 오케스트레이터 안에 모여 있습니다.
 
 파이프라인 단계:
     Step 1: Synthetic Dataset 생성 (DeepEval Synthesizer)
@@ -66,7 +80,7 @@ def _parse_metric_threshold_pairs(items: list[str] | None) -> dict[str, float]:
 def step1_generate_synthetic(
     *,
     num_goldens: int = 10,
-    max_contexts: int = 3,
+    max_contexts: int | None = None,
 ) -> list[dict]:
     """Step 1: Synthetic Dataset을 생성합니다.
 
@@ -75,7 +89,7 @@ def step1_generate_synthetic(
 
     Args:
         num_goldens: 생성할 항목 수 (기본: 10)
-        max_contexts: 항목당 최대 컨텍스트 수 (기본: 3)
+        max_contexts: 문서당 최대 생성 수. None이면 자동 계산
 
     Returns:
         생성된 합성 데이터 딕셔너리 리스트
@@ -174,6 +188,7 @@ def step4_build_golden(
     *,
     num_goldens: int = 10,
     skip_review: bool = False,
+    agent_module: str = "src.my_agent",
 ) -> list[dict]:
     """Step 4: Golden Dataset을 확정합니다 (Loop 1 오케스트레이터).
 
@@ -183,6 +198,7 @@ def step4_build_golden(
     Args:
         num_goldens: 생성할 Golden 항목 수 (기본: 10)
         skip_review: Human Review 단계 건너뛰기 (기본: False)
+        agent_module: expected_tools를 생성할 agent 모듈 경로
 
     Returns:
         확정된 Golden Dataset 딕셔너리 리스트
@@ -192,6 +208,7 @@ def step4_build_golden(
     golden_items = build_golden_dataset(
         num_goldens=num_goldens,
         skip_review=skip_review,
+        agent_module=agent_module,
     )
     print(f"  Golden Dataset 확정: {len(golden_items)}건")
     return golden_items
@@ -200,6 +217,7 @@ def step4_build_golden(
 def step5_run_evaluation(
     *,
     categories: list[str] | None = None,
+    agent_module: str = "src.my_agent",
     sample_ratio: float | None = None,
     sample_size: int | None = None,
     sample_seed: int = 42,
@@ -211,7 +229,8 @@ def step5_run_evaluation(
     결과는 data/eval_results/eval_results.json에 저장됩니다.
 
     Args:
-        categories: 메트릭 카테고리 목록 (기본: ["rag", "custom"])
+        categories: 메트릭 카테고리 목록 (기본: ["rag", "custom", "agent"])
+        agent_module: 평가 대상 agent 모듈 경로 (기본: src.my_agent)
         sample_ratio: Golden Dataset 샘플링 비율 (0.0~1.0)
         sample_size: Golden Dataset 샘플 최대 건수 상한
         sample_seed: deterministic 샘플링 시드
@@ -222,9 +241,10 @@ def step5_run_evaluation(
     """
     from src.loop2_evaluation.batch_evaluator import evaluate_golden_dataset
 
-    cats = categories or ["rag", "custom"]
+    cats = categories or ["rag", "custom", "agent"]
     results = evaluate_golden_dataset(
         metric_categories=cats,
+        agent_module=agent_module,
         sample_ratio=sample_ratio,
         max_sample_size=sample_size,
         sample_seed=sample_seed,
@@ -237,7 +257,10 @@ def step5_run_evaluation(
     for r in results:
         status = "PASS" if r["passed"] else "FAIL"
         scores_str = ", ".join(f"{k}={v:.2f}" for k, v in r["scores"].items())
-        print(f"    [{status}] {r.get('id', 'N/A')}: {scores_str}")
+        if r.get("execution_error"):
+            print(f"    [{status}] {r.get('id', 'N/A')}: execution_error={r['execution_error']}")
+        else:
+            print(f"    [{status}] {r.get('id', 'N/A')}: {scores_str}")
 
     return results
 
@@ -456,6 +479,7 @@ async def run_pipeline(
     skip_review: bool = False,
     num_goldens: int = 10,
     categories: list[str] | None = None,
+    agent_module: str = "src.my_agent",
     eval_sample_ratio: float | None = None,
     eval_sample_size: int | None = None,
     eval_sample_seed: int = 42,
@@ -487,6 +511,7 @@ async def run_pipeline(
         skip_review: Step 4에서 Human Review 건너뛰기
         num_goldens: Synthetic/Golden 생성 항목 수
         categories: DeepEval 메트릭 카테고리
+        agent_module: Step 5에서 평가할 agent 모듈 경로
         eval_sample_ratio: Step 5 Golden 샘플링 비율 (0.0~1.0)
         eval_sample_size: Step 5 샘플 최대 건수 상한
         eval_sample_seed: Step 5 deterministic 샘플링 시드
@@ -519,7 +544,8 @@ async def run_pipeline(
     print(f"  실행 단계: {steps_to_run}")
     print(f"  Human Review 건너뛰기: {skip_review}")
     print(f"  Golden 항목 수: {num_goldens}")
-    print(f"  메트릭 카테고리: {categories or ['rag', 'custom']}")
+    print(f"  메트릭 카테고리: {categories or ['rag', 'custom', 'agent']}")
+    print(f"  평가 agent 모듈: {agent_module}")
     print(f"  Step5 sample_ratio: {eval_sample_ratio}")
     print(f"  Step5 sample_size: {eval_sample_size}")
     print(f"  Step5 sample_seed: {eval_sample_seed}")
@@ -563,10 +589,12 @@ async def run_pipeline(
                 result = step_info["func"](
                     num_goldens=num_goldens,
                     skip_review=skip_review,
+                    agent_module=agent_module,
                 )
             elif step_num == 5:
                 result = step_info["func"](
                     categories=categories,
+                    agent_module=agent_module,
                     sample_ratio=eval_sample_ratio,
                     sample_size=eval_sample_size,
                     sample_seed=eval_sample_seed,
@@ -722,7 +750,13 @@ def main():
         "--categories",
         nargs="+",
         default=None,
-        help="DeepEval 메트릭 카테고리 (기본: rag custom)",
+        help="DeepEval 메트릭 카테고리 (기본: rag custom agent)",
+    )
+    parser.add_argument(
+        "--agent-module",
+        type=str,
+        default="src.my_agent",
+        help="Step 5에서 평가할 agent 모듈 경로 (기본: src.my_agent)",
     )
     parser.add_argument(
         "--eval-sample-ratio",
@@ -869,6 +903,7 @@ def main():
             skip_review=args.skip_review,
             num_goldens=args.num_goldens,
             categories=args.categories,
+            agent_module=args.agent_module,
             eval_sample_ratio=args.eval_sample_ratio,
             eval_sample_size=args.eval_sample_size,
             eval_sample_seed=args.eval_sample_seed,

@@ -51,7 +51,6 @@ class MetricsRegistry:
     def __init__(self):
         # None: 아직 초기화되지 않음을 표시
         self._rag_metrics: list | None = None
-        self._agent_metrics: list | None = None
         self._custom_metrics: list | None = None
 
     @property
@@ -61,12 +60,13 @@ class MetricsRegistry:
             self._rag_metrics = create_rag_metrics()
         return self._rag_metrics
 
-    @property
-    def agent_metrics(self) -> list:
-        """Agent 메트릭 2개를 반환합니다 (최초 호출 시 생성)."""
-        if self._agent_metrics is None:
-            self._agent_metrics = create_agent_metrics()
-        return self._agent_metrics
+    def agent_metrics(self, *, available_tools: list | None = None) -> list:
+        """Agent 메트릭 2개를 반환합니다.
+
+        agent 메트릭은 평가 대상 agent의 available_tools에 따라 달라질 수 있으므로
+        고정 캐시 대신 호출 시마다 생성합니다.
+        """
+        return create_agent_metrics(available_tools=available_tools)
 
     @property
     def custom_metrics(self) -> list:
@@ -83,12 +83,11 @@ class MetricsRegistry:
             ]
         return self._custom_metrics
 
-    @property
-    def all_metrics(self) -> list:
+    def all_metrics(self, *, available_tools: list | None = None) -> list:
         """전체 13개 메트릭을 반환합니다."""
-        return self.rag_metrics + self.agent_metrics + self.custom_metrics
+        return self.rag_metrics + self.agent_metrics(available_tools=available_tools) + self.custom_metrics
 
-    def get_metrics_by_category(self, category: str) -> list:
+    def get_metrics_by_category(self, category: str, *, available_tools: list | None = None) -> list:
         """카테고리명으로 메트릭을 조회합니다.
 
         Args:
@@ -104,11 +103,11 @@ class MetricsRegistry:
             case "rag":
                 return self.rag_metrics
             case "agent":
-                return self.agent_metrics
+                return self.agent_metrics(available_tools=available_tools)
             case "custom":
                 return self.custom_metrics
             case "all":
-                return self.all_metrics
+                return self.all_metrics(available_tools=available_tools)
             case _:
                 raise ValueError(
                     f"알 수 없는 카테고리: {category}. rag, agent, custom, all 중 하나를 사용하세요."

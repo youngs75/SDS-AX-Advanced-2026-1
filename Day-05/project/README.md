@@ -32,7 +32,7 @@ flowchart LR
 ### 환경 설치
 
 ```bash
-cd /Users/jhj/Desktop/personal/fastcampus_agentops_class/Day3/project
+cd /Users/jhj/Desktop/2026_1_sds_ax_advanced/Day-05/project
 python3.13 -m venv .venv
 .venv/bin/pip install -U pip
 .venv/bin/pip install -e .
@@ -45,24 +45,35 @@ cp .env.example .env
 ```
 
 `.env` 필수/핵심 값:
-- `OPENROUTER_API_KEY`
-- `OPENROUTER_MODEL_NAME`
+- `OPENAI_API_KEY` 또는 `OPENROUTER_API_KEY`
+- `OPENAI_MODEL_NAME` 또는 `OPENROUTER_MODEL_NAME`
 - `LANGFUSE_HOST`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` (Step 6 운영 시)
 
 ---
 
 ## 3) 실제 실행 경로 (운영 시나리오별)
 
+### 권장 진입점
+
+헷갈리지 않게 기본적으로 아래 두 개만 기억하면 됩니다.
+
+- Loop 1 Golden 생성: `scripts/run_golden_openai.py`
+- 전체 파이프라인: `scripts/run_pipeline.py`
+
 ### A. Golden Dataset 준비 (Loop 1)
 
 ```bash
-# 1~4단계 한번에 (리뷰 생략)
-.venv/bin/python scripts/run_pipeline.py --from 1 --to 4 --skip-review --num-goldens 50
+# OpenAI direct + gpt-5.4-mini 기본값으로 Golden 생성
+.venv/bin/python scripts/run_golden_openai.py --num-goldens 4
+
+# 또는 전체 Loop 1을 통합 파이프라인으로 실행
+.venv/bin/python scripts/run_pipeline.py --from 1 --to 4 --skip-review --num-goldens 4
 ```
 
 리뷰를 포함하려면:
-1. `Step 2`에서 생성된 CSV 리뷰
-2. `Step 3` 재실행으로 반영
+1. `.venv/bin/python scripts/run_golden_openai.py --num-goldens 4 --with-review`
+2. 생성된 `data/review/review_dataset.csv` 리뷰
+3. `.venv/bin/python scripts/run_golden_openai.py --reviewed-csv data/review/review_dataset.csv`
 
 ---
 
@@ -163,7 +174,7 @@ Step 6은 DeepEval 호출 없이 Langfuse score만 집계합니다.
 ## 7) 비용 없는(LLM 호출 없는) 사전 점검
 ```bash
 .venv/bin/python scripts/run_pipeline.py --help
-.venv/bin/python scripts/05_run_eval.py --help
+.venv/bin/python scripts/run_golden_openai.py --help
 .venv/bin/pytest tests/test_golden_sampling.py tests/test_langfuse_sampling.py tests/test_prompt_optimizer.py tests/test_custom_metrics.py -q
 .venv/bin/python -m compileall src scripts tests
 ```

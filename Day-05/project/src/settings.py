@@ -9,8 +9,8 @@ Pydantic BaseSettings를 사용하여 환경변수 기반 설정을 관리합니
     print(settings.openrouter_api_key)  # .env의 OPENROUTER_API_KEY 값
 
 Day2와의 차이점:
-    - vLLM 대신 OpenRouter를 단일 LLM 게이트웨이로 사용
-    - Day3 전용 필드 (openrouter_api_key, openrouter_model_name)
+    - OpenRouter와 OpenAI direct 호출을 모두 지원
+    - Day3 전용 필드 (llm_provider, openrouter/openai 설정)
     - 싱글턴 패턴으로 Settings 인스턴스를 캐싱
 """
 
@@ -20,6 +20,15 @@ from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# src/settings.py 기준으로
+# parents[1] = Day-05/project
+# parents[2] = Day-05
+#
+# 수업 환경에서는 Day-05 루트에 실제 API 키가 있고,
+# project/.env는 예제/로컬 설정일 수 있어서 Day-05/.env를 먼저 읽게 합니다.
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+_DAY_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -32,8 +41,11 @@ class Settings(BaseSettings):
         env: 실행 환경 (local, staging, prod)
         service_name: 서비스 식별자 (Langfuse 태깅용)
         app_version: 애플리케이션 버전
-        openrouter_api_key: OpenRouter API 키 (모든 LLM 호출에 사용)
-        openrouter_model_name: 기본 모델명 (예: openai/gpt-4.1)
+        llm_provider: 사용할 LLM provider ("openrouter" 또는 "openai")
+        openrouter_api_key: OpenRouter API 키
+        openrouter_model_name: OpenRouter 기본 모델명
+        openai_api_key: OpenAI API 키
+        openai_model_name: OpenAI direct 기본 모델명
         langfuse_host: Langfuse 서버 URL
         langfuse_public_key: Langfuse Public Key
         langfuse_secret_key: Langfuse Secret Key
@@ -44,18 +56,31 @@ class Settings(BaseSettings):
     """
 
     # SettingsConfigDict: .env 파일 자동 로드, 알 수 없는 필드는 무시
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=(
+            str(_DAY_ROOT / ".env"),
+            str(_PROJECT_ROOT / ".env"),
+            ".env",
+        ),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # ── 런타임 식별 ──────────────────────────────────────────
     env: str = Field(default="local", alias="ENV")
     service_name: str = Field(default="agent-ops-day3", alias="SERVICE_NAME")
     app_version: str = Field(default="0.1.0", alias="APP_VERSION")
 
-    # ── OpenRouter (LLM 단일 게이트웨이) ─────────────────────
-    # OpenRouter는 다양한 LLM 프로바이더를 하나의 API로 통합합니다.
-    # base_url: https://openrouter.ai/api/v1 (OpenAI SDK 호환)
+    # ── LLM Provider ────────────────────────────────────────
+    llm_provider: str = Field(default="openrouter", alias="LLM_PROVIDER")
+
+    # ── OpenRouter ──────────────────────────────────────────
     openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
     openrouter_model_name: str = Field(default="openai/gpt-4.1", alias="OPENROUTER_MODEL_NAME")
+
+    # ── OpenAI Direct ───────────────────────────────────────
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+    openai_model_name: str = Field(default="gpt-4.1", alias="OPENAI_MODEL_NAME")
 
     # ── Langfuse (관측성 플랫폼) ─────────────────────────────
     # Langfuse가 설정되지 않으면 관측성 기능은 자동으로 비활성화됩니다.

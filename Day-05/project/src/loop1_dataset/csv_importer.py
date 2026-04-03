@@ -97,7 +97,7 @@ def import_reviewed_csv(
             "context": context_list,
             "source_file": str(row.get("source_file", "")),
             "synthetic_input_quality": float(row.get("synthetic_input_quality", 0.0)),
-            "approved": True,
+            "approved": approved,
             "feedback": str(row.get("feedback", "")) if pd.notna(row.get("feedback")) else "",
             "reviewer": str(row.get("reviewer", "")) if pd.notna(row.get("reviewer")) else "",
         }

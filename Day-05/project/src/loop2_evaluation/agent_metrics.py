@@ -29,12 +29,14 @@ from deepeval.metrics import (
     TaskCompletionMetric,
     ToolCorrectnessMetric,
 )
+from deepeval.test_case import ToolCall
 
 from src.llm.deepeval_model import get_deepeval_model
 
 
 def create_agent_metrics(
     *,
+    available_tools: list[ToolCall] | None = None,
     task_completion_threshold: float = 0.7,
     tool_correctness_threshold: float = 0.5,
 ) -> list:
@@ -51,5 +53,9 @@ def create_agent_metrics(
 
     return [
         TaskCompletionMetric(model=model, threshold=task_completion_threshold),
-        ToolCorrectnessMetric(model=model, threshold=tool_correctness_threshold),
+        ToolCorrectnessMetric(
+            model=model,
+            threshold=tool_correctness_threshold,
+            available_tools=available_tools or [],
+        ),
     ]
