@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "langfuse-docs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://langfuse.com/api/mcp"
+      ]
+    }
+  }
+}

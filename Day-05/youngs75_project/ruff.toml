@@ -1,0 +1,33 @@
+target-version = "py313"
+line-length = 100
+
+[lint]
+select = [
+  "E",    # pycodestyle errors
+  "W",    # pycodestyle warnings
+  "F",    # pyflakes
+  "I",    # isort
+  "UP",   # pyupgrade
+  "B",    # flake8-bugbear
+  "SIM",  # flake8-simplify
+  "RUF",  # ruff-specific rules
+]
+ignore = [
+  "E501",   # line-too-long (formatter가 처리)
+  "B008",   # function-call-in-default-argument (FastAPI/LangChain 패턴에서 흔함)
+  "SIM108", # use-ternary-operator (가독성 우선)
+  "RUF012", # mutable-class-default (Pydantic 모델에서 흔함)
+]
+fixable = ["ALL"]
+
+[lint.isort]
+known-first-party = ["src"]
+
+[lint.per-file-ignores]
+"tests/**" = ["B011", "SIM300"]
+"scripts/**" = ["B018"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
