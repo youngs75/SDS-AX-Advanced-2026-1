@@ -5,14 +5,14 @@
 #   Agent:     SimpleReAct(:18081) + DeepResearch(:18082) + DeepResearchA2A(:18083)
 #
 # 사용법:
-#   cd Day-04/youngs75_a2a/docker
+#   cd youngs75_a2a/docker
 #   docker compose up -d          # 전체 기동
 #   docker compose ps             # 상태 확인
 #   docker compose logs -f agent-deep-research  # 특정 서비스 로그
 #   docker compose down           # 종료
 #
 # 테스트:
-#   cd Day-04 && export $(grep -v '^#' youngs75_a2a/.env | xargs)
+#   export $(grep -v '^#' youngs75_a2a/.env | xargs)
 #   python -m youngs75_a2a.tests.test_docker_e2e
 
 services:
@@ -22,8 +22,8 @@ services:
 
   mcp-tavily:
     build:
-      context: ../../..
-      dockerfile: Day-04/youngs75_a2a/docker/Dockerfile.mcp
+      context: ../..
+      dockerfile: youngs75_a2a/docker/Dockerfile.mcp
     container_name: youngs75_mcp_tavily
     restart: unless-stopped
     ports:
@@ -42,8 +42,8 @@ services:
 
   mcp-arxiv:
     build:
-      context: ../../..
-      dockerfile: Day-04/youngs75_a2a/docker/Dockerfile.mcp
+      context: ../..
+      dockerfile: youngs75_a2a/docker/Dockerfile.mcp
     container_name: youngs75_mcp_arxiv
     restart: unless-stopped
     ports:
@@ -60,8 +60,8 @@ services:
 
   mcp-serper:
     build:
-      context: ../../..
-      dockerfile: Day-04/youngs75_a2a/docker/Dockerfile.mcp
+      context: ../..
+      dockerfile: youngs75_a2a/docker/Dockerfile.mcp
     container_name: youngs75_mcp_serper
     restart: unless-stopped
     ports:
@@ -84,8 +84,8 @@ services:
 
   agent-simple-react:
     build:
-      context: ../../..
-      dockerfile: Day-04/youngs75_a2a/docker/Dockerfile.agent
+      context: ../..
+      dockerfile: youngs75_a2a/docker/Dockerfile.agent
     container_name: youngs75_agent_simple_react
     restart: unless-stopped
     ports:
@@ -111,8 +111,8 @@ services:
 
   agent-deep-research:
     build:
-      context: ../../..
-      dockerfile: Day-04/youngs75_a2a/docker/Dockerfile.agent
+      context: ../..
+      dockerfile: youngs75_a2a/docker/Dockerfile.agent
     container_name: youngs75_agent_deep_research
     restart: unless-stopped
     ports:
@@ -144,8 +144,8 @@ services:
 
   agent-deep-research-a2a:
     build:
-      context: ../../..
-      dockerfile: Day-04/youngs75_a2a/docker/Dockerfile.agent
+      context: ../..
+      dockerfile: youngs75_a2a/docker/Dockerfile.agent
     container_name: youngs75_agent_deep_research_a2a
     restart: unless-stopped
     ports:

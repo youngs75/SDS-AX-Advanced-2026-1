@@ -4,8 +4,8 @@ Docker 배포 후 E2E 테스트 — 6개 컨테이너 전체 검증
 MCP 3개 + Agent 3개가 Docker로 떠있는 상태에서 실행.
 
 실행:
-  cd Day-04/youngs75_a2a/docker && docker compose up -d
-  cd Day-04 && export $(grep -v '^#' youngs75_a2a/.env | xargs)
+  cd youngs75_a2a/docker && docker compose up -d
+  export $(grep -v '^#' youngs75_a2a/.env | xargs)
   python -m youngs75_a2a.tests.test_docker_e2e
 """
 
@@ -115,7 +115,7 @@ async def main():
 
     if not any(agent_ok.values()):
         print("\n❌ 실행 중인 Agent 서버가 없습니다.")
-        print("  cd Day-04/youngs75_a2a/docker && docker compose up -d")
+        print("  cd youngs75_a2a/docker && docker compose up -d")
         sys.exit(1)
 
     # 3. AgentCard 조회

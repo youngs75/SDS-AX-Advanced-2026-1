@@ -72,7 +72,7 @@ source .venv/bin/activate
 uv sync
 
 # 환경변수 로드 (Day별 .env 파일)
-export $(grep -v '^#' Day-04/youngs75_a2a/.env | xargs)
+export $(grep -v '^#' youngs75_a2a/.env | xargs)
 ```
 
 ### youngs75_a2a 테스트

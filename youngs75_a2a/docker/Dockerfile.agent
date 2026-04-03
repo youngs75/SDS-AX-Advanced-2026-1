@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir \
     "python-dotenv"
 
 # youngs75_a2a 패키지 전체 복사
-COPY Day-04/youngs75_a2a/ /app/youngs75_a2a/
+COPY youngs75_a2a/ /app/youngs75_a2a/
 
 ENV PYTHONPATH=/app
 EXPOSE 18080
