@@ -12,23 +12,18 @@ SDS-AX-Advanced-2026-1/
 ├── Day-02/                    # Day 2 교육 자료 및 실습
 ├── Day-03/                    # Day 3 교육 자료 및 실습 (GraphRAG 등)
 ├── Day-04/                    # Day 4 교육 자료 및 실습 (A2A, MCP)
-│   ├── a2a/                   # 참조 구현 (교육용)
-│   └── youngs75_a2a/          # 자체 구현 — A2A 멀티에이전트 프레임워크
-│       ├── core/              #   도메인 무관 프레임워크
-│       ├── a2a/               #   A2A 프로토콜 통합
-│       ├── agents/            #   에이전트 구현체 (SimpleReAct, DeepResearch, DeepResearchA2A)
-│       ├── docker/            #   프로덕션 배포 (MCP 3개 + Agent 3개 = 6 컨테이너)
-│       ├── tests/             #   테스트 및 데모
-│       ├── utils/             #   유틸리티
-│       ├── REPORT.md          #   개발완료 보고서
-│       └── CODING_AGENT_DESIGN.md  # 논문 인사이트 기반 Coding Agent 설계 가이드
+│   └── a2a/                   # 참조 구현 (교육용)
+├── Day-05/                    # Day 5 교육 자료 및 실습
 ├── pyproject.toml             # 프로젝트 의존성 (uv 기반)
 ├── uv.lock                    # 의존성 잠금 파일
 ├── AGENTS.md                  # 이 파일 — AI와 기여자가 따를 규칙 문서
 └── .ai/sessions/              # 세션 인수인계 파일 저장 위치
 ```
 
-기능 추가 시 Day-NN/ 또는 youngs75_a2a/ 하위에 배치합니다.
+> **참고**: 자체 구현 Coding Agent Harness(`youngs75_a2a`)는 별도 리포지토리로 분리됨
+> → https://github.com/youngs75/youngs75_coding_ai_agent
+
+기능 추가 시 Day-NN/ 하위에 배치합니다.
 규칙이 여러 곳에 흩어져 있어도 기준 문서는 항상 `AGENTS.md`로 통일합니다.
 
 ## 커뮤니케이션 규칙
@@ -71,8 +66,8 @@ source .venv/bin/activate
 # 의존성 설치
 uv sync
 
-# 환경변수 로드 (Day별 .env 파일)
-export $(grep -v '^#' youngs75_a2a/.env | xargs)
+# 환경변수 로드 (프로젝트 루트 .env)
+export $(grep -v '^#' .env | xargs)
 ```
 
 ### youngs75_a2a 테스트
