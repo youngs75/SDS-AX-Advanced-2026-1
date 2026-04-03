@@ -23,9 +23,11 @@ dependencies = [
     { name = "langchain-openai" },
     { name = "langchain-tavily" },
     { name = "langchain-teddynote" },
+    { name = "langfuse" },
     { name = "langgraph-cli" },
     { name = "mcp", extra = ["cli"] },
     { name = "pdfplumber" },
+    { name = "pydantic" },
     { name = "pymupdf4llm" },
     { name = "python-dotenv" },
 ]
@@ -48,9 +50,11 @@ requires-dist = [
     { name = "langchain-openai", specifier = ">=1.1.12" },
     { name = "langchain-tavily", specifier = ">=0.2.17" },
     { name = "langchain-teddynote", specifier = ">=0.5.4" },
+    { name = "langfuse", specifier = ">=4.0.6" },
     { name = "langgraph-cli", specifier = ">=0.4.19" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.26.0" },
     { name = "pdfplumber", specifier = ">=0.11.9" },
+    { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pymupdf4llm", specifier = ">=1.27.2.2" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
 ]
@@ -294,6 +298,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c5/0e/3a63efb48aa4a5ae2cfca61ee152fbcb668092134d3eb8bfda472dd5c617/azure_identity-1.25.3.tar.gz", hash = "sha256:ab23c0d63015f50b630ef6c6cf395e7262f439ce06e5d07a64e874c724f8d9e6", size = 286304, upload-time = "2026-03-13T01:12:20.892Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/49/9a/417b3a533e01953a7c618884df2cb05a71e7b68bdbce4fbdb62349d2a2e8/azure_identity-1.25.3-py3-none-any.whl", hash = "sha256:f4d0b956a8146f30333e071374171f3cfa7bdb8073adb8c3814b65567aa7447c", size = 192138, upload-time = "2026-03-13T01:12:22.951Z" },
+]
+
+[[package]]
+name = "backoff"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/d7/5bbeb12c44d7c4f2fb5b56abce497eb5ed9f34d85701de869acedd602619/backoff-2.2.1.tar.gz", hash = "sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba", size = 17001, upload-time = "2022-10-05T19:19:32.061Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/73/b6e24bd22e6720ca8ee9a85a0c4a2971af8497d8f3193fa05390cbd46e09/backoff-2.2.1-py3-none-any.whl", hash = "sha256:63579f9a0628e06278f7e47b7d7d5b6ce20dc65c5e96a6f3ca99a6adca0396e8", size = 15148, upload-time = "2022-10-05T19:19:30.546Z" },
 ]
 
 [[package]]
@@ -1984,6 +1997,25 @@ wheels = [
 ]
 
 [[package]]
+name = "langfuse"
+version = "4.0.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "backoff" },
+    { name = "httpx" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-sdk" },
+    { name = "packaging" },
+    { name = "pydantic" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ab/d0/6d79ed5614f86f27f5df199cf10c6facf6874ff6f91b828ae4dad90aa86d/langfuse-4.0.6.tar.gz", hash = "sha256:83a6f8cc8f1431fa2958c91e2673bc4179f993297e9b1acd1dbf001785e6cf83", size = 274094, upload-time = "2026-04-01T20:04:15.153Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/50/b4/088048e37b6d7ec1b52c6a11bc33101454285a22eaab8303dcccfd78344d/langfuse-4.0.6-py3-none-any.whl", hash = "sha256:0562b1dcf83247f9d8349f0f755eaed9a7f952fee67e66580970f0738bf3adbf", size = 472841, upload-time = "2026-04-01T20:04:16.451Z" },
+]
+
+[[package]]
 name = "langgraph"
 version = "1.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2775,6 +2807,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8f/7f/b9e60435cfcc7590fa87436edad6822240dddbc184643a2a005301cc31f4/opentelemetry_exporter_otlp_proto_grpc-1.40.0.tar.gz", hash = "sha256:bd4015183e40b635b3dab8da528b27161ba83bf4ef545776b196f0fb4ec47740", size = 25759, upload-time = "2026-03-04T14:17:24.4Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/96/6f/7ee0980afcbdcd2d40362da16f7f9796bd083bf7f0b8e038abfbc0300f5d/opentelemetry_exporter_otlp_proto_grpc-1.40.0-py3-none-any.whl", hash = "sha256:2aa0ca53483fe0cf6405087a7491472b70335bc5c7944378a0a8e72e86995c52", size = 20304, upload-time = "2026-03-04T14:17:05.942Z" },
+]
+
+[[package]]
+name = "opentelemetry-exporter-otlp-proto-http"
+version = "1.40.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "googleapis-common-protos" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-common" },
+    { name = "opentelemetry-proto" },
+    { name = "opentelemetry-sdk" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2e/fa/73d50e2c15c56be4d000c98e24221d494674b0cc95524e2a8cb3856d95a4/opentelemetry_exporter_otlp_proto_http-1.40.0.tar.gz", hash = "sha256:db48f5e0f33217588bbc00274a31517ba830da576e59503507c839b38fa0869c", size = 17772, upload-time = "2026-03-04T14:17:25.324Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/3a/8865d6754e61c9fb170cdd530a124a53769ee5f740236064816eb0ca7301/opentelemetry_exporter_otlp_proto_http-1.40.0-py3-none-any.whl", hash = "sha256:a8d1dab28f504c5d96577d6509f80a8150e44e8f45f82cdbe0e34c99ab040069", size = 19960, upload-time = "2026-03-04T14:17:07.153Z" },
 ]
 
 [[package]]
