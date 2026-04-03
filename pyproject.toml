@@ -17,6 +17,7 @@ dependencies = [
     "langchain-openai>=1.1.12",
     "langchain-tavily>=0.2.17",
     "langchain-teddynote>=0.5.4",
+    "langfuse>=4.0.6",
     "langgraph-cli>=0.4.19",
     "mcp[cli]>=1.26.0",
     "pdfplumber>=0.11.9",
