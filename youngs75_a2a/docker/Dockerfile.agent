@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir \
     "langchain>=1.2.0" \
     "langchain-openai>=1.1.0" \
     "langchain-mcp-adapters>=0.2.0" \
+    "langfuse>=4.0.6" \
+    "pydantic-settings>=2.2,<3" \
+    "structlog>=25,<26" \
     "uvicorn" \
     "starlette" \
     "httpx" \

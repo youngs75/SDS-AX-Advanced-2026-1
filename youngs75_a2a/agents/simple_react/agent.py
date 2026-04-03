@@ -6,7 +6,7 @@
 사용 예:
     agent = await SimpleMCPReActAgent.create(
         config=SimpleReActConfig(),
-        model=ChatOpenAI(model="gpt-4.1"),
+        model=ChatOpenAI(model="gpt-5.4"),
     )
     result = await agent.graph.ainvoke({"messages": [HumanMessage("AI 최신 트렌드")]})
 """

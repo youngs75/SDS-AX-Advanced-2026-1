@@ -21,7 +21,7 @@ class BaseAgentConfig(BaseModel):
         default_factory=lambda: os.getenv("MODEL_PROVIDER", "openai"),
     )
     default_model: str = Field(
-        default_factory=lambda: os.getenv("MODEL_NAME", "gpt-4.1"),
+        default_factory=lambda: os.getenv("MODEL_NAME", "gpt-5.4"),
     )
     temperature: float = Field(
         default_factory=lambda: float(os.getenv("TEMPERATURE", "0.1")),

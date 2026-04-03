@@ -51,7 +51,7 @@ async def test_simple_react_agent():
     from langchain_core.messages import HumanMessage
     from youngs75_a2a.agents.simple_react import SimpleMCPReActAgent, SimpleReActConfig
 
-    config = SimpleReActConfig(default_model="gpt-4.1-mini")
+    config = SimpleReActConfig(default_model="gpt-5.4-mini")
     agent = await SimpleMCPReActAgent.create(config=config)
 
     if not agent._tools:
@@ -79,10 +79,10 @@ async def test_deep_research_full():
 
     rc = ResearchConfig(
         allow_clarification=False,  # 명확화 건너뛰고 바로 연구
-        default_model="gpt-4.1-mini",
-        research_model="gpt-4.1-mini",
-        compression_model="gpt-4.1-mini",
-        final_report_model="gpt-4.1-mini",
+        default_model="gpt-5.4-mini",
+        research_model="gpt-5.4-mini",
+        compression_model="gpt-5.4-mini",
+        final_report_model="gpt-5.4-mini",
         max_researcher_iterations=2,  # 빠른 테스트
         max_concurrent_research_units=2,
     )
@@ -121,8 +121,8 @@ async def test_a2a_end_to_end():
 
     rc = ResearchConfig(
         allow_clarification=False,
-        default_model="gpt-4.1-mini",
-        research_model="gpt-4.1-mini",
+        default_model="gpt-5.4-mini",
+        research_model="gpt-5.4-mini",
         max_researcher_iterations=1,
     )
     agent = DeepResearchAgent(config=rc)

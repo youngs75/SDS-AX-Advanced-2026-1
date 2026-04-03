@@ -2,7 +2,7 @@
 
 ## 프로젝트 개요
 SDS AX Advanced 2026-1 교육과정 (2026-04-01 ~ 04-10) 저장소.
-최종 산출물: AI Assistant Coding Agent Harness ("Prime Jennie")
+최종 산출물: AI Assistant Coding Agent Harness
 
 ## 프로젝트 구조
 

@@ -34,7 +34,7 @@ from youngs75_a2a.agents.orchestrator.config import AgentEndpoint
 
 async def main():
     port = int(os.getenv("ORCH_PORT", "18080"))
-    model = os.getenv("AGENT_MODEL", "gpt-4.1-mini")
+    model = os.getenv("AGENT_MODEL", "gpt-5.4-mini")
 
     if not os.getenv("OPENAI_API_KEY"):
         print("❌ OPENAI_API_KEY가 설정되지 않았습니다.")
@@ -56,6 +56,11 @@ async def main():
             name="deep-research-a2a",
             url=os.getenv("DEEP_RESEARCH_A2A_URL", "http://localhost:18083"),
             description="멀티에이전트 협업이 필요한 대규모 조사, 보고서 작성 및 사람 승인이 필요한 작업",
+        ),
+        AgentEndpoint(
+            name="coding-assistant",
+            url=os.getenv("CODING_ASSISTANT_URL", "http://localhost:18084"),
+            description="코드 생성, 버그 수정, 리팩토링, 테스트 작성, 보안 검토 등 프로그래밍 관련 작업",
         ),
     ]
 

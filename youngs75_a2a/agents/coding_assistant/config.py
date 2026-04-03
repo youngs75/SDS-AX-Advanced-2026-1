@@ -18,11 +18,11 @@ class CodingConfig(BaseAgentConfig):
     """Coding Assistant 에이전트 설정."""
 
     generation_model: str = Field(
-        default_factory=lambda: os.getenv("CODING_GEN_MODEL", "gpt-4.1"),
+        default_factory=lambda: os.getenv("CODING_GEN_MODEL", "gpt-5.4"),
         description="코드 생성용 모델",
     )
     verification_model: str = Field(
-        default_factory=lambda: os.getenv("CODING_VERIFY_MODEL", "gpt-4.1"),
+        default_factory=lambda: os.getenv("CODING_VERIFY_MODEL", "gpt-5.4"),
         description="코드 검증용 모델",
     )
 

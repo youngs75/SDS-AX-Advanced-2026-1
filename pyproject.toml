@@ -1,7 +1,7 @@
 [project]
-name = "2026-sds-ax-advanced"
+name = "youngs75-a2a"
 version = "0.1.0"
-description = "Advanced SDS AX project for 2026"
+description = "AI Assistant Coding Agent Harness"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
@@ -13,6 +13,7 @@ dependencies = [
     "langchain>=1.2.13",
     "langchain-anthropic>=1.4.0",
     "langchain-community>=0.4.1",
+    "langchain-mcp-adapters>=0.2.2",
     "langchain-neo4j>=0.9.0",
     "langchain-openai>=1.1.12",
     "langchain-tavily>=0.2.17",
@@ -21,11 +22,23 @@ dependencies = [
     "langgraph-cli>=0.4.19",
     "mcp[cli]>=1.26.0",
     "pdfplumber>=0.11.9",
+    "pydantic-settings>=2.2,<3",
     "pymupdf4llm>=1.27.2.2",
     "python-dotenv>=1.2.2",
+    "structlog>=25,<26",
 ]
 
 [dependency-groups]
 dev = [
+    "deepeval>=3.8,<4",
     "ipykernel>=7.2.0",
+    "mypy>=1.19.1",
+    "pandas>=2.2,<3",
+    "pytest>=9,<10",
+    "pytest-asyncio>=1.0,<2",
+    "ruff>=0.15.2",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["youngs75_a2a/tests"]

@@ -1,7 +1,7 @@
 # Coding Agent 설계 가이드 — 논문 인사이트 기반
 
 **작성일**: 2026-04-02  
-**목적**: youngs75_a2a 프레임워크에 Coding Agent(Prime Jennie)를 추가할 때 참조할 설계 원칙과 구현 가이드  
+**목적**: youngs75_a2a 프레임워크에 Coding Agent를 추가할 때 참조할 설계 원칙과 구현 가이드  
 **근거**: CoALA, AutoHarness, Puppeteer, Adaptation, Agent-as-a-Judge, RubricRewards, GAM 7편 논문 분석 결과
 
 ---
@@ -43,8 +43,8 @@ parse_request → execute_code → verify_result
 
 ```python
 class CodingConfig(BaseAgentConfig):
-    generation_model: str = "gpt-4.1"
-    verification_model: str = "gpt-4.1"
+    generation_model: str = "gpt-5.4"
+    verification_model: str = "gpt-5.4"
 
     def _resolve_model_name(self, purpose: str) -> str:
         if purpose == "generation":

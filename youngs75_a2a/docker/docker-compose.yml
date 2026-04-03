@@ -94,7 +94,7 @@ services:
       - ../.env
     environment:
       - AGENT_PORT=18081
-      - AGENT_MODEL=gpt-4.1-mini
+      - AGENT_MODEL=gpt-5.4-mini
       - TAVILY_MCP_URL=http://mcp-tavily:3001/mcp/
     command: ["python", "-m", "youngs75_a2a.tests.run_simple_react_server"]
     depends_on:
@@ -121,7 +121,7 @@ services:
       - ../.env
     environment:
       - AGENT_PORT=18082
-      - AGENT_MODEL=gpt-4.1-mini
+      - AGENT_MODEL=gpt-5.4-mini
       - TAVILY_MCP_URL=http://mcp-tavily:3001/mcp/
       - ARXIV_MCP_URL=http://mcp-arxiv:3000/mcp/
       - SERPER_MCP_URL=http://mcp-serper:3002/mcp/
@@ -154,7 +154,7 @@ services:
       - ../.env
     environment:
       - AGENT_PORT=18083
-      - AGENT_MODEL=gpt-4.1-mini
+      - AGENT_MODEL=gpt-5.4-mini
       - TAVILY_MCP_URL=http://mcp-tavily:3001/mcp/
       - ARXIV_MCP_URL=http://mcp-arxiv:3000/mcp/
       - SERPER_MCP_URL=http://mcp-serper:3002/mcp/
