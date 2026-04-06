@@ -23,7 +23,7 @@ None.
 
 ### Working In This Directory
 - Ensure changes do not break data format field compatibility (`id`, `input`, `expected_output`, `context`, `source_file`).
-- When modifying CSV columns, update `scripts/02_export_for_review.py`, `scripts/03_import_reviewed.py`, and documentation together.
+- When modifying CSV columns, update `scripts/run_golden_openai.py`, `scripts/run_pipeline.py`, and documentation together.
 - Validate both the `skip_review` path and `reviewed_csv_path` path simultaneously to prevent regressions.
 
 ### Testing Requirements

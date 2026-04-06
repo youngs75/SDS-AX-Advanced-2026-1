@@ -6,6 +6,7 @@ Loop 1 (Dataset 생성/보강) 과정에서 LLM에 전달하는 모든 프롬프
 프롬프트 목록:
     - FEEDBACK_AUGMENT_PROMPT: Human Review 피드백을 반영하여
       expected_output을 개선하는 프롬프트 템플릿
+    - EXPECTED_TOOLS_PROMPT: Golden 항목에 필요한 expected_tools를 추론하는 프롬프트
 
 사용 예시:
     from src.loop1_dataset.prompts import FEEDBACK_AUGMENT_PROMPT
@@ -50,6 +51,47 @@ Return a JSON object with exactly these fields:
 {{
   "improved_expected_output": "the revised answer addressing all feedback",
   "improvement_notes": "what was changed and why, referencing specific feedback points"
+}}
+</output_format>
+"""
+
+
+EXPECTED_TOOLS_PROMPT = """\
+<task>
+Decide which tools an agent should ideally call to answer this test case.
+The result will be stored in the golden dataset as expected_tools for DeepEval ToolCorrectnessMetric.
+</task>
+
+<test_case>
+- Input: {input}
+- Expected output: {expected_output}
+- Context: {context}
+</test_case>
+
+<available_tools>
+{available_tools}
+</available_tools>
+
+<instructions>
+1. Choose only from the provided tools.
+2. If the agent should answer directly without tools, return an empty list.
+3. Include only tools that are genuinely necessary for a good solution.
+4. Infer concise input parameters from the user question when possible.
+5. Do not invent tool names that are not in the available tools list.
+</instructions>
+
+<output_format>
+Return a JSON object with exactly this structure:
+{{
+  "expected_tools": [
+    {{
+      "name": "tool_name",
+      "input_parameters": {{
+        "arg1": "value"
+      }},
+      "reasoning": "why this tool is needed"
+    }}
+  ]
 }}
 </output_format>
 """

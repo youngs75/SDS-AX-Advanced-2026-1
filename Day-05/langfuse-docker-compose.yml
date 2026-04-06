@@ -1,3 +1,5 @@
+# docker compose -f 'langfuse-docker-compose.yml' up -d
+
 services:
   clickhouse:
     # Upgrade from 24.3 to check behaviour on new events table.

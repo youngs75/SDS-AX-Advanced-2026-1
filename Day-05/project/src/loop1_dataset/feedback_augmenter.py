@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 
-from src.llm.openrouter import get_openrouter_client
+from src.llm.openrouter import get_chat_model_name, get_openrouter_client
 from src.loop1_dataset.prompts import FEEDBACK_AUGMENT_PROMPT
 from src.settings import get_settings
 
@@ -43,6 +43,7 @@ def augment_with_feedback(items: list[dict]) -> list[dict]:
     """
     settings = get_settings()
     client = get_openrouter_client()
+    model_name = get_chat_model_name(settings)
     augmented = []
 
     for item in items:
@@ -69,7 +70,7 @@ def augment_with_feedback(items: list[dict]) -> list[dict]:
         try:
             # LLM 호출: 피드백을 반영한 개선 답변 생성
             response = client.chat.completions.create(
-                model=settings.openrouter_model_name,
+                model=model_name,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.0,  # 결정론적 출력
             )

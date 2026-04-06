@@ -29,7 +29,7 @@ None.
   - Step5: Golden offline evaluation
   - Step6: Langfuse score-based monitoring / failure extraction
   - Step8: Evaluation prompt improvement
-- When changing score thresholds/sampling options, update CLI scripts (`scripts/05_run_eval.py`, `scripts/06_batch_eval_langfuse.py`, `scripts/run_pipeline.py`) and documentation simultaneously.
+- When changing score thresholds/sampling options, update `scripts/run_pipeline.py` and documentation simultaneously.
 - Prompt constant names must match mapping keys in `prompt_optimizer.py`.
 
 ### Testing Requirements

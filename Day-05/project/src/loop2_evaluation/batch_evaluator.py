@@ -124,7 +124,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from deepeval.test_case import LLMTestCase
+from deepeval.test_case import LLMTestCase, ToolCall
 
 from src.loop2_evaluation.langfuse_bridge import fetch_traces, push_scores, trace_to_testcase
 from src.loop2_evaluation.metrics_registry import get_registry
@@ -136,6 +136,10 @@ _REQUIRED_FIELDS_BY_METRIC: dict[str, tuple[str, ...]] = {
     "contextual_recall": ("retrieval_context", "expected_output"),
     "response_completeness_[geval]": ("expected_output",),
     "citation_quality_[geval]": ("context",),
+    "taskcompletionmetric": ("actual_output",),
+    "task_completion": ("actual_output",),
+    "toolcorrectnessmetric": ("tools_called", "expected_tools"),
+    "tool_correctness": ("tools_called", "expected_tools"),
 }
 
 
@@ -337,10 +341,36 @@ def _run_metrics_on_testcase(
     return results, skipped_metrics
 
 
+def _coerce_expected_tools(raw_expected_tools: Any) -> list[ToolCall] | None:
+    """Golden item의 expected_tools를 DeepEval ToolCall 리스트로 변환합니다."""
+    if not raw_expected_tools:
+        return None
+
+    coerced: list[ToolCall] = []
+    for item in raw_expected_tools:
+        if not isinstance(item, dict):
+            continue
+
+        coerced.append(
+            ToolCall(
+                name=str(item.get("name", "unknown_tool")),
+                description=item.get("description"),
+                reasoning=item.get("reasoning"),
+                output=item.get("output"),
+                input_parameters=item.get("input_parameters")
+                if isinstance(item.get("input_parameters"), dict)
+                else None,
+            )
+        )
+
+    return coerced or None
+
+
 def evaluate_golden_dataset(
     golden_path: Path | None = None,
     *,
     metric_categories: list[str] | None = None,
+    agent_module: str = "src.my_agent",
     sample_ratio: float | None = None,
     max_sample_size: int | None = None,
     sample_seed: int = 42,
@@ -349,13 +379,14 @@ def evaluate_golden_dataset(
 ) -> list[dict[str, Any]]:
     """Golden Dataset을 DeepEval 메트릭으로 오프라인 평가합니다.
 
-    Golden Dataset의 각 항목을 LLMTestCase로 변환하고,
-    지정된 카테고리의 메트릭을 실행하여 결과를 JSON으로 저장합니다.
+    Golden Dataset의 각 항목을 실제 agent에 넣어 응답을 수집한 뒤,
+    LLMTestCase로 변환하고 지정된 카테고리의 메트릭을 실행하여 결과를 JSON으로 저장합니다.
 
     Args:
         golden_path: Golden Dataset JSON 경로 (기본: data/golden/golden_dataset.json)
-        metric_categories: 사용할 메트릭 카테고리 목록 (기본: ["rag", "custom"])
+        metric_categories: 사용할 메트릭 카테고리 목록 (기본: ["rag", "custom", "agent"])
                           가능한 값: "rag", "agent", "custom", "all"
+        agent_module: 평가 대상 agent 모듈 경로 (기본: src.my_agent)
         sample_ratio: Golden 샘플링 비율 (0.0~1.0). None이면 비율 샘플링 미적용.
         max_sample_size: 샘플 최대 건수 상한. None이면 상한 없음.
         sample_seed: deterministic 샘플링 시드 (기본: 42)
@@ -366,8 +397,12 @@ def evaluate_golden_dataset(
         각 테스트 케이스별 평가 결과 리스트. 각 항목은:
             - id: Golden Dataset 항목 ID
             - input: 질문 텍스트
+            - actual_output: 실제 agent 응답
+            - agent_module: 평가에 사용한 agent 모듈 경로
+            - tools_called_count: 파싱된 tool call 개수
             - scores: {메트릭명: 점수} 딕셔너리
             - skipped_metrics: 필수 필드 부족으로 스킵된 메트릭 리스트
+            - execution_error: agent 실행 실패 시 오류 문자열
             - passed: 실행된 메트릭이 있고, 모든 점수가 0.5 이상이면 True
             - timestamp: 평가 시각 (ISO 형식)
     """
@@ -396,37 +431,64 @@ def evaluate_golden_dataset(
         f"stratify_by={stratify_by}"
     )
 
+    from src.loop2_evaluation.agent_runner import execute_agent_on_input, load_available_tools
+
+    available_tools = load_available_tools(agent_module)
+
     # 메트릭 레지스트리에서 지정 카테고리의 메트릭 가져오기
     registry = get_registry()
-    categories = metric_categories or ["rag", "custom"]
+    categories = metric_categories or ["rag", "custom", "agent"]
     metrics = []
     for cat in categories:
-        metrics.extend(registry.get_metrics_by_category(cat))
+        metrics.extend(registry.get_metrics_by_category(cat, available_tools=available_tools))
 
-    # 각 Golden 항목을 LLMTestCase로 변환하여 평가
+    # 각 Golden 항목을 실제 agent에 넣고 평가
     eval_results = []
     for item in sampled_golden_data:
+        actual_output = ""
+        tools_called = None
+        execution_error: str | None = None
+
+        try:
+            execution = execute_agent_on_input(
+                agent_module=agent_module,
+                user_input=item.get("input", ""),
+                item_id=item.get("id", ""),
+            )
+            actual_output = execution.actual_output
+            tools_called = execution.tools_called
+        except Exception as exc:
+            execution_error = str(exc)
+
         test_case = LLMTestCase(
             input=item.get("input", ""),
-            # 오프라인 평가에서는 expected_output을 actual_output으로 사용
-            # (실제 Agent 응답이 없으므로 Golden의 기대 답변으로 대체)
-            actual_output=item.get("expected_output", ""),
+            actual_output=actual_output or None,
             expected_output=item.get("expected_output", ""),
             context=item.get("context") if item.get("context") else None,
             retrieval_context=item.get("retrieval_context")
             if item.get("retrieval_context")
             else None,
+            tools_called=tools_called,
+            expected_tools=_coerce_expected_tools(item.get("expected_tools")),
         )
 
-        # 메트릭 실행
-        scores, skipped_metrics = _run_metrics_on_testcase(test_case, metrics)
+        # agent 실행 자체가 실패한 경우에는 메트릭을 억지로 돌리지 않고
+        # 해당 케이스를 실패 결과로만 남깁니다.
+        if execution_error is None:
+            scores, skipped_metrics = _run_metrics_on_testcase(test_case, metrics)
+        else:
+            scores, skipped_metrics = {}, [getattr(m, "__name__", m.__class__.__name__) for m in metrics]
 
         result = {
             "id": item.get("id", ""),
             "input": item.get("input", ""),
+            "actual_output": actual_output,
+            "agent_module": agent_module,
+            "tools_called_count": len(tools_called or []),
             "scores": scores,
             "skipped_metrics": skipped_metrics,
-            "passed": bool(scores) and all(v >= 0.5 for v in scores.values()),
+            "execution_error": execution_error,
+            "passed": execution_error is None and bool(scores) and all(v >= 0.5 for v in scores.values()),
             "timestamp": datetime.now(UTC).isoformat(),
         }
         eval_results.append(result)

@@ -5,11 +5,11 @@ from unittest.mock import MagicMock
 from deepeval.dataset.golden import Golden
 
 
-def test_generate_synthetic_dataset_uses_contexts_api(tmp_path, monkeypatch):
+def test_generate_synthetic_dataset_when_meta_files_exist_then_excludes_them(tmp_path, monkeypatch):
     corpus_dir = tmp_path / "corpus"
     corpus_dir.mkdir()
-    (corpus_dir / "a.md").write_text("SLA content A", encoding="utf-8")
-    (corpus_dir / "b.txt").write_text("SLA content B", encoding="utf-8")
+    (corpus_dir / "00_sla.md").write_text("# SLA\n가용성 지연 오류율", encoding="utf-8")
+    (corpus_dir / "AGENTS.md").write_text("# corpus\nstep1 instructions", encoding="utf-8")
 
     output_path = tmp_path / "synthetic.json"
 
@@ -22,18 +22,11 @@ def test_generate_synthetic_dataset_uses_contexts_api(tmp_path, monkeypatch):
             self.called_kwargs = kwargs
             return [
                 Golden(
-                    input="q1",
-                    expected_output="a1",
-                    context=["ctx1"],
-                    source_file="a.md",
+                    input="SLA란 무엇인가요?",
+                    expected_output="SLA는 서비스 수준 합의입니다.",
+                    context=["가용성 지연 오류율"],
+                    source_file=kwargs["source_files"][0],
                     synthetic_input_quality=0.9,
-                ),
-                Golden(
-                    input="q2",
-                    expected_output="a2",
-                    context=["ctx2"],
-                    source_file="b.txt",
-                    synthetic_input_quality=0.8,
                 ),
             ]
 
@@ -52,12 +45,18 @@ def test_generate_synthetic_dataset_uses_contexts_api(tmp_path, monkeypatch):
     items = generate_synthetic_dataset(
         corpus_dir=corpus_dir,
         output_path=output_path,
-        num_goldens=1,
-        max_goldens_per_context=2,
+        num_goldens=3,
     )
 
     assert len(items) == 1
     assert output_path.exists()
     assert fake_synth.called_kwargs is not None
-    assert "contexts" in fake_synth.called_kwargs
-    assert len(fake_synth.called_kwargs["contexts"]) == 2
+    assert fake_synth.called_kwargs["source_files"] == [str(corpus_dir / "00_sla.md")]
+    assert fake_synth.called_kwargs["max_goldens_per_context"] == 3
+    generation_context = fake_synth.called_kwargs["contexts"][0][0]
+    assert "<generation_rules>" in generation_context
+    assert "Do not ask about file names" in generation_context
+    assert "<document_topic>\nSLA\n</document_topic>" in generation_context
+    assert "# SLA\n가용성 지연 오류율" in generation_context
+    assert items[0]["context"] == ["# SLA\n가용성 지연 오류율"]
+    assert items[0]["topic"] == "SLA"

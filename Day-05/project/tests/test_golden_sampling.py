@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+from src.loop2_evaluation.agent_runner import AgentExecutionResult
+
 from src.loop2_evaluation.batch_evaluator import evaluate_golden_dataset, sample_golden_items
 
 
@@ -75,7 +77,7 @@ def test_evaluate_golden_dataset_applies_sampling_options(monkeypatch, tmp_path)
     output_path = tmp_path / "eval_results.json"
 
     class _FakeRegistry:
-        def get_metrics_by_category(self, _category: str):
+        def get_metrics_by_category(self, _category: str, **kwargs):
             return ["mock_metric"]
 
     monkeypatch.setattr(
@@ -86,10 +88,19 @@ def test_evaluate_golden_dataset_applies_sampling_options(monkeypatch, tmp_path)
         "src.loop2_evaluation.batch_evaluator._run_metrics_on_testcase",
         lambda _test_case, _metrics: ({"mock_metric": 0.9}, []),
     )
+    monkeypatch.setattr(
+        "src.loop2_evaluation.agent_runner.execute_agent_on_input",
+        lambda **kwargs: AgentExecutionResult(
+            actual_output="agent answer",
+            tools_called=None,
+            raw_response={},
+        ),
+    )
 
     results = evaluate_golden_dataset(
         golden_path=golden_path,
         metric_categories=["custom"],
+        agent_module="src.my_agent",
         sample_ratio=0.8,
         max_sample_size=4,
         sample_seed=99,
@@ -102,6 +113,8 @@ def test_evaluate_golden_dataset_applies_sampling_options(monkeypatch, tmp_path)
     stored = json.loads(output_path.read_text(encoding="utf-8"))
     assert len(stored) == 4
     assert all(result["scores"]["mock_metric"] == 0.9 for result in stored)
+    assert all(result["actual_output"] == "agent answer" for result in stored)
+    assert all(result["agent_module"] == "src.my_agent" for result in stored)
 
 
 def test_step5_run_evaluation_forwards_sampling_options(monkeypatch):
@@ -120,6 +133,7 @@ def test_step5_run_evaluation_forwards_sampling_options(monkeypatch):
 
     step5_run_evaluation(
         categories=["custom"],
+        agent_module="src.some_agent",
         sample_ratio=0.3,
         sample_size=9,
         sample_seed=7,
@@ -127,7 +141,39 @@ def test_step5_run_evaluation_forwards_sampling_options(monkeypatch):
     )
 
     assert captured["metric_categories"] == ["custom"]
+    assert captured["agent_module"] == "src.some_agent"
     assert captured["sample_ratio"] == 0.3
     assert captured["max_sample_size"] == 9
     assert captured["sample_seed"] == 7
     assert captured["stratify_by"] == ["source_file", "difficulty"]
+
+
+def test_evaluate_golden_dataset_records_execution_error(monkeypatch, tmp_path):
+    golden_items = _build_grouped_golden_items()[:1]
+    golden_path = tmp_path / "golden_dataset.json"
+    golden_path.write_text(json.dumps(golden_items, ensure_ascii=False), encoding="utf-8")
+
+    class _FakeRegistry:
+        def get_metrics_by_category(self, _category: str, **kwargs):
+            return ["mock_metric"]
+
+    monkeypatch.setattr(
+        "src.loop2_evaluation.batch_evaluator.get_registry",
+        lambda: _FakeRegistry(),
+    )
+    monkeypatch.setattr(
+        "src.loop2_evaluation.agent_runner.execute_agent_on_input",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("agent failed")),
+    )
+
+    results = evaluate_golden_dataset(
+        golden_path=golden_path,
+        metric_categories=["custom"],
+        output_path=tmp_path / "eval_results.json",
+    )
+
+    assert len(results) == 1
+    assert results[0]["actual_output"] == ""
+    assert results[0]["execution_error"] == "agent failed"
+    assert results[0]["scores"] == {}
+    assert results[0]["passed"] is False
