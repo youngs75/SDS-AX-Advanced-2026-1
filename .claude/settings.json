@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/python -c \"from langgraph.store.memory import InMemoryStore; help\\(InMemoryStore.search\\)\")",
+      "Bash(.venv/bin/python -c \"from langgraph.store.memory import InMemoryStore; s = InMemoryStore\\(\\); print\\([m for m in dir\\(s\\) if not m.startswith\\('__'\\)]\\)\")",
+      "WebFetch(domain:skills.sh)",
+      "Bash(pip list:*)",
+      "Bash(.venv/bin/pip list:*)",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(ls /home/sds/projects/SDS-AX-Advanced-2026-1/.venv/bin/pip*)",
+      "Bash(python -c \"import tavily\")",
+      "Bash(docker --version)",
+      "Bash(docker run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git config:*)",
+      "Bash(uv run:*)",
+      "Bash(pip show:*)",
+      "Bash(python -c \"from agent_executor import BaseAgentExecutor, LGAgentExecutor; print\\('import OK'\\)\")",
+      "Bash(python -c \"from Day-04.my_a2a.agent_executor import BaseAgentExecutor\")",
+      "Bash(python -c \"import sys; sys.path.insert\\(0, '.'\\); from my_a2a.agent_executor import BaseAgentExecutor, LGAgentExecutor; print\\('import OK'\\)\")",
+      "Bash(python -c \"import a2a; print\\(a2a.__file__\\)\")",
+      "Bash(mv agent_executor.py a2a/executor.py)",
+      "Bash(mv server.py a2a/server.py)",
+      "Bash(pip install:*)",
+      "Bash(python -c ':*)",
+      "Bash(wc -l /home/sds/projects/SDS-AX-Advanced-2026-1/Day-04/my_a2a/core/*.py /home/sds/projects/SDS-AX-Advanced-2026-1/Day-04/my_a2a/utils/*.py /home/sds/projects/SDS-AX-Advanced-2026-1/Day-04/my_a2a/a2a/*.py)",
+      "Bash(find . -name \"*.py\" -exec wc -l {} +)",
+      "Bash(sort -t/ -k2)"
+    ]
+  }
+}
