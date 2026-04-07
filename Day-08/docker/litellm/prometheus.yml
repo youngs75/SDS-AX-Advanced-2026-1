@@ -1,0 +1,11 @@
+# Based on the official LiteLLM GitHub prometheus example:
+# https://raw.githubusercontent.com/BerriAI/litellm/main/prometheus.yml
+
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "litellm"
+    static_configs:
+      - targets: ["litellm:4000"]
+
