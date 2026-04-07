@@ -1,0 +1,93 @@
+Qwen3.5 9B 모델 테스트 결과
+실행 시각: 2026-04-07 15:24:24
+서버: https://qdlc9sc32po6bg-8000.proxy.runpod.net/v1
+
+============================================================
+  0. 모델 정보 확인
+============================================================
+
+  Available model: Qwen/Qwen3.5-9B
+
+============================================================
+  1. Chat Completion 테스트
+============================================================
+
+[Request] messages: [
+  {
+    "role": "system",
+    "content": "You are a helpful assistant. Answer in Korean."
+  },
+  {
+    "role": "user",
+    "content": "인공지능의 미래에 대해 3문장으로 설명해주세요."
+  }
+]
+
+[Response]
+  Model: Qwen/Qwen3.5-9B
+  Usage: prompt_tokens=38, completion_tokens=512
+  Content:
+None
+
+============================================================
+  2. Tool Calling 테스트
+============================================================
+
+[Request] messages: [{"role": "user", "content": "서울의 현재 날씨를 알려주고, 123 * 456을 계산해줘."}]
+[Tools] ["get_weather", "calculate"]
+
+[Response]
+  Finish Reason: tool_calls
+  Tool Calls (2):
+    - Function: get_weather
+      Arguments: {"city": "서울", "unit": "celsius"}
+    - Function: calculate
+      Arguments: {"expression": "123 * 456"}
+
+  [Follow-up with tool results]
+  Final Response:
+
+
+서울의 현재 날씨는 15°C이며, 맑은 날씨입니다.
+
+계산 결과: 123 * 456 = 56,088 입니다.
+
+============================================================
+  3. Reasoning (Thinking) 테스트
+============================================================
+
+[Request] messages: [{"role": "user", "content": "A farmer has 17 sheep. All but 9 die. How many sheep are left? Think step by step."}]
+
+[방법 1] 일반 호출 - step by step 프롬프팅
+  Content:
+
+
+Here is the step-by-step reasoning:
+
+1.  **Identify the total number of sheep:** The farmer starts with 17 sheep.
+2.  **Analyze the phrase "All but 9 die":** This phrase means that every sheep died *except* for 9 of them.
+3.  **Determine the survivors:** Since 9 sheep did not die, they are the ones remaining.
+4.  **Calculate the final count:** 17 (total) - 8 (died) = 9 (left).
+
+**Answer:** 9 sheep are left.
+
+[방법 2] enable_thinking 파라미터 사용 시도
+  Content:
+
+
+The result of $28 \times 37$ is **1036**.
+
+Here is the step-by-step reasoning using the **distributive property** (breaking the numbers into smaller, easier parts):
+
+**Step 1: Break down the number 37**
+We can split 37 into **30** and **7**.
+$$28 \times 37 = 28 \times (30 + 7)$$
+
+**Step 2: Multiply 28 by each part**
+First, multiply
+
+  (reasoning_content 필드 없음 - 응답 본문에 thinking이 포함될 수 있음)
+
+============================================================
+  테스트 완료
+============================================================

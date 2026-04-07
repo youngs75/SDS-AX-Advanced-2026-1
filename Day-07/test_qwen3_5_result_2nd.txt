@@ -1,0 +1,334 @@
+Qwen3.5 9B 모델 테스트 결과
+실행 시각: 2026-04-07 14:20:33
+서버: https://skvc5zkikltaag-8000.proxy.runpod.net/v1
+
+============================================================
+  0. 모델 정보 확인
+============================================================
+
+  Available model: sds-new-model
+
+============================================================
+  1. Chat Completion 테스트
+============================================================
+
+[Request] messages: [
+  {
+    "role": "system",
+    "content": "You are a helpful assistant. Answer in Korean."
+  },
+  {
+    "role": "user",
+    "content": "인공지능의 미래에 대해 3문장으로 설명해주세요."
+  }
+]
+
+[Response]
+  Model: sds-new-model
+  Usage: prompt_tokens=38, completion_tokens=512
+  Content:
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   Topic: The future of artificial intelligence (인공지능의 미래).
+    *   Constraint: Explain in exactly 3 sentences (3 문장).
+    *   Language: Korean (한국어).
+
+2.  **Drafting Content:**
+    *   *Idea 1:* AI will become more integrated into daily life.
+    *   *Idea 2:* AI will solve complex problems like climate change or healthcare.
+    *   *Idea 3:* We need to manage ethical issues and human-AI collaboration.
+
+    *   *Draft 1 (Mental):*
+        인공지능은 일상생활의 모든 영역에 깊이 통합되어 개인화된 서비스를 제공할 것입니다. 또한 과학기술 및 의료 분야의 난제를 해결하여 인류의 삶의 질을 획기적으로 높일 것으로 예상됩니다. 하지만 기술 발전과 함께 윤리적 문제와 안전성 관리에 대한 논의도 중요하게 대두될 것입니다.
+        (Check: 3 sentences? Yes. Topic covered? Yes. Language? Korean.)
+
+    *   *Refining for clarity and impact:*
+        1.  AI will integrate into daily life and work.
+        2.  AI will solve global challenges.
+        3.  Ethics and human control are crucial.
+
+    *   *Draft 2 (Korean):*
+        인공지능은 앞으로 일상생활과 업무 환경에 더욱 깊게 융합되어 개인 맞춤형 서비스를 제공할 것입니다. 또한 기후 변화와 질병 치료 같은 복잡한 전 지구적 문제 해결에 핵심적인 역할을 수행하게 될 것입니다. 하지만 기술의 신속한 발전 속도를 따라가기 위해서는 윤리적 기준과 인간 중심의 안전 관리 시스템이 반드시 마련되어야 합니다.
+
+3.  **Counting Sentences:**
+    1.  인공지능은 앞으로 일상생활과 업무 환경에 더욱 깊게 융합되어 개인 맞춤형 서비스를 제공할 것입니다. (Sentence 1)
+    2.  또한 기후 변화와 질병 치료 같은 복잡한 전 지구적 문제 해결에 핵심적인 역할을 수행하게 될 것입니다. (Sentence 2)
+    3.  하지만 기술의 신속한 발전 속도를 따라가기 위해서는 윤리적 기준과 인간 중심의 안전 관리 시스템이 반드시 마련되어야 합니다. (Sentence 3)
+
+    Total: 3 sentences.
+
+4.  **Final Review:** Does it meet all criteria?
+    *   Topic: AI Future? Yes.
+
+
+============================================================
+  2. Tool Calling 테스트
+============================================================
+
+[Request] messages: [{"role": "user", "content": "서울의 현재 날씨를 알려주고, 123 * 456을 계산해줘."}]
+[Tools] ["get_weather", "calculate"]
+
+[Response]
+  Finish Reason: stop
+  Content (no tool calls):
+The user is asking me to:
+1. Get the current weather in Seoul (서울)
+2. Calculate 123 * 456
+
+I need to use two functions:
+1. get_weather with city="서울" (I'll use celsius as the default unit since it's not specified)
+2. calculate with expression="123 * 456"
+
+Let me make both function calls.
+</think>
+
+<tool_call>
+<function=get_weather>
+<parameter=city>
+서울
+</parameter>
+<parameter=unit>
+celsius
+</parameter>
+</function>
+</tool_call>
+<tool_call>
+<function=calculate>
+<parameter=expression>
+123 * 456
+</parameter>
+</function>
+</tool_call>
+
+============================================================
+  3. Reasoning (Thinking) 테스트
+============================================================
+
+[Request] messages: [{"role": "user", "content": "A farmer has 17 sheep. All but 9 die. How many sheep are left? Think step by step."}]
+
+[방법 1] 일반 호출 - step by step 프롬프팅
+  Content:
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   Input: A riddle ("A farmer has 17 sheep. All but 9 die. How many sheep are left?").
+    *   Constraint: "Think step by step."
+    *   Goal: Provide the correct answer with reasoning.
+
+2.  **Deconstruct the Riddle:**
+    *   Initial state: 17 sheep.
+    *   Event: "All but 9 die."
+    *   Question: "How many sheep are left?"
+
+3.  **Analyze the Phrase "All but 9":**
+    *   "All" refers to the total number of sheep (17).
+    *   "But" in this context means "except" or "excluding".
+    *   So, "All but 9 die" means "All of the sheep die, except for 9."
+    *   Alternatively, it means "The number of sheep that die is (Total - 9)."
+    *   The number of sheep that *survive* (are left) is explicitly stated as 9.
+
+4.  **Step-by-Step Reasoning:**
+    *   Step 1: Identify the total number of sheep. (17)
+    *   Step 2: Interpret the phrase "All but 9 die". This means every sheep died except for 9 of them.
+    *   Step 3: Determine how many sheep died. (17 - 9 = 8).
+    *   Step 4: Determine how many sheep are left. Since 9 did not die, 9 are left.
+
+5.  **Verify the Logic:**
+    *   If 8 die, 9 remain. 8 + 9 = 17. This matches the total.
+    *   The question asks for the number of sheep *left*.
+    *   The answer is 9.
+
+6.  **Draft the Response:**
+    *   Start with the initial count.
+    *   Explain the meaning of "All but 9".
+    *   Conclude with the final number.
+
+7.  **Final Polish:** Ensure clarity and adherence to the "think step by step" instruction.
+
+    *   Step 1: The farmer starts with 17 sheep.
+    *   Step 2: The phrase "All but 9 die" means that every sheep died except for 9.
+    *   Step 3: Therefore, the number of sheep remaining is the number that did not die.
+    *   Step 4: That number is 9.
+
+8.  **Output Generation:** (Matches the drafted response).
+</think>
+
+Here is the step-by-step breakdown:
+
+1.  **Start with the total:** The farmer begins with 17 sheep.
+2.  **Analyze the phrase:** The phrase "All but 9 die" means that every sheep died *except* for 9.
+3.  **Determine the survivors:** Since 9 sheep did not die, they are the ones remaining.
+4.  **Conclusion:** There are **9** sheep left.
+
+[방법 2] enable_thinking 파라미터 사용 시도
+  Content:
+Thinking Process:
+
+1.  **Analyze the Request:** The user wants to know the product of 28 and 37 ($28 \times 37$) and expects me to show my reasoning (step-by-step calculation).
+
+2.  **Choose a Method:** There are several ways to multiply two-digit numbers:
+    *   Standard algorithm (long multiplication).
+    *   Distributive property (breaking down numbers).
+    *   Lattice multiplication (less common for text).
+    *   Estimation followed by adjustment.
+
+    I'll use the distributive property or standard algorithm as they are clear and easy to follow in text format. Breaking down numbers is often more intuitive for showing reasoning.
+
+    *Method 1: Distributive Property (Splitting)*
+    $28 \times 37 = 28 \times (30 + 7)$
+    $= (28 \times 30) + (28 \times 7)$
+
+    *Method 2: Splitting both*
+    $28 \times 37 = (30 - 2) \times 37$
+    $= (30 \times 37) - (2 \times 37)$
+
+    *Method 3: Standard Algorithm*
+       37
+     x 28
+     ----
+
+    Let's go with Method 1 or 3. Method 3 is very standard, but Method 1 shows understanding of place value well. Let's use a combination or just the standard algorithm explained clearly. Actually, breaking it down is often clearer for "showing reasoning". Let's try $(28 \times 30) + (28 \times 7)$.
+
+    Calculation:
+    $28 \times 30 = 28 \times 3 \times 10 = 84 \times 10 = 840$
+    $28 \times 7 = 196$
+    $840 + 196 = 1036$
+
+    Let's double check with standard algorithm.
+    $7 \times 8 = 56$ (write 6, carry 5)
+    $7 \times 2 = 14$
+    $14 + 5 = 19$ -> 197
+    $20 \times 37 = 740$
+    $197 + 740 = 937$... Wait.
+    Let's re-calculate.
+    $28 \times 37$
+    $8 \times 7 = 56$ (6, carry 5)
+    $2 \times 7 = 14 + 5 = 19$ (19) -> First line: 197? No.
+    $37 \times 8$:
+    $7 \times 8 = 56$
+    $30 \times 8 = 240$
+    $240 + 56 = 296$.
+    $37 \times 20$:
+    $37 \times 2 = 74$
+    $37 \times 20 = 740$.
+    $296 + 740 = 1036$.
+
+    Okay, previous mental check was flawed. Let's write it out properly.
+
+    **Plan:**
+    1. State the problem.
+    2. Use the distributive property (splitting 37 into 30 + 7) or standard multiplication.
+    3. Calculate partial products.
+    4. Sum them up.
+    5. Verify.
+
+    **Drafting the reasoning:**
+    $28 \times 37$
+    Break 37 into $30 + 7$.
+    $28 \times 37 = 28 \times (30 + 7)$
+    $= (28 \times 30) + (28 \times 7)$
+
+    Calculate $28 \times 30$:
+    $28 \times 3 = 84$
+    $84 \times 10 = 840$
+
+    Calculate $28 \times 7$:
+    $20 \times 7 = 140$
+    $8 \times 7 = 56$
+    $140 + 56 = 196$
+
+    Add them:
+    $840 + 196$
+    $840 + 100 = 940$
+    $940 + 90 = 1030$
+    $1030 + 6 = 1036$
+
+    Alternative check: $(30-2) \times 37$
+    $30 \times 37 = 1110$
+    $2 \times 37 = 74$
+    $1110 - 74 = 1036$
+
+    Result is consistent. I will present the distributive method as it's often easier to follow step-by-step in text.
+
+3.  **Final Output Structure:**
+    *   Headline the answer.
+    *   Show the breakdown.
+    *   Show the arithmetic.
+    *   Show the final addition.
+    *   State the final result clearly.
+
+4.  **Refining the Output:** Make it clean and easy to read. Use LaTeX formatting or clear text representation.
+
+    Step 1: Break down 37 into 30 and 7.
+    Step 2: Multiply 28 by 30.
+    Step 3: Multiply 28 by 7.
+    Step 4: Add the results.
+
+    Let's write it out.
+    $28 \times 30 = 840$
+    $28 \times 7 = 196$
+    $840 + 196 = 1036$
+
+    Looks good. I will formulate the response now.
+
+    Wait, I should check if there's a simpler way to explain.
+    $28 \times 37$
+    $= (30 - 2) \times 37$
+    $= 30 \times 37 - 2 \times 37$
+    $= 1110 - 74$
+    $= 1036$
+    This is also very clean. Maybe I'll use the standard long multiplication layout as primary because it's the most common "school" method, but explain the steps.
+    Actually, the distributive property $(28 \times 30) + (28 \times 7)$ is usually preferred for showing "reasoning" rather than just "algorithm". I'll stick with that. It demonstrates understanding of place value.
+
+    Wait, let's look at the "Standard Algorithm" explanation.
+       37
+    x  28
+    -----
+      296  (8 * 37)
+     740   (20 * 37)
+    -----
+    1036
+
+    This is very visual. I will use this format in the text explanation.
+
+    Let's combine both for robustness. I'll describe the standard multiplication steps clearly.
+
+    Step 1: Multiply 37 by 8 (the ones digit of 28).
+    $37 \times 8 = 296$
+    Step 2: Multiply 37 by 20 (the tens digit of 28).
+    $37 \times 20 = 740$
+    Step 3: Add the two results.
+    $296 + 740 = 1036$
+
+    This is clear and concise. I will write this down.
+
+    Wait, let me re-verify $37 \times 8$.
+    $30 \times 8 = 240$
+    $7 \times 8 = 56$
+    $240 + 56 = 296$. Correct.
+    $37 \times 20 = 740$. Correct.
+    $296 + 740$.
+    $6+0=6$
+    $9+4=13$ (3, carry 1)
+    $2+7+1=10$
+    $1036$. Correct.
+
+    Okay, ready to write.
+
+    Structure:
+    1. Direct Answer.
+    2. Step-by-step reasoning (Standard Multiplication method).
+    3. Alternative method (Distributive property) for verification/clearer logic.
+    4. Final bold answer.
+
+    Actually, keeping it simple is better. Just show one clear method. The distributive method ($28 \times (30 + 7)$) is often easier to type out without looking like a grid. I'll use that one. It feels more like "reasoning" than just "doing the math".
+
+    Let's draft the response.
+    "To find the product of 28
+
+  (reasoning_content 필드 없음 - 응답 본문에 thinking이 포함될 수 있음)
+
+============================================================
+  테스트 완료
+============================================================

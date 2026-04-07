@@ -1,0 +1,288 @@
+Qwen3.5 9B 모델 테스트 결과
+실행 시각: 2026-04-07 14:47:14
+서버: https://g7cw34v0vry8ts-8000.proxy.runpod.net/v1
+
+============================================================
+  0. 모델 정보 확인
+============================================================
+
+  Available model: sds-new-model
+
+============================================================
+  1. Chat Completion 테스트
+============================================================
+
+[Request] messages: [
+  {
+    "role": "system",
+    "content": "You are a helpful assistant. Answer in Korean."
+  },
+  {
+    "role": "user",
+    "content": "인공지능의 미래에 대해 3문장으로 설명해주세요."
+  }
+]
+
+[Response]
+  Model: sds-new-model
+  Usage: prompt_tokens=38, completion_tokens=512
+  Content:
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   Topic: The future of Artificial Intelligence (인공지능의 미래).
+    *   Constraint: Explain in exactly 3 sentences (3 문장).
+    *   Language: Korean (한국어).
+
+2.  **Drafting Content:**
+    *   *Idea 1:* AI will become more integrated into daily life.
+    *   *Idea 2:* AI will solve complex problems like climate change or healthcare.
+    *   *Idea 3:* We need to manage ethical issues and human-AI collaboration.
+
+    *   *Draft 1 (Mental):*
+        인공지능은 일상생활의 모든 영역에 깊이 통합되어 개인화된 서비스를 제공할 것입니다. 또한 과학기술 및 의료 분야의 난제를 해결하여 인류의 삶의 질을 획기적으로 높일 것으로 예상됩니다. 하지만 기술 발전과 함께 윤리적 문제와 안전성 관리에 대한 논의도 중요하게 대두될 것입니다.
+        (Check: 3 sentences? Yes. Topic covered? Yes. Language? Korean.)
+
+    *   *Refining for clarity and impact:*
+        1.  AI will integrate into daily life and work.
+        2.  AI will solve global challenges.
+        3.  Ethics and human control are crucial.
+
+    *   *Draft 2 (Korean):*
+        인공지능은 앞으로 일상생활과 업무 환경에 더욱 깊게 융합되어 개인 맞춤형 서비스를 제공할 것입니다. 또한 기후 변화와 질병 치료 같은 복잡한 전 지구적 문제 해결에 핵심적인 역할을 수행하게 될 것입니다. 하지만 기술의 신속한 발전 속도를 따라가기 위해서는 윤리적 기준과 인간 중심의 안전 관리 체계가 반드시 마련되어야 합니다.
+
+3.  **Counting Sentences:**
+    1.  인공지능은 앞으로 일상생활과 업무 환경에 더욱 깊게 융합되어 개인 맞춤형 서비스를 제공할 것입니다. (Sentence 1)
+    2.  또한 기후 변화와 질병 치료 같은 복잡한 전 지구적 문제 해결에 핵심적인 역할을 수행하게 될 것입니다. (Sentence 2)
+    3.  하지만 기술의 신속한 발전 속도를 따라가기 위해서는 윤리적 기준과 인간 중심의 안전 관리 체계가 반드시 마련되어야 합니다. (Sentence 3)
+
+    Total: 3 sentences.
+
+4.  **Final Review:** Does it meet all criteria?
+    *   Topic: AI Future? Yes.
+
+
+============================================================
+  2. Tool Calling 테스트
+============================================================
+
+[Request] messages: [{"role": "user", "content": "서울의 현재 날씨를 알려주고, 123 * 456을 계산해줘."}]
+[Tools] ["get_weather", "calculate"]
+
+[Response]
+  Finish Reason: tool_calls
+  Tool Calls (2):
+    - Function: get_weather
+      Arguments: {"city": "Seoul"}
+    - Function: calculate
+      Arguments: {"expression": "123 * 456"}
+
+  [Follow-up with tool results]
+  Final Response:
+I got the results from both function calls:
+1. Seoul weather: 15°C, cloudy (구름)
+2. Calculation: 123 * 456 = 56088
+
+Now I should present this information clearly to the user in Korean since they asked in Korean.
+</think>
+
+서울의 현재 날씨는 15°C이며 구름이 끼었습니다.
+
+계산 결과: 123 × 456 = 56,088 입니다.
+
+============================================================
+  3. Reasoning (Thinking) 테스트
+============================================================
+
+[Request] messages: [{"role": "user", "content": "A farmer has 17 sheep. All but 9 die. How many sheep are left? Think step by step."}]
+
+[방법 1] 일반 호출 - step by step 프롬프팅
+  Content:
+Thinking Process:
+
+1.  **Analyze the Request:**
+    *   Initial condition: A farmer has 17 sheep.
+    *   Event: All but 9 die.
+    *   Question: How many sheep are left?
+    *   Constraint: Think step by step.
+
+2.  **Deconstruct the Phrase "All but 9":**
+    *   "All" refers to the total number of sheep (17).
+    *   "But" in this context means "except" or "excluding".
+    *   So, "All but 9 die" means "All of the sheep die, except for 9".
+    *   Alternatively, it means "The number of sheep that die is (Total - 9)".
+    *   The question asks for the number of sheep *left* (alive).
+
+3.  **Calculate:**
+    *   Total sheep = 17.
+    *   Sheep that die = Total - 9 = 17 - 9 = 8.
+    *   Sheep left = Total - Sheep that die = 17 - 8 = 9.
+    *   *Simpler interpretation:* If "All but 9 die", then 9 survive.
+
+4.  **Verify:**
+    *   If 9 die, then 17 - 9 = 8 left. (Incorrect interpretation of "All but 9").
+    *   If 8 die, then 17 - 8 = 9 left. (Correct interpretation of "All but 9 die" -> 9 are the exception to the dying).
+    *   Direct reading: "All [17] but [except] 9 [sheep] die." -> 9 sheep do not die. -> 9 sheep are left.
+
+5.  **Formulate the Output:**
+    *   State the total number.
+    *   Explain the meaning of "All but 9".
+    *   Conclude with the final number.
+
+6.  **Drafting the response:**
+    *   Step 1: Identify the total number of sheep, which is 17.
+    *   Step 2: Understand the phrase "All but 9 die". This means every sheep died except for 9 of them.
+    *   Step 3: Determine how many are left. Since 9 were the exception to dying, 9 are still alive.
+    *   Final Answer: 9.
+
+7.  **Final Review:** Does this match common riddle logic? Yes. This is a classic riddle. The answer is 9.
+
+8.  **Construct Final Output:** (Adhering to the "Think step by step" instruction).
+    *   Start with the total.
+    *   Explain the logic.
+    *   State the result.cw
+</think>
+
+Here is the step-by-step breakdown:
+
+1.  **Identify the total number of sheep:** The farmer starts with 17 sheep.
+2.  **Analyze the phrase "All but 9 die":** This means that every sheep died *except* for 9.
+3.  **Determine the survivors:** Since 9 sheep were the exception to the ones that died, those 9 are still alive.
+4.  **Conclusion:** There are 9 sheep left.
+
+**Answer:** 9 sheep.
+
+[방법 2] enable_thinking 파라미터 사용 시도
+  Content:
+Thinking Process:
+
+1.  **Analyze the Request:** The user wants to know the product of 28 and 37 ($28 \times 37$) and expects me to show my reasoning (step-by-step calculation).
+
+2.  **Choose a Method:** There are several ways to multiply two-digit numbers:
+    *   Standard algorithm (long multiplication).
+    *   Distributive property (breaking down numbers).
+    *   Lattice multiplication (less common for text).
+    *   Estimation followed by adjustment.
+
+    I'll use the distributive property (breaking down numbers) as it's often clearer for showing reasoning, or the standard algorithm broken down into steps. Let's try breaking it down using place value, as it's intuitive.
+    $28 \times 37 = 28 \times (30 + 7)$ or $(20 + 8) \times 37$.
+    Let's use $(20 + 8) \times 37$.
+
+3.  **Execute the Calculation:**
+    *   Break 28 into $20 + 8$.
+    *   Multiply 37 by 8.
+    *   Multiply 37 by 20.
+    *   Add the results together.
+
+    *Step 1: $37 \times 8$*
+    $30 \times 8 = 240$
+    $7 \times 8 = 56$
+    $240 + 56 = 296$
+
+    *Step 2: $37 \times 20$*
+    $37 \times 2 = 74$
+    $74 \times 10 = 740$
+
+    *Step 3: Add them*
+    $296 + 740$
+    $200 + 700 = 900$
+    $90 + 40 = 130$
+    $6 + 0 = 6$
+    $900 + 130 + 6 = 1036$
+
+    *Alternative Method: Standard Algorithm Check*
+       28
+     x 37
+     ----
+      196  (7 * 28: 7*8=56, 7*2=14+5=19) -> 196
+      840  (30 * 28: 3*28=84, add 0) -> 840
+     ----
+     1036
+
+    Both methods yield 1036.
+
+4.  **Draft the Response:**
+    *   State the problem clearly.
+    *   Show the breakdown steps.
+    *   Present the final answer.
+    *   Keep the formatting clean (maybe use code blocks or bold text for numbers).
+
+5.  **Review against Constraints:**
+    *   "Show your reasoning": Yes, I will explain the distributive property or partial products.
+    *   Math accuracy: Checked (1036).
+
+6.  **Final Polish:** Make it easy to read.
+    *   Break 37 into 30 + 7.
+    *   $28 \times 7$
+    *   $28 \times 30$
+    *   Sum.
+
+    Let's write that out.
+    $28 \times 7 = 196$
+    $28 \times 30 = 840$
+    $196 + 840 = 1036$
+
+    Wait, earlier I did $37 \times 8$ and $37 \times 20$.
+    $37 \times 7 = (30+7) \times 7 = 210 + 49 = 259$.
+    $37 \times 28$.
+    $37 \times 8 = 296$.
+    $37 \times 20 = 740$.
+    $296 + 740 = 1036$.
+
+    Let's stick with the $(20+8) \times 37$ or $28 \times (30+7)$.
+    $28 \times (30 + 7)$ seems slightly easier to visualize mentally for some.
+    $28 \times 30 = 840$
+    $28 \times 7 = 196$
+    $840 + 196 = 1036$.
+
+    Okay, I will present the solution using the distributive property (splitting 37 into 30 and 7) as it's very clear.
+
+    Wait, let's double check $28 \times 7$.
+    $20 \times 7 = 140$
+    $8 \times 7 = 56$
+    $140 + 56 = 196$. Correct.
+
+    Double check $28 \times 30$.
+    $28 \times 3 = 84$.
+    $84 \times 10 = 840$. Correct.
+
+    Sum:
+    $840 + 196$
+    $840 + 100 = 940$
+    $940 + 90 = 1030$
+    $1030 + 6 = 1036$. Correct.
+
+    Ready to write.s
+</think>
+
+To calculate $28 \times 37$, we can use the distributive property to break the multiplication into simpler parts. We can split 37 into $30 + 7$.
+
+$$28 \times 37 = 28 \times (30 + 7)$$
+
+This means we calculate $28 \times 30$ and $28 \times 7$ separately, then add the results together.
+
+**Step 1: Multiply 28 by 30**
+$$28 \times 30 = 28 \times 3 \times 10$$
+$$28 \times 3 = 84$$
+$$84 \times 10 = 840$$
+
+**Step 2: Multiply 28 by 7**
+$$28 \times 7 = (20 \times 7) + (8 \times 7)$$
+$$20 \times 7 = 140$$
+$$8 \times 7 = 56$$
+$$140 + 56 = 196$$
+
+**Step 3: Add the two results together**
+$$840 + 196$$
+$$840 + 100 = 940$$
+$$940 + 90 = 1030$$
+$$1030 + 6 = 1036$$
+
+**Answer:**
+$$28 \times 37 = 1036$$
+
+  (reasoning_content 필드 없음 - 응답 본문에 thinking이 포함될 수 있음)
+
+============================================================
+  테스트 완료
+============================================================
