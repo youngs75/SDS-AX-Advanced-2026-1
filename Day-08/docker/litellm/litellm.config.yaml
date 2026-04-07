@@ -1,0 +1,22 @@
+# Day-08 LiteLLM proxy config.
+# Derived from the official LiteLLM config examples:
+# - https://raw.githubusercontent.com/BerriAI/litellm/main/dev_config.yaml
+# - https://docs.litellm.ai/ (Proxy Server -> CREATE config.yaml)
+#
+# This config keeps the learner-facing contract stable:
+# - students call the alias below
+# - LiteLLM forwards to the instructor-provided vLLM OpenAI-compatible endpoint
+
+model_list:
+  - model_name: os.environ/LITELLM_MODEL_ALIAS
+    litellm_params:
+      model: os.environ/VLLM_LITELLM_MODEL
+      api_base: os.environ/VLLM_API_BASE
+      api_key: os.environ/VLLM_API_KEY
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+litellm_settings:
+  drop_params: true
+  telemetry: false

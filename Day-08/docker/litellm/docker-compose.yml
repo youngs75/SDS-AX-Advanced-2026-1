@@ -1,0 +1,72 @@
+# Day-08 LiteLLM stack.
+# Based on the official LiteLLM GitHub compose example:
+# https://raw.githubusercontent.com/BerriAI/litellm/main/docker-compose.yml
+#
+# Day-08 adjustments:
+# - mount a workshop config.yaml for alias -> vLLM routing
+# - avoid exposing Postgres on the host
+# - move Prometheus host port to 9092 to avoid clashing with Langfuse MinIO
+
+services:
+  litellm:
+    image: docker.litellm.ai/berriai/litellm:main-stable
+    volumes:
+      - ./litellm.config.yaml:/app/config.yaml:ro
+    command:
+      - "--config=/app/config.yaml"
+      - "--detailed_debug"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: "postgresql://llmproxy:${POSTGRES_PASSWORD:-dbpassword9090}@db:5432/litellm"
+      STORE_MODEL_IN_DB: "True"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  db:
+    image: postgres:16
+    restart: always
+    container_name: day08_litellm_db
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: llmproxy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dbpassword9090}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9092:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    restart: always
+
+volumes:
+  prometheus_data:
+    driver: local
+  postgres_data:
+    name: day08_litellm_postgres_data
