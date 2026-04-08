@@ -1,4 +1,4 @@
-"""`FilesystemBackend`: Read and write files directly from the filesystem."""
+"""`FilesystemBackend`: 파일시스템에 직접 접근하여 파일을 읽고 쓰는 백엔드."""
 
 import base64
 import json
@@ -37,51 +37,51 @@ logger = logging.getLogger(__name__)
 
 
 class FilesystemBackend(BackendProtocol):
-    """Backend that reads and writes files directly from the filesystem.
+    """파일시스템에 직접 접근하여 파일을 읽고 쓰는 백엔드.
 
-    Files are accessed using their actual filesystem paths. Relative paths are
-    resolved relative to the current working directory. Content is read/written
-    as plain text, and metadata (timestamps) are derived from filesystem stats.
+    파일은 실제 파일시스템 경로로 접근한다. 상대 경로는 현재 작업 디렉토리
+    기준으로 해석한다. 내용은 평문으로 읽고 쓰며, 메타데이터(타임스탬프)는
+    파일시스템 stat에서 가져온다.
 
-    !!! warning "Security Warning"
+    !!! warning "보안 경고"
 
-        This backend grants agents direct filesystem read/write access. Use with
-        caution and only in appropriate environments.
+        이 백엔드는 에이전트에게 파일시스템 직접 읽기/쓰기 권한을 부여한다.
+        적절한 환경에서만 주의하여 사용하라.
 
-        **Appropriate use cases:**
+        **적절한 사용 사례:**
 
-        - Local development CLIs (coding assistants, development tools)
-        - CI/CD pipelines (see security considerations below)
+        - 로컬 개발 CLI (코딩 어시스턴트, 개발 도구)
+        - CI/CD 파이프라인 (아래 보안 고려사항 참조)
 
-        **Inappropriate use cases:**
+        **부적절한 사용 사례:**
 
-        - Web servers or HTTP APIs - use `StateBackend`, `StoreBackend`, or
-            `SandboxBackend` instead
+        - 웹 서버나 HTTP API — `StateBackend`, `StoreBackend`, 또는
+            `SandboxBackend`를 사용하라
 
-        **Security risks:**
+        **보안 위험:**
 
-        - Agents can read any accessible file, including secrets (API keys,
-            credentials, `.env` files)
-        - Combined with network tools, secrets may be exfiltrated via SSRF attacks
-        - File modifications are permanent and irreversible
+        - 에이전트가 시크릿(API 키, 인증 정보, `.env` 파일 등)을 포함한
+            접근 가능한 모든 파일을 읽을 수 있다
+        - 네트워크 도구와 결합하면 SSRF 공격을 통해 시크릿이 유출될 수 있다
+        - 파일 수정은 영구적이며 되돌릴 수 없다
 
-        **Recommended safeguards:**
+        **권장 안전 조치:**
 
-        1. Enable Human-in-the-Loop (HITL) middleware to review sensitive operations
-        2. Exclude secrets from accessible filesystem paths (especially in CI/CD)
-        3. For production environments, prefer `StateBackend`, `StoreBackend` or `SandboxBackend`
+        1. 민감한 작업을 검토하기 위해 Human-in-the-Loop (HITL) 미들웨어를 활성화하라
+        2. 접근 가능한 파일시스템 경로에서 시크릿을 제외하라 (특히 CI/CD에서)
+        3. 프로덕션 환경에서는 `StateBackend`, `StoreBackend` 또는 `SandboxBackend`를 선호하라
 
-        In general, we expect this backend to be used with Human-in-the-Loop (HITL)
-        middleware, or within a properly sandboxed environment if you need to run
-        untrusted workloads.
+        일반적으로 이 백엔드는 Human-in-the-Loop (HITL) 미들웨어와 함께,
+        또는 신뢰할 수 없는 워크로드를 실행해야 할 경우 적절히 샌드박스된
+        환경 내에서 사용할 것을 권장한다.
 
         !!! note
 
-            `virtual_mode=True` is primarily for virtual path semantics (for example with
-            `CompositeBackend`). It can also provide path-based guardrails by blocking
-            traversal (`..`, `~`) and absolute paths outside `root_dir`, but it does not
-            provide sandboxing or process isolation. The default (`virtual_mode=False`)
-            provides no security even with `root_dir` set.
+            `virtual_mode=True`는 주로 가상 경로 의미론을 위한 것이다 (예:
+            `CompositeBackend`와 함께 사용). `..`, `~` 같은 경로 탈출을 차단하고
+            `root_dir` 외부의 절대 경로를 막는 경로 기반 가드레일을 제공할 수 있으나,
+            샌드박싱이나 프로세스 격리는 제공하지 않는다. 기본값(`virtual_mode=False`)은
+            `root_dir`이 설정되어 있어도 어떠한 보안도 제공하지 않는다.
     """
 
     def __init__(
@@ -90,38 +90,38 @@ class FilesystemBackend(BackendProtocol):
         virtual_mode: bool | None = None,  # noqa: FBT001
         max_file_size_mb: int = 10,
     ) -> None:
-        """Initialize filesystem backend.
+        """파일시스템 백엔드를 초기화한다.
 
         Args:
-            root_dir: Optional root directory for file operations.
+            root_dir: 파일 작업의 선택적 루트 디렉토리.
 
-                Defaults to the current working directory.
+                기본값은 현재 작업 디렉토리이다.
 
-                - When `virtual_mode=False` (default): Only affects relative path resolution.
-                - When `virtual_mode=True`: Acts as a virtual root for filesystem operations.
+                - `virtual_mode=False` (기본값): 상대 경로 해석에만 영향을 준다.
+                - `virtual_mode=True`: 파일시스템 작업의 가상 루트 역할을 한다.
 
-            virtual_mode: Enable virtual path mode.
+            virtual_mode: 가상 경로 모드를 활성화한다.
 
-                **Primary use case:** stable, backend-independent path semantics when
-                used with `CompositeBackend`, which strips route prefixes and forwards
-                normalized paths to the routed backend.
+                **주요 사용 사례:** `CompositeBackend`와 함께 사용할 때 라우트 접두사를
+                제거하고 정규화된 경로를 라우팅된 백엔드로 전달하는,
+                백엔드에 독립적이고 안정적인 경로 의미론을 제공한다.
 
-                When `True`, all paths are treated as virtual paths anchored to
-                `root_dir`. Path traversal (`..`, `~`) is blocked and all resolved paths
-                are verified to remain within `root_dir`.
+                `True`이면 모든 경로를 `root_dir`에 고정된 가상 절대 경로로 취급한다.
+                경로 탈출 (`..`, `~`)을 차단하고 해석된 모든 경로가 `root_dir`
+                내에 유지되는지 검증한다.
 
-                When `False` (default), absolute paths are used as-is and relative paths
-                are resolved under `root_dir`. This provides no security against an agent
-                choosing paths outside `root_dir`.
+                `False` (기본값)이면 절대 경로를 그대로 사용하고 상대 경로는
+                `root_dir` 하위에서 해석한다. 에이전트가 `root_dir` 외부 경로를
+                선택하는 것에 대한 보안은 제공하지 않는다.
 
-                - Absolute paths (e.g., `/etc/passwd`) bypass `root_dir` entirely
-                - Relative paths with `..` can escape `root_dir`
-                - Agents have unrestricted filesystem access
+                - 절대 경로 (예: `/etc/passwd`)는 `root_dir`을 완전히 우회한다
+                - `..`를 포함한 상대 경로는 `root_dir`을 벗어날 수 있다
+                - 에이전트는 제한 없이 파일시스템에 접근할 수 있다
 
-            max_file_size_mb: Maximum file size in megabytes for operations like
-                grep's Python fallback search.
+            max_file_size_mb: grep의 Python 폴백 검색 등에서 허용하는
+                최대 파일 크기 (메가바이트).
 
-                Files exceeding this limit are skipped during search. Defaults to 10 MB.
+                이 제한을 초과하는 파일은 검색 시 건너뛴다. 기본값은 10 MB.
         """
         self.cwd = Path(root_dir).resolve() if root_dir else Path.cwd()
         if virtual_mode is None:
@@ -140,24 +140,24 @@ class FilesystemBackend(BackendProtocol):
         self.max_file_size_bytes = max_file_size_mb * 1024 * 1024
 
     def _resolve_path(self, key: str) -> Path:
-        """Resolve a file path with security checks.
+        """보안 검사를 포함하여 파일 경로를 해석한다.
 
-        When `virtual_mode=True`, treat incoming paths as virtual absolute paths under
-        `self.cwd`, disallow traversal (`..`, `~`) and ensure resolved path stays within
-        root.
+        `virtual_mode=True`이면 들어오는 경로를 `self.cwd` 하위의 가상 절대
+        경로로 취급하고, 경로 탈출 (`..`, `~`)을 차단하며 해석된 경로가
+        루트 내에 유지되는지 확인한다.
 
-        When `virtual_mode=False`, preserve legacy behavior: absolute paths are allowed
-        as-is; relative paths resolve under cwd.
+        `virtual_mode=False`이면 레거시 동작을 유지한다: 절대 경로는 그대로
+        허용하고, 상대 경로는 cwd 하위에서 해석한다.
 
         Args:
-            key: File path (absolute, relative, or virtual when `virtual_mode=True`).
+            key: 파일 경로 (절대, 상대, 또는 `virtual_mode=True`일 때 가상 경로).
 
         Returns:
-            Resolved absolute `Path` object.
+            해석된 절대 `Path` 객체.
 
         Raises:
-            ValueError: If path traversal is attempted in `virtual_mode` or if the
-                resolved path escapes the root directory.
+            ValueError: `virtual_mode`에서 경로 탈출이 시도되거나 해석된 경로가
+                루트 디렉토리를 벗어나는 경우.
         """
         if self.virtual_mode:
             vpath = key if key.startswith("/") else "/" + key
@@ -178,30 +178,29 @@ class FilesystemBackend(BackendProtocol):
         return (self.cwd / path).resolve()
 
     def _to_virtual_path(self, path: Path) -> str:
-        """Convert a filesystem path to a virtual path relative to cwd.
+        """파일시스템 경로를 cwd 기준의 가상 경로로 변환한다.
 
         Args:
-            path: Filesystem path to convert.
+            path: 변환할 파일시스템 경로.
 
         Returns:
-            Forward-slash relative path string prefixed with `/`.
+            `/`로 시작하는 포워드 슬래시 상대 경로 문자열.
 
         Raises:
-            ValueError: If path is outside cwd.
-            OSError: If path cannot be resolved (broken symlink, permission denied).
+            ValueError: 경로가 cwd 외부에 있는 경우.
+            OSError: 심볼릭 링크 깨짐, 권한 거부 등으로 경로를 해석할 수 없는 경우.
         """
         return "/" + path.resolve().relative_to(self.cwd).as_posix()
 
-    def ls(self, path: str) -> LsResult:  # noqa: C901, PLR0912, PLR0915  # Complex virtual_mode logic
-        """List files and directories in the specified directory (non-recursive).
+    def ls(self, path: str) -> LsResult:  # noqa: C901, PLR0912, PLR0915  # virtual_mode 로직이 복잡함
+        """지정된 디렉토리의 파일과 하위 디렉토리를 나열한다 (비재귀).
 
         Args:
-            path: Absolute directory path to list files from.
+            path: 파일을 나열할 절대 디렉토리 경로.
 
         Returns:
-            List of `FileInfo`-like dicts for files and directories directly in the
-                directory. Directories have a trailing `/` in their path and
-                `is_dir=True`.
+            디렉토리 바로 아래 파일과 디렉토리에 대한 `FileInfo` 유사 dict 리스트.
+            디렉토리는 경로 끝에 `/`가 붙고 `is_dir=True`이다.
         """
         dir_path = self._resolve_path(path)
         if not dir_path.exists() or not dir_path.is_dir():
@@ -209,12 +208,12 @@ class FilesystemBackend(BackendProtocol):
 
         results: list[FileInfo] = []
 
-        # Convert cwd to string for comparison
+        # 비교를 위해 cwd를 문자열로 변환
         cwd_str = str(self.cwd)
         if not cwd_str.endswith("/"):
             cwd_str += "/"
 
-        # List only direct children (non-recursive)
+        # 직계 자식만 나열 (비재귀)
         try:
             for child_path in dir_path.iterdir():
                 try:
@@ -226,7 +225,7 @@ class FilesystemBackend(BackendProtocol):
                 abs_path = str(child_path)
 
                 if not self.virtual_mode:
-                    # Non-virtual mode: use absolute paths
+                    # 비가상 모드: 절대 경로 사용
                     if is_file:
                         try:
                             st = child_path.stat()
@@ -235,7 +234,7 @@ class FilesystemBackend(BackendProtocol):
                                     "path": abs_path,
                                     "is_dir": False,
                                     "size": int(st.st_size),
-                                    "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # Local filesystem timestamps don't need timezone
+                                    "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # 로컬 파일시스템 타임스탬프는 타임존 불필요
                                 }
                             )
                         except OSError:
@@ -248,13 +247,13 @@ class FilesystemBackend(BackendProtocol):
                                     "path": abs_path + "/",
                                     "is_dir": True,
                                     "size": 0,
-                                    "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # Local filesystem timestamps don't need timezone
+                                    "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # 로컬 파일시스템 타임스탬프는 타임존 불필요
                                 }
                             )
                         except OSError:
                             results.append({"path": abs_path + "/", "is_dir": True})
                 else:
-                    # Virtual mode: strip cwd prefix using Path for cross-platform support
+                    # 가상 모드: 크로스 플랫폼 지원을 위해 Path를 사용하여 cwd 접두사 제거
                     try:
                         virt_path = self._to_virtual_path(child_path)
                     except ValueError:
@@ -272,7 +271,7 @@ class FilesystemBackend(BackendProtocol):
                                     "path": virt_path,
                                     "is_dir": False,
                                     "size": int(st.st_size),
-                                    "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # Local filesystem timestamps don't need timezone
+                                    "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # 로컬 파일시스템 타임스탬프는 타임존 불필요
                                 }
                             )
                         except OSError:
@@ -285,7 +284,7 @@ class FilesystemBackend(BackendProtocol):
                                     "path": virt_path + "/",
                                     "is_dir": True,
                                     "size": 0,
-                                    "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # Local filesystem timestamps don't need timezone
+                                    "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # 로컬 파일시스템 타임스탬프는 타임존 불필요
                                 }
                             )
                         except OSError:
@@ -293,7 +292,7 @@ class FilesystemBackend(BackendProtocol):
         except (OSError, PermissionError):
             pass
 
-        # Keep deterministic order by path
+        # 경로 기준으로 결정적 순서를 유지한다
         results.sort(key=lambda x: x.get("path", ""))
         return LsResult(entries=results)
 
@@ -303,16 +302,16 @@ class FilesystemBackend(BackendProtocol):
         offset: int = 0,
         limit: int = 2000,
     ) -> ReadResult:
-        """Read file content for the requested line range.
+        """요청된 줄 범위의 파일 내용을 읽는다.
 
         Args:
-            file_path: Absolute or relative file path.
-            offset: Line offset to start reading from (0-indexed).
-            limit: Maximum number of lines to read.
+            file_path: 절대 또는 상대 파일 경로.
+            offset: 읽기 시작 줄 오프셋 (0 인덱스).
+            limit: 읽을 최대 줄 수.
 
         Returns:
-            ReadResult with raw (unformatted) content for the requested
-            window. Line-number formatting is applied by the middleware.
+            요청된 윈도우의 원시(미포맷) 내용이 담긴 ReadResult.
+            줄 번호 포맷팅은 미들웨어에서 적용된다.
         """
         resolved_path = self._resolve_path(file_path)
 
@@ -351,15 +350,15 @@ class FilesystemBackend(BackendProtocol):
         file_path: str,
         content: str,
     ) -> WriteResult:
-        """Create a new file with content.
+        """내용을 담아 새 파일을 생성한다.
 
         Args:
-            file_path: Path where the new file will be created.
-            content: Text content to write to the file.
+            file_path: 새 파일을 생성할 경로.
+            content: 파일에 쓸 텍스트 내용.
 
         Returns:
-            `WriteResult` with path on success, or error message if the file
-                already exists or write fails.
+            성공 시 경로가 담긴 `WriteResult`, 파일이 이미 존재하거나
+                쓰기에 실패하면 오류 메시지가 담긴 `WriteResult`.
         """
         resolved_path = self._resolve_path(file_path)
 
@@ -367,10 +366,10 @@ class FilesystemBackend(BackendProtocol):
             return WriteResult(error=f"Cannot write to {file_path} because it already exists. Read and then make an edit, or write to a new path.")
 
         try:
-            # Create parent directories if needed
+            # 필요하면 부모 디렉토리를 생성한다
             resolved_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Prefer O_NOFOLLOW to avoid writing through symlinks
+            # 심볼릭 링크를 통한 쓰기를 방지하기 위해 O_NOFOLLOW를 선호한다
             flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
             if hasattr(os, "O_NOFOLLOW"):
                 flags |= os.O_NOFOLLOW
@@ -389,18 +388,18 @@ class FilesystemBackend(BackendProtocol):
         new_string: str,
         replace_all: bool = False,  # noqa: FBT001, FBT002
     ) -> EditResult:
-        """Edit a file by replacing string occurrences.
+        """문자열 치환으로 파일을 편집한다.
 
         Args:
-            file_path: Path to the file to edit.
-            old_string: The text to search for and replace.
-            new_string: The replacement text.
-            replace_all: If `True`, replace all occurrences. If `False` (default),
-                replace only if exactly one occurrence exists.
+            file_path: 편집할 파일 경로.
+            old_string: 검색하여 교체할 텍스트.
+            new_string: 대체 텍스트.
+            replace_all: `True`이면 모든 발생을 교체한다. `False` (기본값)이면
+                정확히 하나의 발생이 있을 때만 교체한다.
 
         Returns:
-            `EditResult` with path and occurrence count on success, or error
-                message if file not found or replacement fails.
+            성공 시 경로와 발생 횟수가 담긴 `EditResult`, 파일을 찾지 못하거나
+                교체에 실패하면 오류 메시지가 담긴 `EditResult`.
         """
         resolved_path = self._resolve_path(file_path)
 
@@ -408,17 +407,17 @@ class FilesystemBackend(BackendProtocol):
             return EditResult(error=f"Error: File '{file_path}' not found")
 
         try:
-            # Read securely
+            # 안전하게 읽기
             fd = os.open(resolved_path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
             with os.fdopen(fd, "r", encoding="utf-8") as f:
                 content = f.read()
 
-            # Normalize line endings in old_string/new_string to match the
-            # text-mode read above. Python universal newlines (the default
-            # when newline=None) converts \r\n and bare \r to \n on read.
-            # Callers that obtained content via binary-mode reads (e.g.
-            # download_files) may pass strings with \r\n or \r that would
-            # fail to match the \n-only content.
+            # old_string/new_string의 줄 끝 문자를 위의 텍스트 모드 읽기와
+            # 맞게 정규화한다. Python 유니버설 개행 모드(newline=None 기본값)는
+            # 읽기 시 \r\n과 단독 \r을 \n으로 변환한다.
+            # 바이너리 모드 읽기(예: download_files)로 내용을 얻은 호출자는
+            # \n만 있는 내용과 매칭되지 않는 \r\n이나 \r이 포함된
+            # 문자열을 전달할 수 있다.
             old_string = old_string.replace("\r\n", "\n").replace("\r", "\n")
             new_string = new_string.replace("\r\n", "\n").replace("\r", "\n")
 
@@ -429,7 +428,7 @@ class FilesystemBackend(BackendProtocol):
 
             new_content, occurrences = result
 
-            # Write securely
+            # 안전하게 쓰기
             flags = os.O_WRONLY | os.O_TRUNC
             if hasattr(os, "O_NOFOLLOW"):
                 flags |= os.O_NOFOLLOW
@@ -447,19 +446,19 @@ class FilesystemBackend(BackendProtocol):
         path: str | None = None,
         glob: str | None = None,
     ) -> GrepResult:
-        """Search for a literal text pattern in files.
+        """파일에서 리터럴 텍스트 패턴을 검색한다.
 
-        Uses ripgrep if available, falling back to Python search.
+        ripgrep을 우선 사용하고, 미설치 시 Python 검색으로 폴백한다.
 
         Args:
-            pattern: Literal string to search for (NOT regex).
-            path: Directory or file path to search in. Defaults to current directory.
-            glob: Optional glob pattern to filter which files to search.
+            pattern: 검색할 리터럴 문자열 (정규식 아님).
+            path: 검색할 디렉토리 또는 파일 경로. 기본값은 현재 디렉토리.
+            glob: 검색할 파일을 필터링하는 선택적 glob 패턴.
 
         Returns:
-            GrepResult with matches or error.
+            매치 결과 또는 오류가 담긴 GrepResult.
         """
-        # Resolve base path
+        # 기본 경로 해석
         try:
             base_full = self._resolve_path(path or ".")
         except ValueError:
@@ -468,10 +467,10 @@ class FilesystemBackend(BackendProtocol):
         if not base_full.exists():
             return GrepResult(matches=[])
 
-        # Try ripgrep first (with -F flag for literal search)
+        # 리터럴 검색을 위해 -F 플래그와 함께 ripgrep 우선 시도
         results = self._ripgrep_search(pattern, base_full, glob)
         if results is None:
-            # Python fallback needs escaped pattern for literal search
+            # Python 폴백은 리터럴 검색을 위해 이스케이프된 패턴이 필요하다
             results = self._python_search(re.escape(pattern), base_full, glob)
 
         matches: list[GrepMatch] = []
@@ -480,19 +479,19 @@ class FilesystemBackend(BackendProtocol):
                 matches.append({"path": fpath, "line": int(line_num), "text": line_text})
         return GrepResult(matches=matches)
 
-    def _ripgrep_search(self, pattern: str, base_full: Path, include_glob: str | None) -> dict[str, list[tuple[int, str]]] | None:  # noqa: C901  # Split except clauses for logging
-        """Search using ripgrep with fixed-string (literal) mode.
+    def _ripgrep_search(self, pattern: str, base_full: Path, include_glob: str | None) -> dict[str, list[tuple[int, str]]] | None:  # noqa: C901  # 로깅을 위해 except 절을 분리함
+        """고정 문자열(리터럴) 모드로 ripgrep을 사용하여 검색한다.
 
         Args:
-            pattern: Literal string to search for (unescaped).
-            base_full: Resolved base path to search in.
-            include_glob: Optional glob pattern to filter files.
+            pattern: 검색할 리터럴 문자열 (이스케이프 없음).
+            base_full: 검색할 해석된 기본 경로.
+            include_glob: 파일을 필터링할 선택적 glob 패턴.
 
         Returns:
-            Dict mapping file paths to list of `(line_number, line_text)` tuples.
-                Returns `None` if ripgrep is unavailable or times out.
+            파일 경로를 `(줄 번호, 줄 텍스트)` 튜플 리스트에 매핑하는 dict.
+                ripgrep을 사용할 수 없거나 타임아웃 시 `None`을 반환한다.
         """
-        cmd = ["rg", "--json", "-F"]  # -F enables fixed-string (literal) mode
+        cmd = ["rg", "--json", "-F"]  # -F는 고정 문자열(리터럴) 모드를 활성화한다
         if include_glob:
             cmd.extend(["--glob", include_glob])
         cmd.extend(["--", pattern, str(base_full)])
@@ -541,19 +540,19 @@ class FilesystemBackend(BackendProtocol):
         return results
 
     def _python_search(self, pattern: str, base_full: Path, include_glob: str | None) -> dict[str, list[tuple[int, str]]]:  # noqa: C901, PLR0912
-        """Fallback search using Python when ripgrep is unavailable.
+        """ripgrep을 사용할 수 없을 때 Python으로 폴백 검색한다.
 
-        Recursively searches files, respecting `max_file_size_bytes` limit.
+        `max_file_size_bytes` 제한을 준수하며 파일을 재귀적으로 검색한다.
 
         Args:
-            pattern: Escaped regex pattern (from re.escape) for literal search.
-            base_full: Resolved base path to search in.
-            include_glob: Optional glob pattern to filter files by name.
+            pattern: 리터럴 검색을 위한 이스케이프된 정규식 패턴 (re.escape 사용).
+            base_full: 검색할 해석된 기본 경로.
+            include_glob: 파일 이름을 필터링할 선택적 glob 패턴.
 
         Returns:
-            Dict mapping file paths to list of `(line_number, line_text)` tuples.
+            파일 경로를 `(줄 번호, 줄 텍스트)` 튜플 리스트에 매핑하는 dict.
         """
-        # Compile escaped pattern once for efficiency (used in loop)
+        # 루프 내에서 사용하기 위해 이스케이프된 패턴을 한 번만 컴파일한다
         regex = re.compile(pattern)
 
         results: dict[str, list[tuple[int, str]]] = {}
@@ -595,15 +594,15 @@ class FilesystemBackend(BackendProtocol):
 
         return results
 
-    def glob(self, pattern: str, path: str = "/") -> GlobResult:  # noqa: C901, PLR0912  # Complex virtual_mode logic
-        """Find files matching a glob pattern.
+    def glob(self, pattern: str, path: str = "/") -> GlobResult:  # noqa: C901, PLR0912  # virtual_mode 로직이 복잡함
+        """glob 패턴에 맞는 파일을 찾는다.
 
         Args:
-            pattern: Glob pattern to match files against (e.g., `'*.py'`, `'**/*.txt'`).
-            path: Base directory to search from. Defaults to root (`/`).
+            pattern: 파일을 매칭할 glob 패턴 (예: `'*.py'`, `'**/*.txt'`).
+            path: 검색할 기본 디렉토리. 기본값은 루트 (`/`).
 
         Returns:
-            GlobResult with matching files or error.
+            매칭된 파일 또는 오류가 담긴 GlobResult.
         """
         if pattern.startswith("/"):
             pattern = pattern.lstrip("/")
@@ -618,7 +617,7 @@ class FilesystemBackend(BackendProtocol):
 
         results: list[FileInfo] = []
         try:
-            # Use recursive globbing to match files in subdirectories as tests expect
+            # 테스트가 기대하는 대로 하위 디렉토리의 파일을 매칭하기 위해 재귀 glob 사용
             for matched_path in search_path.rglob(pattern):
                 try:
                     is_file = matched_path.is_file()
@@ -640,13 +639,13 @@ class FilesystemBackend(BackendProtocol):
                                 "path": abs_path,
                                 "is_dir": False,
                                 "size": int(st.st_size),
-                                "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # Local filesystem timestamps don't need timezone
+                                "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # 로컬 파일시스템 타임스탬프는 타임존 불필요
                             }
                         )
                     except OSError:
                         results.append({"path": abs_path, "is_dir": False})
                 else:
-                    # Virtual mode: use Path for cross-platform support
+                    # 가상 모드: 크로스 플랫폼 지원을 위해 Path 사용
                     try:
                         virt = self._to_virtual_path(matched_path)
                     except ValueError:
@@ -662,7 +661,7 @@ class FilesystemBackend(BackendProtocol):
                                 "path": virt,
                                 "is_dir": False,
                                 "size": int(st.st_size),
-                                "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # Local filesystem timestamps don't need timezone
+                                "modified_at": datetime.fromtimestamp(st.st_mtime).isoformat(),  # noqa: DTZ006  # 로컬 파일시스템 타임스탬프는 타임존 불필요
                             }
                         )
                     except OSError:
@@ -674,21 +673,21 @@ class FilesystemBackend(BackendProtocol):
         return GlobResult(matches=results)
 
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
-        """Upload multiple files to the filesystem.
+        """여러 파일을 파일시스템에 업로드한다.
 
         Args:
-            files: List of (path, content) tuples where content is bytes.
+            files: (경로, 내용) 튜플의 리스트. content는 bytes이다.
 
         Returns:
-            List of FileUploadResponse objects, one per input file.
-            Response order matches input order.
+            입력 파일별 FileUploadResponse 객체 리스트.
+            응답 순서는 입력 순서와 일치한다.
         """
         responses: list[FileUploadResponse] = []
         for path, content in files:
             try:
                 resolved_path = self._resolve_path(path)
 
-                # Create parent directories if needed
+                # 필요하면 부모 디렉토리를 생성한다
                 resolved_path.parent.mkdir(parents=True, exist_ok=True)
 
                 flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
@@ -708,20 +707,20 @@ class FilesystemBackend(BackendProtocol):
         return responses
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
-        """Download multiple files from the filesystem.
+        """파일시스템에서 여러 파일을 다운로드한다.
 
         Args:
-            paths: List of file paths to download.
+            paths: 다운로드할 파일 경로 리스트.
 
         Returns:
-            List of FileDownloadResponse objects, one per input path.
+            입력 경로별 FileDownloadResponse 객체 리스트.
         """
         responses: list[FileDownloadResponse] = []
         for path in paths:
             try:
                 resolved_path = self._resolve_path(path)
-                # Use flags to optionally prevent symlink following if
-                # supported by the OS
+                # OS가 지원하는 경우 심볼릭 링크 추적을 방지하기 위해
+                # 플래그를 선택적으로 사용한다
                 fd = os.open(resolved_path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
                 with os.fdopen(fd, "rb") as f:
                     content = f.read()
@@ -735,17 +734,17 @@ class FilesystemBackend(BackendProtocol):
 
 
 def _map_exception_to_standard_error(exc: Exception) -> FileOperationError | None:
-    """Map a caught exception to a standardized `FileOperationError` code.
+    """잡힌 예외를 표준화된 `FileOperationError` 코드로 매핑한다.
 
-    Classification is based on exception type only (stdlib hierarchy).
-    Returns `None` for any exception that cannot be classified by type,
-    letting callers decide whether to re-raise or fall back to `str(exc)`.
+    분류는 예외 타입(표준 라이브러리 계층)만을 기준으로 한다.
+    타입으로 분류할 수 없는 예외는 `None`을 반환하여 호출자가
+    재발생 또는 `str(exc)` 폴백 여부를 결정하도록 한다.
 
     Args:
-        exc: The exception to classify.
+        exc: 분류할 예외.
 
     Returns:
-        A `FileOperationError` literal, or `None` if unrecognized.
+        `FileOperationError` 리터럴, 또는 인식할 수 없는 경우 `None`.
     """
     if isinstance(exc, FileNotFoundError):
         return "file_not_found"

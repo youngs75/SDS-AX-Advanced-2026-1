@@ -1,22 +1,41 @@
-"""Summarization middleware for automatic and tool-based conversation compaction.
+"""자동 및 도구 기반 대화 압축(compaction)을 위한 요약 미들웨어 모듈.
 
-This module provides two middleware classes and a convenience factory:
+이 모듈은 두 가지 미들웨어 클래스와 편의 팩토리 함수를 제공합니다:
 
-- `SummarizationMiddleware` — automatically compacts the conversation when token
-    usage exceeds a configurable threshold.
+- `SummarizationMiddleware` — 토큰 사용량이 설정 가능한 임계값을 초과하면
+    자동으로 대화를 압축합니다.
+    오래된 메시지는 LLM 호출로 요약되고, 전체 히스토리는
+    나중에 검색할 수 있도록 백엔드에 오프로딩됩니다.
 
-    Older messages are summarized via an LLM call and the full history is
-    offloaded to a backend for later retrieval.
-- `SummarizationToolMiddleware` — exposes a `compact_conversation` tool that
-    lets the agent (or a human-in-the-loop approval flow) trigger compaction on
-    demand.
+- `SummarizationToolMiddleware` — 에이전트(또는 HIL 승인 흐름)가
+    요청 시 압축을 트리거할 수 있는 `compact_conversation` 도구를 노출합니다.
+    `SummarizationMiddleware` 인스턴스와 조합하여 그 요약 엔진을 재사용합니다.
 
-    Composes with a `SummarizationMiddleware` instance and reuses its
-    summarization engine.
-- `create_summarization_tool_middleware` — convenience factory that creates both
-    middleware layers with model-aware defaults.
+- `create_summarization_tool_middleware` — 모델 인식 기본값으로 두 미들웨어
+    계층을 함께 생성하는 편의 팩토리 함수입니다.
 
-## Usage
+## 핵심 개념
+
+### 요약 트리거 (trigger)
+토큰/메시지/비율 기반 임계값으로 자동 요약을 트리거합니다.
+- `("tokens", 170000)`: 토큰 수가 17만 이상이면 트리거
+- `("fraction", 0.85)`: 모델 최대 토큰의 85% 이상이면 트리거
+- `("messages", 50)`: 메시지 50개 이상이면 트리거
+
+### 유지 정책 (keep)
+요약 후 보존할 최근 메시지 범위를 지정합니다.
+- `("messages", 6)`: 최근 6개 메시지 보존
+- `("fraction", 0.10)`: 모델 최대 토큰의 10%에 해당하는 최근 메시지 보존
+
+### 인수 절삭 (truncate_args)
+요약 전 경량 최적화로, 오래된 메시지의 write_file/edit_file 등
+대형 도구 인수(args)를 절삭합니다. 요약보다 낮은 임계값에서 작동합니다.
+
+### ContextOverflowError 폴백
+임계값 아래여서 요약을 건너뛰었지만 모델 호출이 ContextOverflowError를
+발생시키면, 즉시 요약 경로로 폴백하여 재시도합니다.
+
+## 사용 예시
 
 ```python
 from deepagents import create_deep_agent
@@ -39,12 +58,11 @@ tool_mw = SummarizationToolMiddleware(summ)
 agent = create_deep_agent(middleware=[summ, tool_mw])
 ```
 
-## Storage
+## 스토리지
 
-Offloaded messages are stored as markdown at `/conversation_history/{thread_id}.md`.
-
-Each summarization event appends a new section to this file, creating a running
-log of all evicted messages.
+오프로딩된 메시지는 `/conversation_history/{thread_id}.md`에 마크다운으로 저장됩니다.
+각 요약 이벤트는 이 파일에 새 섹션을 추가하여, 퇴거된 모든 메시지의
+누적 로그를 생성합니다.
 """
 
 from __future__ import annotations
@@ -91,7 +109,7 @@ logger = logging.getLogger(__name__)
 
 
 class CompactConversationSchema(BaseModel):
-    """Input schema for the `compact_conversation` tool."""
+    """compact_conversation 도구의 입력 스키마. 인자 없음 (빈 스키마)."""
 
 
 SUMMARIZATION_SYSTEM_PROMPT = """## Compact conversation Tool `compact_conversation`
@@ -105,12 +123,17 @@ You should use the tool when:
 
 
 class SummarizationEvent(TypedDict):
-    """Represents a summarization event.
+    """요약 이벤트를 나타내는 TypedDict.
+
+    하나의 요약 이벤트는 "어디까지 요약했는지(cutoff_index)",
+    "요약 내용(summary_message)", "원본 저장 위치(file_path)"를 기록합니다.
+    이 정보는 에이전트 상태의 `_summarization_event`에 저장되어,
+    후속 턴에서 올바른 effective message를 재구성하는 데 사용됩니다.
 
     Attributes:
-        cutoff_index: The index in the messages list where summarization occurred.
-        summary_message: The HumanMessage containing the summary.
-        file_path: Path where the conversation history was offloaded, or None if offload failed.
+        cutoff_index: 메시지 리스트에서 요약이 발생한 인덱스 (이 인덱스 이전이 요약됨).
+        summary_message: 요약 내용을 담은 HumanMessage.
+        file_path: 대화 히스토리가 오프로딩된 경로. 오프로딩 실패 시 None.
     """
 
     cutoff_index: int
@@ -119,27 +142,24 @@ class SummarizationEvent(TypedDict):
 
 
 class TruncateArgsSettings(TypedDict, total=False):
-    """Settings for truncating large tool-call arguments in older messages.
+    """오래된 메시지의 대형 도구 호출 인수(args)를 절삭하기 위한 설정.
 
-    This is a lightweight, pre-summarization optimization that fires at a lower
-    token threshold than full conversation compaction. When triggered, only the
-    `args` values on `AIMessage.tool_calls` in messages *before* the keep window
-    are shortened — recent messages are left intact.
+    전체 대화 압축보다 낮은 토큰 임계값에서 작동하는 경량의 사전 최적화입니다.
+    트리거되면, 유지 윈도우(keep window) *이전* 메시지의
+    `AIMessage.tool_calls`에 있는 `args` 값만 단축됩니다 —
+    최근 메시지는 그대로 유지됩니다.
 
-    Typical large arguments include `write_file` content, `edit_file` patches,
-    and verbose `execute` outputs.
+    절삭 대상이 되는 대표적인 대형 인수:
+    - `write_file`의 content (파일 전체 내용)
+    - `edit_file`의 old_string/new_string (패치)
 
     Args:
-        trigger: Token/message/fraction threshold that activates truncation.
-
-            Uses the same `ContextSize` format as the summarization trigger.
-
-            If `None`, truncation is disabled.
-        keep: How many recent messages (or tokens/fraction of context) to
-            leave untouched.
-        max_length: Character limit per argument value before it is clipped.
-        truncation_text: Replacement suffix appended after the first 20
-            characters of a truncated argument.
+        trigger: 절삭을 활성화하는 토큰/메시지/비율 임계값.
+            요약 트리거와 동일한 `ContextSize` 형식 사용.
+            None이면 절삭 비활성화.
+        keep: 절삭하지 않을 최근 메시지 범위 (토큰/메시지 수/비율).
+        max_length: 인수 값당 문자 제한 (초과 시 클리핑).
+        truncation_text: 절삭된 인수의 첫 20자 뒤에 추가되는 대체 접미사.
     """
 
     trigger: ContextSize | None
@@ -149,17 +169,19 @@ class TruncateArgsSettings(TypedDict, total=False):
 
 
 class SummarizationState(AgentState):
-    """State for the summarization middleware.
+    """요약 미들웨어의 상태 스키마.
 
-    Extends AgentState with a private field for tracking summarization events.
+    AgentState를 확장하여 요약 이벤트를 추적하는 비공개(private) 필드를 추가합니다.
+    PrivateStateAttr로 표시되어 부모 에이전트에게 전파되지 않습니다.
     """
 
     _summarization_event: Annotated[NotRequired[SummarizationEvent | None], PrivateStateAttr]
-    """Private field storing the most recent summarization event."""
+    """가장 최근 요약 이벤트를 저장하는 비공개 필드.
+    이전 요약의 cutoff_index를 기억하여 후속 턴에서 올바른 메시지를 재구성합니다."""
 
 
 class SummarizationDefaults(TypedDict):
-    """Default settings computed from model profile."""
+    """모델 프로파일에서 계산된 기본 요약 설정."""
 
     trigger: ContextSize
     keep: ContextSize
@@ -167,15 +189,25 @@ class SummarizationDefaults(TypedDict):
 
 
 def compute_summarization_defaults(model: BaseChatModel) -> SummarizationDefaults:
-    """Compute default summarization settings based on model profile.
+    """모델 프로파일에 기반하여 기본 요약 설정을 계산합니다.
+
+    모델에 `max_input_tokens` 프로파일이 있으면 비율(fraction) 기반 설정을 사용하고,
+    없으면 고정 토큰/메시지 수를 사용합니다.
+
+    비율 기반 설정 (프로파일 있는 모델):
+    - trigger: 컨텍스트의 85% 사용 시 요약 트리거
+    - keep: 요약 후 컨텍스트의 10%에 해당하는 최근 메시지 보존
+
+    고정값 설정 (프로파일 없는 모델):
+    - trigger: 17만 토큰 시 요약 트리거
+    - keep: 최근 6개 메시지 보존
+    (보수적으로 설정하여 컨텍스트 한도 초과를 방지)
 
     Args:
-        model: A resolved chat model instance.
+        model: 해석된 채팅 모델 인스턴스.
 
     Returns:
-        Default settings for trigger, keep, and truncate_args_settings.
-            If the model has a profile with `max_input_tokens`, uses
-            fraction-based settings. Otherwise, uses fixed token/message counts.
+        trigger, keep, truncate_args_settings 기본 설정.
     """
     has_profile = (
         model.profile is not None
@@ -207,7 +239,25 @@ def compute_summarization_defaults(model: BaseChatModel) -> SummarizationDefault
 
 
 class _DeepAgentsSummarizationMiddleware(AgentMiddleware):
-    """Summarization middleware with backend for conversation history offloading."""
+    """대화 히스토리 오프로딩을 지원하는 요약 미들웨어.
+
+    이 미들웨어는 두 가지 핵심 기능을 제공합니다:
+
+    1. **자동 요약**: 토큰 사용량이 임계값을 초과하면 오래된 메시지를 LLM으로 요약하고,
+       원본을 백엔드��� 오프로딩한 후, 요약 메시지 + 최근 메��지로 대체
+    2. **인수 절삭**: 요약보다 낮은 임계값에서, 오래된 메시지의 대형 도구 인수를 절삭
+
+    동작 흐름 (wrap_model_call):
+        1. 이전 요약 이벤트가 있으면 effective messages 재구성
+        2. 인수 절삭 적용 (설정된 경우)
+        3. 토큰 수 계산 → 요약 필��� 여부 판단
+        4. 요약 불필요 시: 모델 호출 시도 → ContextOverflowError 시 요약 폴백
+        5. 요약 필요 시: cutoff 결정 → 오프로딩 → LLM 요약 → 메시지 교체
+        6. _summarization_event를 ExtendedModelResponse로 상태에 저장
+
+    LangChain의 `LCSummarizationMiddleware`에 핵심 요약 로직을 위임하고,
+    Deep Agents 고유의 백엔드 오프로딩과 인수 절삭 기능을 추가합니다.
+    """
 
     state_schema = SummarizationState
 
@@ -225,37 +275,25 @@ class _DeepAgentsSummarizationMiddleware(AgentMiddleware):
         truncate_args_settings: TruncateArgsSettings | None = None,
         **deprecated_kwargs: Any,
     ) -> None:
-        """Initialize summarization middleware with backend support.
+        """백엔드 지원이 포함된 요약 미들웨어를 초기화합니다.
+
+        내부적으로 LangChain의 LCSummarizationMiddleware에 핵심 요약 로직을 위임하고,
+        Deep Agents 고유의 백엔드 오프로딩과 인수 절삭 설정을 추가합니다.
 
         Args:
-            model: The language model to use for generating summaries.
-            backend: Backend instance or factory for persisting conversation history.
-            trigger: Threshold(s) that trigger summarization.
-            keep: Context retention policy after summarization.
+            model: 요약 생성에 사용할 언어 모델.
+            backend: 대화 히스토리 영구 저장을 위한 백엔드 인스턴스 또는 팩토리.
+            trigger: 요약을 트리거하는 임계값.
+                `("tokens", N)`, `("fraction", F)`, `("messages", M)` 형식.
+            keep: 요약 후 컨텍스트 보존 정책. 기본값: 최근 20개 메시지 보존.
+            token_counter: 메���지의 토큰 수를 계산하는 함수.
+            summary_prompt: 요약 생성을 위한 프롬프트 템플릿.
+            trim_tokens_to_summarize: 요약 생성 시 포함할 최대 토큰 수. 기본 4000.
+            truncate_args_settings: 오래된 메시지의 대형 도구 인수 절삭 설정.
+                None이면 인수 절삭 비활성화.
+            history_path_prefix: 대화 히스토리 저장 경로 접두사.
 
-                Defaults to keeping last 20 messages.
-            token_counter: Function to count tokens in messages.
-            summary_prompt: Prompt template for generating summaries.
-            trim_tokens_to_summarize: Max tokens to include when generating summary.
-
-                Defaults to 4000.
-            truncate_args_settings: Settings for truncating large tool arguments in old messages.
-
-                Provide a [`TruncateArgsSettings`][deepagents.middleware.summarization.TruncateArgsSettings]
-                dictionary to configure when and how to truncate tool arguments. If `None`,
-                argument truncation is disabled.
-
-                !!! example
-
-                    ```python
-                    # Truncate when 50 messages is reached, ignoring the last 20 messages
-                    {"trigger": ("messages", 50), "keep": ("messages", 20), "max_length": 2000, "truncation_text": "...(truncated)"}
-
-                    # Truncate when 50% of context window reached, ignoring messages in last 10% of window
-                    {"trigger": ("fraction", 0.5), "keep": ("fraction", 0.1), "max_length": 2000, "truncation_text": "...(truncated)"}
-            history_path_prefix: Path prefix for storing conversation history.
-
-        Example:
+        사용 예시:
             ```python
             from deepagents.middleware.summarization import SummarizationMiddleware
             from deepagents.backends import StateBackend
@@ -263,8 +301,8 @@ class _DeepAgentsSummarizationMiddleware(AgentMiddleware):
             middleware = SummarizationMiddleware(
                 model="gpt-4o-mini",
                 backend=StateBackend(),
-                trigger=("tokens", 100000),
-                keep=("messages", 20),
+                trigger=("tokens", 100000),  # 10만 토큰 초과 시 요약
+                keep=("messages", 20),       # 최근 20개 메시지 보존
             )
             ```
         """
@@ -1084,17 +1122,17 @@ def create_summarization_middleware(
     model: BaseChatModel,
     backend: BACKEND_TYPES,
 ) -> _DeepAgentsSummarizationMiddleware:
-    """Create a `SummarizationMiddleware` with model-aware defaults.
+    """모델 인식 기본값으로 SummarizationMiddleware를 생성합니다.
 
-    Computes trigger, keep, and truncation settings from the model's profile
-    (or uses fixed-token fallbacks) and returns a configured middleware.
+    모델 프로파일에서 trigger, keep, 절삭 설정을 계산하고
+    (프로파일이 없으면 고정 토큰 폴백 사용) 설정된 미들웨어를 반환합니다.
 
     Args:
-        model: Resolved chat model instance.
-        backend: Backend instance or factory for persisting conversation history.
+        model: 해석된 채팅 모델 인스턴스.
+        backend: 대화 히스토리 영구 저장을 위한 백엔드 인스턴스 또는 팩토리.
 
     Returns:
-        Configured `SummarizationMiddleware` instance.
+        설정된 SummarizationMiddleware 인스턴스.
     """
     from langchain.chat_models import BaseChatModel as RuntimeBaseChatModel  # noqa: PLC0415
 
@@ -1117,11 +1155,10 @@ def create_summarization_tool_middleware(
     model: str | BaseChatModel,
     backend: BACKEND_TYPES,
 ) -> SummarizationToolMiddleware:
-    """Create a `SummarizationToolMiddleware` with model-aware defaults.
+    """모델 인식 기본값으로 SummarizationToolMiddleware를 생성하는 편의 팩토리.
 
-    Convenience factory that creates a `SummarizationMiddleware` via
-    `create_summarization_middleware` and wraps it in a
-    `SummarizationToolMiddleware`.
+    `create_summarization_middleware`를 통해 `SummarizationMiddleware`를 생성하고,
+    그것을 `SummarizationToolMiddleware`로 래핑합니다.
 
     Args:
         model: Chat model instance or model string (e.g., `"anthropic:claude-sonnet-4-20250514"`).
@@ -1180,27 +1217,25 @@ def create_summarization_tool_middleware(
 
 
 class SummarizationToolMiddleware(AgentMiddleware):
-    """Middleware that provides a `compact_conversation` tool for manual compaction.
+    """수동 압축을 위한 `compact_conversation` 도구를 제공하는 미들웨어.
 
-    This middleware composes with a `SummarizationMiddleware` instance, reusing
-    its summarization engine (model, backend, trigger thresholds) to let the
-    agent compact its own context window.
+    `SummarizationMiddleware` 인스턴스와 조합하여 그 요약 ��진
+    (모델, 백엔드, 트리거 임계값)을 재사용합니다.
+    에이전트가 자신의 컨텍스트 윈도우를 직접 압축할 수 있게 합니다.
 
-    This middleware never compacts automatically. Compaction only occurs when
-    `compact_conversation` is called as a normal tool call (by the model or by
-    an explicit user action, e.g. as implemented in the deepagents-cli).
+    이 미들웨어는 **자동으로 압축하지 않습니다**. 압축은 `compact_conversation`이
+    일반 도구 호출로 실행될 때(모델에 의해 또는 사용자의 명시적 요청으로)만 발생합니다.
 
-    To avoid compacting too early, compact tool execution is gated by
-    `_is_eligible_for_compaction`, which requires reported usage to reach about
-    50% of the configured auto-summarization trigger.
+    너무 이른 압축을 방지하기 위해, 도구 실행은 `_is_eligible_for_compaction`으로
+    게이팅됩니다. 보��된 사용량이 자동 요약 트리거의 약 50%에 도달해야 실행됩니다.
 
-    The tool and auto-summarization share the same `_summarization_event` state
-    key, so they interoperate correctly.
+    도구와 자동 요약은 동일한 `_summarization_event` 상태 키를 공유하므로
+    올바르게 상호 운용됩니다.
 
-    For a simpler setup, use `create_summarization_tool_middleware` which
-    handles both steps.
+    더 간단한 설정을 위해 `create_summarization_tool_middleware`를 사용하면
+    두 단계를 모두 처리합니다.
 
-    Example:
+    사용 예시:
         ```python
         from deepagents.middleware.summarization import (
             SummarizationMiddleware,

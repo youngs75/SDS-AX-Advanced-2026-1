@@ -1,4 +1,63 @@
-"""Middleware for providing filesystem tools to an agent."""
+"""에이전트에게 파일시스템 도구를 제공하는 미들웨어 모듈.
+
+이 모듈은 Deep Agents 프레임워크에서 가장 크고 핵심적인 미들웨어로,
+에이전트가 파일시스템과 상호작용할 수 있는 7개의 도구를 제공합니다.
+
+## 제공 도구 (7개)
+
+| 도구 | 기능 | 백엔드 요구사항 |
+|------|------|----------------|
+| `ls` | 디렉토리 파일 목록 조회 | BackendProtocol |
+| `read_file` | 파일 읽기 (페이지네이션, 이미지 지원) | BackendProtocol |
+| `write_file` | 새 파일 생성/작성 | BackendProtocol |
+| `edit_file` | 기존 파일의 문자열 교체 편집 | BackendProtocol |
+| `glob` | 패턴 기반 파일 검색 | BackendProtocol |
+| `grep` | 파일 내 텍스트 검색 | BackendProtocol |
+| `execute` | 샌드박스 셸 명령 실행 | SandboxBackendProtocol |
+
+## 핵심 아키텍처
+
+### 백엔드 추상화
+- `BackendProtocol`: 파일 읽기/쓰기/편집/검색의 기본 인터페이스
+- `SandboxBackendProtocol`: 셸 명령 실행을 추가로 지원하는 확장 인터페이스
+- `CompositeBackend`: 경로별로 다른 백엔드를 라우팅 (예: /memories/는 StoreBackend, 나머지는 StateBackend)
+- 백엔드가 실행을 지원하지 않으면, `execute` 도구는 동적으로 필터링됩니다.
+
+### 대용량 결과 퇴거(Eviction) 메커니즘
+컨텍스트 윈도우 포화를 방지하기 위한 두 가지 자동 메커니즘:
+
+1. **도구 결과 퇴거** (`wrap_tool_call`):
+   도구 실행 결과가 토큰 제한(`tool_token_limit_before_evict`)을 초과하면,
+   전체 내용을 백엔드의 `/large_tool_results/`에 저장하고
+   미리보기(head+tail)로 대체합니다.
+
+2. **HumanMessage 퇴거** (`wrap_model_call`):
+   사용자 메시지가 토큰 제한(`human_message_token_limit_before_evict`)을 초과하면,
+   백엔드의 `/conversation_history/`에 저장하고 미리보기로 대체합니다.
+
+### 동기/비동기 이중 구현
+모든 도구와 미들웨어 메서드가 동기(`sync_*`) + 비동기(`async_*`) 쌍으로 구현되어
+LangGraph의 양쪽 실행 컨텍스트를 모두 지원합니다.
+
+## 사용 예시
+
+```python
+from deepagents.middleware.filesystem import FilesystemMiddleware
+from deepagents.backends import StateBackend, CompositeBackend, StoreBackend
+
+# 기본: 임시(ephemeral) 스토리지만 사용 (실행 미지원)
+agent = create_agent(middleware=[FilesystemMiddleware()])
+
+# 하이브리드: 임시 + 영구 스토리지
+backend = CompositeBackend(default=StateBackend(), routes={"/memories/": StoreBackend()})
+agent = create_agent(middleware=[FilesystemMiddleware(backend=backend)])
+
+# 샌드박스: 셸 명령 실행 지원
+from my_sandbox import DockerSandboxBackend
+sandbox = DockerSandboxBackend(container_id="my-container")
+agent = create_agent(middleware=[FilesystemMiddleware(backend=sandbox)])
+```
+"""
 # ruff: noqa: E501
 
 import asyncio
@@ -55,11 +114,12 @@ from deepagents.backends.utils import (
 )
 from deepagents.middleware._utils import append_to_system_message
 
-EMPTY_CONTENT_WARNING = "System reminder: File exists but has empty contents"
-GLOB_TIMEOUT = 20.0  # seconds
-LINE_NUMBER_WIDTH = 6
-DEFAULT_READ_OFFSET = 0
-DEFAULT_READ_LIMIT = 100
+# === 상수 정의 ===
+EMPTY_CONTENT_WARNING = "System reminder: File exists but has empty contents"  # 빈 파일 경고 메시지
+GLOB_TIMEOUT = 20.0  # glob 검색 타임아웃 (초) — 너무 넓은 패턴의 무한 실행 방지
+LINE_NUMBER_WIDTH = 6  # 줄 번호 표시 너비
+DEFAULT_READ_OFFSET = 0  # read_file 기본 시작 줄 (0-indexed)
+DEFAULT_READ_LIMIT = 100  # read_file 기본 최대 줄 수
 # Template for truncation message in read_file
 # {file_path} will be filled in at runtime
 READ_FILE_TRUNCATION_MSG = (
@@ -70,34 +130,37 @@ READ_FILE_TRUNCATION_MSG = (
     "For other formats, you can use appropriate formatting tools to split long lines.]"
 )
 
-# Approximate number of characters per token for truncation calculations.
-# Using 4 chars per token as a conservative approximation (actual ratio varies by content)
-# This errs on the high side to avoid premature eviction of content that might fit
+# 토큰당 대략적인 문자 수 — 절삭(truncation) 계산에 사용
+# 실제 비율은 콘텐츠에 따라 다르지만, 보수적으로 4자/토큰을 사용합니다.
+# 높은 쪽으로 오차를 두어 맞을 수 있는 콘텐츠가 조기에 퇴거되는 것을 방지합니다.
 NUM_CHARS_PER_TOKEN = 4
 
 
 def _file_data_reducer(left: dict[str, FileData] | None, right: dict[str, FileData | None]) -> dict[str, FileData]:
-    """Merge file updates with support for deletions.
+    """삭제를 지원하는 파일 데이터 병합 리듀서.
 
-    This reducer enables file deletion by treating `None` values in the right
-    dictionary as deletion markers. It's designed to work with LangGraph's
-    state management where annotated reducers control how state updates merge.
+    LangGraph의 상태 관리에서 Annotated 리듀서로 사용됩니다.
+    right 딕셔너리에서 None 값을 삭제 마커로 처리하여 파일 삭제를 지원합니다.
+
+    동작 원리:
+    - right에 있는 키가 left에도 있으면: right 값으로 덮어쓰기
+    - right의 값이 None이면: left에서 해당 키를 삭제
+    - right에만 있는 키: 새로 추가
 
     Args:
-        left: Existing files dictionary. May be `None` during initialization.
-        right: New files dictionary to merge. Files with `None` values are
-            treated as deletion markers and removed from the result.
+        left: 기존 파일 딕셔너리. 초기화 시 None일 수 있음.
+        right: 병합할 새 파일 딕셔너리. None 값은 삭제 마커로 처리.
 
     Returns:
-        Merged dictionary where right overwrites left for matching keys,
-        and `None` values in right trigger deletions.
+        병합된 딕셔너리. right가 left를 덮어쓰고, None 값은 삭제를 트리거.
 
-    Example:
+    사용 예시:
         ```python
         existing = {"/file1.txt": FileData(...), "/file2.txt": FileData(...)}
         updates = {"/file2.txt": None, "/file3.txt": FileData(...)}
         result = file_data_reducer(existing, updates)
-        # Result: {"/file1.txt": FileData(...), "/file3.txt": FileData(...)}
+        # 결과: {"/file1.txt": FileData(...), "/file3.txt": FileData(...)}
+        # /file2.txt는 None으로 삭제됨
         ```
     """
     if left is None:
@@ -113,10 +176,14 @@ def _file_data_reducer(left: dict[str, FileData] | None, right: dict[str, FileDa
 
 
 class FilesystemState(AgentState):
-    """State for the filesystem middleware."""
+    """파일시스템 미들웨어의 상태 스키마.
+
+    에이전트 상태를 확장하여 파일 데이터를 저장하는 필드를 추가합니다.
+    StateBackend 사용 시, 파일 내용이 이 상태 딕셔너리에 직접 저장됩니다.
+    """
 
     files: Annotated[NotRequired[dict[str, FileData]], _file_data_reducer]
-    """Files in the filesystem."""
+    """파일시스템에 저장된 파일 데이터. _file_data_reducer를 통해 병합/삭제 처리."""
 
 
 class LsSchema(BaseModel):
@@ -328,16 +395,19 @@ Use this tool to run commands, scripts, tests, builds, and other shell operation
 
 
 def _supports_execution(backend: BackendProtocol) -> bool:
-    """Check if a backend supports command execution.
+    """백엔드가 셸 명령 실행을 ���원하는지 확인합니다.
 
-    For CompositeBackend, checks if the default backend supports execution.
-    For other backends, checks if they implement SandboxBackendProtocol.
+    CompositeBackend의 경우 기본(default) 백엔드가 실행을 지원하는지 확인합니다.
+    다른 백엔드의 경�� SandboxBackendProtocol을 구현하는지 확인합니다.
+
+    이 함수의 결과에 따라 wrap_model_call에서 execute 도구가
+    동적으로 필터링(제거)됩니다.
 
     Args:
-        backend: The backend to check.
+        backend: 확인할 백엔드.
 
     Returns:
-        True if the backend supports execution, False otherwise.
+        실행을 지원하면 True, 아니면 False.
     """
     # For CompositeBackend, check the default backend
     if isinstance(backend, CompositeBackend):
@@ -347,27 +417,24 @@ def _supports_execution(backend: BackendProtocol) -> bool:
     return isinstance(backend, SandboxBackendProtocol)
 
 
-# Tools that should be excluded from the large result eviction logic.
+# 대용량 결과 퇴거(eviction) 로직에서 제외되는 도구 목록.
 #
-# This tuple contains tools that should NOT have their results evicted to the filesystem
-# when they exceed token limits. Tools are excluded for different reasons:
+# 토큰 제한 초과 시 결과를 파일시스템에 퇴거하지 않는 도구들입니다.
+# 도구별 제외 이유가 다릅니다:
 #
-# 1. Tools with built-in truncation (ls, glob, grep):
-#    These tools truncate their own output when it becomes too large. When these tools
-#    produce truncated output due to many matches, it typically indicates the query
-#    needs refinement rather than full result preservation. In such cases, the truncated
-#    matches are potentially more like noise and the LLM should be prompted to narrow
-#    its search criteria instead.
+# 1. 자체 절삭(truncation)이 내장된 도구 (ls, glob, grep):
+#    출력이 너무 크면 스스로 절삭합니다. 많은 매치로 절삭된 출력은
+#    쿼리를 더 좁혀야 한다는 신호이므로, 전체 결과 보존보다는
+#    검색 기준 개선을 유도하는 것이 적절합니다.
 #
-# 2. Tools with problematic truncation behavior (read_file):
-#    read_file is tricky to handle as the failure mode here is single long lines
-#    (e.g., imagine a jsonl file with very long payloads on each line). If we try to
-#    truncate the result of read_file, the agent may then attempt to re-read the
-#    truncated file using read_file again, which won't help.
+# 2. 절삭이 문제가 되는 도구 (read_file):
+#    단일 긴 줄(예: 매우 큰 페이로드의 JSONL 파일)이 실패 모드입니다.
+#    결과를 절삭하면 에이전트가 절삭된 파일을 다시 read_file로 읽으려
+#    시도하지만, 같은 결과가 반복되어 도움이 되지 않습니다.
 #
-# 3. Tools that never exceed limits (edit_file, write_file):
-#    These tools return minimal confirmation messages and are never expected to produce
-#    output large enough to exceed token limits, so checking them would be unnecessary.
+# 3. 제한을 초과하지 않는 도구 (edit_file, write_file):
+#    최소한의 확인 메시지만 반환하므로 토큰 제한을 초과할 일이 없어
+#    검사 자체가 불필요합니다.
 TOOLS_EXCLUDED_FROM_EVICTION = (
     "ls",
     "glob",
@@ -403,18 +470,17 @@ def _build_evicted_human_content(
     message: HumanMessage,
     replacement_text: str,
 ) -> str | list[ContentBlock]:
-    """Build replacement content for an evicted HumanMessage, preserving non-text blocks.
+    """퇴거된 HumanMessage의 대체 콘텐츠를 생성���니다 (비텍스트 블록 보존).
 
-    For plain string content, returns the replacement text directly. For list content
-    with mixed block types (e.g., text + image), replaces all text blocks with a single
-    text block containing the replacement text while keeping non-text blocks intact.
+    멀티모달 메시지(텍스트 + 이미지 등)의 경우, 모든 텍스트 블록을
+    대체 텍스트로 교체하되 이미지 등 비텍스트 블록은 그대로 유지합니다.
 
     Args:
-        message: The original HumanMessage being evicted.
-        replacement_text: The truncation notice and preview text.
+        message: 퇴거되는 원본 HumanMessage.
+        replacement_text: 절삭 알림과 미리보기 텍스트.
 
     Returns:
-        Replacement content: a string or list of content blocks.
+        대체 콘텐츠: 순수 텍스트이면 문자열, 혼합 블록이면 ContentBlock 리스트.
     """
     if isinstance(message.content, str):
         return replacement_text
@@ -449,15 +515,19 @@ def _build_truncated_human_message(message: HumanMessage, file_path: str) -> Hum
 
 
 def _create_content_preview(content_str: str, *, head_lines: int = 5, tail_lines: int = 5) -> str:
-    """Create a preview of content showing head and tail with truncation marker.
+    """콘텐츠의 head(앞부분)와 tail(뒷부분)을 보여주는 미리보기를 생성합니다.
+
+    퇴거된 대용량 콘텐츠의 구조를 LLM이 파악할 수 있도록,
+    처음 N줄과 마지막 N줄을 줄 번호와 함께 보여주고
+    중간에 절삭 표시를 삽입합니다.
 
     Args:
-        content_str: The full content string to preview.
-        head_lines: Number of lines to show from the start.
-        tail_lines: Number of lines to show from the end.
+        content_str: 미리보기를 생성할 전체 콘텐츠 문자열.
+        head_lines: 시작 부분에서 표시할 줄 수 (기본 5).
+        tail_lines: 끝 부분에서 표시할 줄 수 (기본 5).
 
     Returns:
-        Formatted preview string with line numbers.
+        줄 번호가 포함된 포맷된 미리보기 문자열.
     """
     lines = content_str.splitlines()
 
@@ -478,34 +548,35 @@ def _create_content_preview(content_str: str, *, head_lines: int = 5, tail_lines
 
 
 def _extract_text_from_message(message: BaseMessage) -> str:
-    """Extract text from a message using its `content_blocks` property.
+    """메시지에서 텍스트만 추출합니다.
 
-    Joins all text content blocks and ignores non-text blocks (images, audio, etc.)
-    so that binary payloads don't inflate the size measurement.
+    `content_blocks` 속성을 사용하여 모든 텍스트 콘텐츠 블록을 결합하고,
+    비텍스트 블록(이미지, 오디오 등)은 무시합니다.
+    바이너리 페이로드가 크기 측정을 부풀리는 것을 방지합니다.
 
     Args:
-        message: The BaseMessage to extract text from.
+        message: 텍스트를 추출할 BaseMessage.
 
     Returns:
-        Joined text from all text content blocks, or stringified content as fallback.
+        모든 텍스트 콘텐츠 블록에서 결합된 텍스트 문자열.
     """
     texts = [block["text"] for block in message.content_blocks if block["type"] == "text"]
     return "\n".join(texts)
 
 
 def _build_evicted_content(message: ToolMessage, replacement_text: str) -> str | list[ContentBlock]:
-    """Build replacement content for an evicted message, preserving non-text blocks.
+    """퇴거된 ToolMessage의 대체 콘텐츠를 생성합니다 (비텍스트 블록 보존).
 
-    For plain string content, returns the replacement text directly. For list content
-    with mixed block types (e.g., text + image), replaces all text blocks with a single
-    text block containing the replacement text while keeping non-text blocks intact.
+    순수 문자열 콘텐츠면 대체 텍스트를 직접 반환합니다.
+    혼합 블록(텍스트 + 이미지 등)이면 모든 텍스트 블록을 대체 텍스트로 교체하되
+    비텍스트 블록(이미지 등)은 그대로 유지하여 멀티모달 컨텍스트를 보존합니다.
 
     Args:
-        message: The original ToolMessage being evicted.
-        replacement_text: The truncation notice and preview text.
+        message: 퇴거되는 원본 ToolMessage.
+        replacement_text: 절삭 알림과 미리보기 텍스트.
 
     Returns:
-        Replacement content: a string or list of content blocks.
+        대체 콘텐츠: 순수 텍스트이면 문자열, 혼합 블록이면 ContentBlock 리스트.
     """
     if isinstance(message.content, str):
         return replacement_text
@@ -517,51 +588,49 @@ def _build_evicted_content(message: ToolMessage, replacement_text: str) -> str |
 
 
 class FilesystemMiddleware(AgentMiddleware[FilesystemState, ContextT, ResponseT]):
-    """Middleware for providing filesystem and optional execution tools to an agent.
+    """에이전트에게 파일시스템 도구와 선택적 실행(execute) 도구를 제공하는 미들웨어.
 
-    This middleware adds filesystem tools to the agent: `ls`, `read_file`, `write_file`,
-    `edit_file`, `glob`, and `grep`.
+    이 미들웨어는 에이전트에 파일시스템 도구를 추가합니다: `ls`, `read_file`,
+    `write_file`, `edit_file`, `glob`, `grep`.
 
-    Files can be stored using any backend that implements the `BackendProtocol`.
+    `BackendProtocol`��� 구현하는 모든 백엔드를 사용하여 파일을 저장할 수 있습니다.
+    백엔드가 `SandboxBackendProtocol`을 구현하면, 셸 명령 실행을 위한
+    `execute` 도구도 추가됩니다.
 
-    If the backend implements `SandboxBackendProtocol`, an `execute` tool is also added
-    for running shell commands.
+    또한 대용량 도구 결과가 토큰 임계값을 초과하면 자동으로 파일시스���에 퇴거(evict)하여
+    컨텍스트 윈도우 포화를 방지합니다.
 
-    This middleware also automatically evicts large tool results to the file system when
-    they exceed a token threshold, preventing context window saturation.
+    미들웨어 생명주기:
+        1. **__init__**: 7개 도구 생성 (execute는 백엔드 미지원 시 런타임에 필터링)
+        2. **wrap_model_call** (매 LLM 호출): 시스템 프롬프트 주입 + execute 도구 필터링
+           + 대용량 HumanMessage 퇴거
+        3. **wrap_tool_call** (매 도구 실행 후): 대용량 도구 결과 퇴거
 
     Args:
-        backend: Backend for file storage and optional execution.
+        backend: 파일 저장 및 선택적 실행을 위한 백엔드.
+            미제공 시 `StateBackend`(에이전트 상태에 임시 저장)가 기본값입니다.
+            영구 저장 또는 하이브리드 설정에는 `CompositeBackend`를 사용합니다.
+            실행 지원에��� `SandboxBackendProtocol`을 구현하는 백엔드를 사용합니다.
+        system_prompt: 선택적 커스텀 시스템 프롬프트 오버라이드.
+        custom_tool_descriptions: 선택적 도구 설명 오버���이드.
+        tool_token_limit_before_evict: 도구 결과를 파일시스템에 퇴거하기 전 토큰 제한.
+            초과 시, 설정된 백엔드를 사용하여 결과를 저장하고
+            절삭된 미리보기와 파일 참조로 대체합니다.
 
-            If not provided, defaults to `StateBackend` (ephemeral storage in agent state).
-
-            For persistent storage or hybrid setups, use `CompositeBackend` with custom routes.
-
-            For execution support, use a backend that implements `SandboxBackendProtocol`.
-        system_prompt: Optional custom system prompt override.
-        custom_tool_descriptions: Optional custom tool descriptions override.
-        tool_token_limit_before_evict: Token limit before evicting a tool result to the
-            filesystem.
-
-            When exceeded, writes the result using the configured backend and replaces it
-            with a truncated preview and file reference.
-
-    Example:
+    사용 예시:
         ```python
         from deepagents.middleware.filesystem import FilesystemMiddleware
         from deepagents.backends import StateBackend, StoreBackend, CompositeBackend
-        from langchain.agents import create_agent
 
-        # Ephemeral storage only (default, no execution)
+        # 임시(ephemeral) 스토리지만 사용 (기본값, 실행 미지원)
         agent = create_agent(middleware=[FilesystemMiddleware()])
 
-        # With hybrid storage (ephemeral + persistent /memories/)
+        # 하이브리드 스토리지 (임시 + /memories/ 영구)
         backend = CompositeBackend(default=StateBackend(), routes={"/memories/": StoreBackend()})
         agent = create_agent(middleware=[FilesystemMiddleware(backend=backend)])
 
-        # With sandbox backend (supports execution)
+        # 샌드박스 백엔드 (셸 실행 지원)
         from my_sandbox import DockerSandboxBackend
-
         sandbox = DockerSandboxBackend(container_id="my-container")
         agent = create_agent(middleware=[FilesystemMiddleware(backend=sandbox)])
         ```
@@ -579,24 +648,25 @@ class FilesystemMiddleware(AgentMiddleware[FilesystemState, ContextT, ResponseT]
         human_message_token_limit_before_evict: int | None = 50000,
         max_execute_timeout: int = 3600,
     ) -> None:
-        """Initialize the filesystem middleware.
+        """파일시스템 미들웨어를 초기화합니다.
+
+        7개 도구(ls, read_file, write_file, edit_file, glob, grep, execute)를 생성하고,
+        퇴거(eviction) 임계값과 실행 타임아웃 제한을 설정합니다.
 
         Args:
-            backend: Backend for file storage and optional execution, or a factory callable.
-                Defaults to StateBackend if not provided.
-            system_prompt: Optional custom system prompt override.
-            custom_tool_descriptions: Optional custom tool descriptions override.
-            tool_token_limit_before_evict: Optional token limit before evicting a tool result to the filesystem.
-            human_message_token_limit_before_evict: Optional token limit before
-                evicting a HumanMessage to the filesystem.
-            max_execute_timeout: Maximum allowed value in seconds for per-command timeout
-                overrides on the execute tool.
-
-                Defaults to 3600 seconds (1 hour). Any per-command timeout
-                exceeding this value will be rejected with an error message.
+            backend: 파일 저장 및 선택적 실행을 위한 백엔드 또는 팩토리 callable.
+                미제공 시 StateBackend(임시 저장)가 기본값.
+            system_prompt: 선택적 커스텀 시스템 프롬프트 오버라이드.
+            custom_tool_descriptions: 도구별 설명 오버라이드 딕셔너리 (키: 도구 이름).
+            tool_token_limit_before_evict: 도구 결과 퇴거 전 토큰 제한 (기본 20000).
+                None이면 퇴거 비활성화.
+            human_message_token_limit_before_evict: HumanMessage 퇴거 전 토큰 제한 (기본 50000).
+                None이면 퇴거 비활성화.
+            max_execute_timeout: execute 도구의 명령별 타임아웃 최대 허용값 (초).
+                기본 3600초(1시간). 이 값을 초과하는 타임아웃은 오류로 거부됩니다.
 
         Raises:
-            ValueError: If `max_execute_timeout` is not positive.
+            ValueError: `max_execute_timeout`이 양수가 아닌 경우.
         """
         if max_execute_timeout <= 0:
             msg = f"max_execute_timeout must be positive, got {max_execute_timeout}"
@@ -1131,25 +1201,24 @@ class FilesystemMiddleware(AgentMiddleware[FilesystemState, ContextT, ResponseT]
         request: ModelRequest[ContextT],
         handler: Callable[[ModelRequest[ContextT]], ModelResponse[ResponseT]],
     ) -> ModelResponse[ResponseT] | ExtendedModelResponse:
-        """Update the system prompt, filter tools, and evict oversized HumanMessages.
+        """시스템 프롬프트 주입, 도구 필터링, 대용량 HumanMessage 퇴거를 수행합니다 (동기 버전).
 
-        In addition to the system-prompt and tool-filtering logic, this method
-        handles large HumanMessage eviction:
+        매 LLM 호출 전에 3가지 작업을 수행합니다:
 
-        1. Any message already tagged with `lc_evicted_to` in
-           `additional_kwargs` is replaced with a truncated preview for the
-           model request (content in state is unchanged).
-        2. If the most recent message is an untagged HumanMessage exceeding the
-           eviction threshold, its content is written to the backend and the
-           message is tagged in state via `ExtendedModelResponse`.
+        1. **execute 도구 필터링**: 백엔드가 실행을 지원하지 않으면 execute 도구를 제거
+        2. **시스템 프롬프트 주입**: 파일시스템 도구 사용법 + 실행 도구 사용법(지원 시)을
+           시스템 메시지에 추가
+        3. **대용량 HumanMessage 퇴거**:
+           - `lc_evicted_to` 태그가 있는 기존 메시지는 절삭된 미리보기로 교체
+           - 가장 최근 메시지가 태그 없는 대용량 HumanMessage면 백엔드에 저장 후 태그
 
         Args:
-            request: The model request being processed.
-            handler: The handler function to call with the modified request.
+            request: 처리 중인 모델 요청.
+            handler: 수정된 요청으로 호출할 핸들러 함수.
 
         Returns:
-            The model response, or an `ExtendedModelResponse` with a state
-            update tagging a newly evicted message.
+            모델 응답, 또는 새로 퇴거된 메시지를 태그하는 상태 업데이트가
+            포함된 ExtendedModelResponse.
         """
         # Check if execute tool is present and if backend supports it
         has_execute_tool = any((tool.name if hasattr(tool, "name") else tool.get("name")) == "execute" for tool in request.tools)
@@ -1600,14 +1669,20 @@ class FilesystemMiddleware(AgentMiddleware[FilesystemState, ContextT, ResponseT]
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], ToolMessage | Command],
     ) -> ToolMessage | Command:
-        """Check the size of the tool call result and evict to filesystem if too large.
+        """도구 호출 결과의 크기를 확인하고, 너무 크면 파일시스템에 퇴거합니다 (동기 버전).
+
+        TOOLS_EXCLUDED_FROM_EVICTION에 포함된 도구(ls, glob, grep, read_file 등)는
+        자체 절삭 메커니즘이 있으므로 퇴거 대상에서 제외됩니다.
+
+        퇴거 시: 전체 내용을 /large_tool_results/{tool_call_id}에 저장하고,
+        원본 내용을 head/tail 미리보기와 파일 경로 참조로 교체합니다.
 
         Args:
-            request: The tool call request being processed.
-            handler: The handler function to call with the modified request.
+            request: 처리 중인 도구 호출 요청.
+            handler: 요청으로 호출할 핸들러 함수.
 
         Returns:
-            The raw ToolMessage, or a pseudo tool message with the ToolResult in state.
+            원본 ToolMessage, 또는 결과가 상태에 저장된 의사(pseudo) 도구 메시지.
         """
         if self._tool_token_limit_before_evict is None or request.tool_call["name"] in TOOLS_EXCLUDED_FROM_EVICTION:
             return handler(request)

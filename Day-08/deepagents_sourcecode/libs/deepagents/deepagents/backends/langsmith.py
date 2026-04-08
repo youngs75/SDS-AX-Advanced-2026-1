@@ -1,4 +1,4 @@
-"""LangSmith sandbox backend implementation."""
+"""LangSmith 샌드박스 백엔드 구현체."""
 
 from __future__ import annotations
 
@@ -20,39 +20,39 @@ logger = logging.getLogger(__name__)
 
 
 class LangSmithSandbox(BaseSandbox):
-    """LangSmith sandbox implementation conforming to `SandboxBackendProtocol`.
+    """`SandboxBackendProtocol`을 준수하는 LangSmith 샌드박스 구현체.
 
-    This implementation inherits all file operation methods from `BaseSandbox`
-    and only implements the execute() method using LangSmith's API.
+    이 구현체는 `BaseSandbox`로부터 모든 파일 작업 메서드를 상속하며,
+    LangSmith의 API를 사용하여 execute() 메서드만 구현합니다.
     """
 
     def __init__(self, sandbox: Sandbox) -> None:
-        """Create a backend wrapping an existing LangSmith sandbox.
+        """기존 LangSmith 샌드박스를 래핑하는 백엔드를 생성합니다.
 
         Args:
-            sandbox: LangSmith Sandbox instance to wrap.
+            sandbox: 래핑할 LangSmith Sandbox 인스턴스.
         """
         self._sandbox = sandbox
         self._default_timeout: int = 30 * 60
 
     @property
     def id(self) -> str:
-        """Return the LangSmith sandbox name."""
+        """LangSmith 샌드박스 이름을 반환합니다."""
         return self._sandbox.name
 
     def execute(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
-        """Execute a shell command inside the sandbox.
+        """샌드박스 내에서 셸 명령을 실행합니다.
 
         Args:
-            command: Shell command string to execute.
-            timeout: Maximum time in seconds to wait for the command to complete.
+            command: 실행할 셸 명령 문자열.
+            timeout: 명령 완료까지 대기할 최대 시간(초).
 
-                If None, uses the backend's default timeout.
-                A value of 0 disables the command timeout when the
-                `langsmith[sandbox]` extra is installed.
+                None이면 백엔드의 기본 타임아웃을 사용합니다.
+                `langsmith[sandbox]` extra가 설치된 경우 0은 명령 타임아웃을
+                비활성화합니다.
 
         Returns:
-            `ExecuteResponse` containing output, exit code, and truncation flag.
+            출력, 종료 코드, 절삭 플래그를 포함하는 `ExecuteResponse`.
         """
         effective_timeout = timeout if timeout is not None else self._default_timeout
         result = self._sandbox.run(command, timeout=effective_timeout)
@@ -68,18 +68,18 @@ class LangSmithSandbox(BaseSandbox):
         )
 
     def write(self, file_path: str, content: str) -> WriteResult:
-        """Write content using the LangSmith SDK to avoid ARG_MAX.
+        """ARG_MAX를 피하기 위해 LangSmith SDK를 사용하여 내용을 씁니다.
 
-        `BaseSandbox.write()` sends the full content in a shell command, which
-        can exceed ARG_MAX for large content. This override uses the SDK's
-        native `write()`, which sends content in the HTTP body.
+        `BaseSandbox.write()`는 셸 명령에 전체 내용을 포함하여 전송하므로
+        대용량 내용의 경우 ARG_MAX를 초과할 수 있습니다. 이 오버라이드는
+        HTTP 본문으로 내용을 전송하는 SDK의 네이티브 `write()`를 사용합니다.
 
         Args:
-            file_path: Destination path inside the sandbox.
-            content: Text content to write.
+            file_path: 샌드박스 내의 대상 경로.
+            content: 쓸 텍스트 내용.
 
         Returns:
-            `WriteResult` with the written path on success, or an error message.
+            성공 시 기록된 경로, 실패 시 오류 메시지를 포함하는 `WriteResult`.
         """
         from langsmith.sandbox import SandboxClientError  # noqa: PLC0415
 
@@ -90,18 +90,17 @@ class LangSmithSandbox(BaseSandbox):
             return WriteResult(error=f"Failed to write file '{file_path}': {e}")
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
-        """Download multiple files from the LangSmith sandbox.
+        """LangSmith 샌드박스에서 여러 파일을 다운로드합니다.
 
-        Supports partial success -- individual downloads may fail without
-        affecting others.
+        부분 성공을 지원합니다 — 개별 다운로드 실패가 다른 파일에 영향을 주지 않습니다.
 
         Args:
-            paths: List of file paths to download.
+            paths: 다운로드할 파일 경로 목록.
 
         Returns:
-            List of `FileDownloadResponse` objects, one per input path.
+            입력 경로당 하나씩 `FileDownloadResponse` 객체 목록.
 
-                Response order matches input order.
+                응답 순서는 입력 순서와 일치합니다.
         """
         from langsmith.sandbox import ResourceNotFoundError, SandboxClientError  # noqa: PLC0415
 
@@ -122,18 +121,17 @@ class LangSmithSandbox(BaseSandbox):
         return responses
 
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
-        """Upload multiple files to the LangSmith sandbox.
+        """LangSmith 샌드박스에 여러 파일을 업로드합니다.
 
-        Supports partial success -- individual uploads may fail without
-        affecting others.
+        부분 성공을 지원합니다 — 개별 업로드 실패가 다른 파일에 영향을 주지 않습니다.
 
         Args:
-            files: List of `(path, content)` tuples to upload.
+            files: 업로드할 `(path, content)` 튜플 목록.
 
         Returns:
-            List of `FileUploadResponse` objects, one per input file.
+            입력 파일당 하나씩 `FileUploadResponse` 객체 목록.
 
-                Response order matches input order.
+                응답 순서는 입력 순서와 일치합니다.
         """
         from langsmith.sandbox import SandboxClientError  # noqa: PLC0415
 

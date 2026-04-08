@@ -1,4 +1,35 @@
-"""Middleware for providing subagents to an agent via a `task` tool."""
+"""동기 서브에이전트를 `task` 도구를 통해 제공하는 미들웨어 모듈.
+
+이 모듈은 메인 에이전트가 복잡한 작업을 독립적인 서브에이전트에게 위임할 수 있게 합니다.
+서브에이전트는 격리된 컨텍스트 윈도우에서 실행되며, 완료 후 단일 결과 메시지를 반환합니다.
+
+## 핵심 개념
+
+### 서브에이전트 패턴
+- **오케스트레이터(메인 에이전트)**: 사용자와 직접 상호작용하며, 복잡한 작업을 분배
+- **서브에이전트**: 격리된 환경에서 특정 작업을 수행하고, 결과만 오케스트레이터에게 반환
+- **장점**: 컨텍스트 격리(토큰 절약), 병렬 실행 가능, 전문화된 도구/프롬프트 사용
+
+### 서브에이전트 유형
+1. **SubAgent**: 선언적 설정(TypedDict). model, tools, system_prompt를 지정하면
+   미들웨어가 자동으로 `create_agent()`를 호출하여 실행 가능한 에이전트를 생성합니다.
+2. **CompiledSubAgent**: 사전 컴파일된 에이전트(Runnable). 이미 완성된 LangGraph
+   그래프를 직접 전달합니다. 상태 스키마에 'messages' 키가 필수입니다.
+
+### 상태 격리
+서브에이전트는 부모의 메시지 히스토리를 물려받지 않습니다.
+`_EXCLUDED_STATE_KEYS`에 정의된 키(messages, todos, structured_response 등)는
+서브에이전트에 전달되지 않으며, 서브에이전트가 반환하는 업데이트에서도 제외됩니다.
+
+## 비동기 서브에이전트와의 차이
+
+| 항목 | SubAgentMiddleware (이 모듈) | AsyncSubAgentMiddleware |
+|------|------------------------------|-------------------------|
+| 실행 방식 | 동기 — 완료될 때까지 블록 | 비동기 — 즉시 task_id 반환 |
+| 실행 위치 | 로컬 (같은 프로세스) | 원격 Agent Protocol 서버 |
+| 결과 반환 | 즉시 (도구 호출 결과로) | check_async_task로 폴링 |
+| 용도 | 빠른 위임, 컨텍스트 격리 | 장시간 실행, 원격 배포 |
+"""
 
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, NotRequired, TypedDict, cast
@@ -19,115 +50,108 @@ from deepagents.middleware._utils import append_to_system_message
 
 
 class SubAgent(TypedDict):
-    """Specification for an agent.
+    """서브에이전트를 위한 선언적 설정 스펙.
 
-    When using `create_deep_agent`, subagents automatically receive a default middleware
-    stack (TodoListMiddleware, FilesystemMiddleware, SummarizationMiddleware, etc.) before
-    any custom `middleware` specified in this spec.
+    `create_deep_agent`를 사용할 때, 서브에이전트는 자동으로 기본 미들웨어 스택
+    (TodoListMiddleware, FilesystemMiddleware, SummarizationMiddleware 등)을
+    이 스펙에 지정된 커스텀 `middleware`보다 먼저 받습니다.
 
-    Required fields:
-        name: Unique identifier for the subagent.
+    필수 필드:
+        name: 서브에이전트의 고유 식별자.
+            메인 에이전트가 `task()` 도구 호출 시 이 이름을 사용합니다.
+        description: 서브에이전트가 수행하는 작업 설명.
+            구체적이고 행동 지향적으로 작성합니다. 메인 에이전트가 위임 결정 시 참고합니다.
+        system_prompt: 서브에이전트에 대한 지시사항.
+            도구 사용 가이드와 출력 형식 요구사항을 포함합니다.
 
-            The main agent uses this name when calling the `task()` tool.
-        description: What this subagent does.
-
-            Be specific and action-oriented. The main agent uses this to decide when to delegate.
-        system_prompt: Instructions for the subagent.
-
-            Include tool usage guidance and output format requirements.
-
-    Optional fields:
-        tools: Tools the subagent can use.
-
-            If not specified, inherits tools from the main agent via `default_tools`.
-        model: Override the main agent's model.
-
-            Use the format `'provider:model-name'` (e.g., `'openai:gpt-4o'`).
-        middleware: Additional middleware for custom behavior, logging, or rate limiting.
-        interrupt_on: Configure human-in-the-loop for specific tools.
-
-            Requires a checkpointer.
-        skills: Skill source paths for SkillsMiddleware.
-
-            List of paths to skill directories (e.g., `["/skills/user/", "/skills/project/"]`).
+    선택 필드:
+        tools: 서브에이전트가 사용할 도구 목록.
+            지정하지 않으면 `default_tools`를 통해 메인 에이전트의 도구를 상속합니다.
+        model: 메인 에이전트의 모델을 오버라이드.
+            `'provider:model-name'` 형식을 사용합니다 (예: `'openai:gpt-4o'`).
+        middleware: 커스텀 동작, 로깅, 속도 제한을 위한 추가 미들웨어.
+        interrupt_on: 특정 도구에 대한 HIL(Human-in-the-loop) 설정.
+            체크포인터가 필요합니다.
+        skills: SkillsMiddleware용 스킬 소스 경로 목록.
+            (예: `["/skills/user/", "/skills/project/"]`)
     """
 
     name: str
-    """Unique identifier for the subagent."""
+    """서브에이전트의 고유 식별자."""
 
     description: str
-    """What this subagent does. The main agent uses this to decide when to delegate."""
+    """서브에이전트의 역할 설명. 메인 에이전트가 위임 판단 시 참고합니다."""
 
     system_prompt: str
-    """Instructions for the subagent."""
+    """서브에이전트에 대한 지시사항."""
 
     tools: NotRequired[Sequence[BaseTool | Callable | dict[str, Any]]]
-    """Tools the subagent can use. If not specified, inherits from main agent."""
+    """서브에이전트가 사용할 도구 목록. 미지정 시 메인 에이전트로부터 상속."""
 
     model: NotRequired[str | BaseChatModel]
-    """Override the main agent's model. Use `'provider:model-name'` format."""
+    """메인 에이전트 모델 오버라이드. `'provider:model-name'` 형식 사용."""
 
     middleware: NotRequired[list[AgentMiddleware]]
-    """Additional middleware for custom behavior."""
+    """커스텀 동작을 위한 추가 미들웨어."""
 
     interrupt_on: NotRequired[dict[str, bool | InterruptOnConfig]]
-    """Configure human-in-the-loop for specific tools."""
+    """특정 도구에 대한 HIL(Human-in-the-loop) 설정."""
 
     skills: NotRequired[list[str]]
-    """Skill source paths for SkillsMiddleware."""
+    """SkillsMiddleware용 스킬 소스 경로 목록."""
 
 
 class CompiledSubAgent(TypedDict):
-    """A pre-compiled agent spec.
+    """사전 컴파일된 에이전트 스펙.
 
-    !!! note
+    이미 완성된 LangGraph 그래프나 create_agent()로 생성된 Runnable을
+    직접 서브에이전트로 사용할 때 사용합니다.
 
-        The runnable's state schema must include a 'messages' key.
-
-        This is required for the subagent to communicate results back to the main agent.
-
-    When the subagent completes, the final message in the 'messages' list will be
-    extracted and returned as a `ToolMessage` to the parent agent.
+    주의:
+        runnable의 상태 스키마에 반드시 'messages' 키가 포함되어야 합니다.
+        서브에이전트가 완료되면 'messages' 리스트의 마지막 메시지가
+        부모 에이전트에게 ToolMessage로 반환됩니다.
     """
 
     name: str
-    """Unique identifier for the subagent."""
+    """서브에이전트의 고유 식별자."""
 
     description: str
-    """What this subagent does."""
+    """서브에이전트의 역할 설명."""
 
     runnable: Runnable
-    """A custom agent implementation.
+    """커스텀 에이전트 구현체.
 
-    Create a custom agent using either:
+    다음 중 하나로 생성합니다:
+    1. LangChain의 `create_agent()` (권장)
+    2. `langgraph`를 사용한 커스텀 그래프
 
-    1. LangChain's [`create_agent()`](https://docs.langchain.com/oss/python/langchain/quickstart)
-    2. A custom graph using [`langgraph`](https://docs.langchain.com/oss/python/langgraph/quickstart)
-
-    If you're creating a custom graph, make sure the state schema includes a 'messages' key.
-    This is required for the subagent to communicate results back to the main agent.
+    커스텀 그래프를 사용하는 경우, 상태 스키마에 'messages' 키가 필수입니다.
+    이 키를 통해 서브에이전트가 결과를 부모 에이전트에게 전달합니다.
     """
 
 
+# 서브에이전트의 기본 시스템 프롬프트
+# 간결한 기본값 — 실제 사용 시 SubAgent.system_prompt로 오버라이드됩니다.
 DEFAULT_SUBAGENT_PROMPT = "In order to complete the objective that the user asks of you, you have access to a number of standard tools."
 
-# State keys that are excluded when passing state to subagents and when returning
-# updates from subagents.
+# 서브에이전트 호출/반환 시 상태에서 제외되는 키 목록
 #
-# When returning updates:
-# 1. The messages key is handled explicitly to ensure only the final message is included
-# 2. The todos and structured_response keys are excluded as they do not have a defined reducer
-#    and no clear meaning for returning them from a subagent to the main agent.
-# 3. The skills_metadata and memory_contents keys are automatically excluded from subagent output
-#    via PrivateStateAttr annotations on their respective state schemas. However, they must ALSO
-#    be explicitly filtered from runtime.state when invoking a subagent to prevent parent state
-#    from leaking to child agents (e.g., the general-purpose subagent loads its own skills via
-#    SkillsMiddleware).
+# 제외 이유:
+# 1. messages: 서브에이전트는 자체 메시지 히스토리를 가지므로, 부모의 히스토리와 격리
+# 2. todos, structured_response: 리듀서가 정의되지 않았고, 서브에이전트 → 부모 반환 의미가 불명확
+# 3. skills_metadata, memory_contents: PrivateStateAttr로 자동 제외되지만,
+#    부모 상태가 자식에게 누출되는 것을 방지하기 위해 명시적으로도 필터링
+#    (예: 범용 서브에이전트가 SkillsMiddleware를 통해 자체 스킬을 로드해야 하므로)
 _EXCLUDED_STATE_KEYS = {"messages", "todos", "structured_response", "skills_metadata", "memory_contents"}
 
 
 class TaskToolSchema(BaseModel):
-    """Input schema for the `task` tool."""
+    """task 도구의 입력 스키마.
+
+    LLM이 task 도구를 호출할 때 제공해야 하는 매개변수를 정의합니다.
+    Pydantic BaseModel을 사용하여 LLM에게 구조화된 입력 형식을 제공합니다.
+    """
 
     description: str = Field(
         description=(
@@ -138,6 +162,9 @@ class TaskToolSchema(BaseModel):
     subagent_type: str = Field(description=("The type of subagent to use. Must be one of the available agent types listed in the tool description."))
 
 
+# task 도구의 상세 설명 템플릿
+# {available_agents} 자리에 사용 가능한 서브에이전트 목록이 동적으로 삽입됩니다.
+# 이 설명은 LLM에게 task 도구의 사용법, 모범 사례, 예시를 제공합니다.
 TASK_TOOL_DESCRIPTION = """Launch an ephemeral subagent to handle complex, multi-step independent tasks with isolated context windows.
 
 Available agent types and the tools they have access to:
@@ -248,6 +275,8 @@ Since the user is greeting, use the greeting-responder agent to respond with a f
 assistant: "I'm going to use the Task tool to launch with the greeting-responder agent"
 </example>"""  # noqa: E501
 
+# task 도구 사용법에 대한 시스템 프롬프트
+# wrap_model_call에서 시스템 메시지에 주입되어, LLM이 task 도구의 존재와 사용 패턴을 인식하게 합니다.
 TASK_SYSTEM_PROMPT = """## `task` (subagent spawner)
 
 You have access to a `task` tool to launch short-lived subagents that handle isolated tasks. These agents are ephemeral — they live only for the duration of the task and return a single result.
@@ -277,9 +306,11 @@ When NOT to use the task tool:
 - You should use the `task` tool whenever you have a complex task that will take multiple steps, and is independent from other tasks that the agent needs to complete. These agents are highly competent and efficient."""  # noqa: E501
 
 
+# 범용(general-purpose) 서브에이전트의 기본 설명
+# 메인 에이전트와 동일한 도구를 가지며, 컨텍스트 격리가 필요한 모든 작업에 사용됩니다.
 DEFAULT_GENERAL_PURPOSE_DESCRIPTION = "General-purpose agent for researching complex questions, searching for files and content, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you. This agent has access to all tools as the main agent."  # noqa: E501
 
-# Base spec for general-purpose subagent (caller adds model, tools, middleware)
+# 범용 서브에이전트 기본 스펙 (호출자가 model, tools, middleware를 추가해야 함)
 GENERAL_PURPOSE_SUBAGENT: SubAgent = {
     "name": "general-purpose",
     "description": DEFAULT_GENERAL_PURPOSE_DESCRIPTION,
@@ -288,7 +319,11 @@ GENERAL_PURPOSE_SUBAGENT: SubAgent = {
 
 
 class _SubagentSpec(TypedDict):
-    """Internal spec for building the task tool."""
+    """task 도구 빌드를 위한 내부 스펙.
+
+    SubAgent와 CompiledSubAgent를 통합하여 task 도구 빌드에 필요한
+    최소 정보(name, description, runnable)만 담는 내부용 TypedDict입니다.
+    """
 
     name: str
     description: str
@@ -299,21 +334,24 @@ def _build_task_tool(  # noqa: C901
     subagents: list[_SubagentSpec],
     task_description: str | None = None,
 ) -> BaseTool:
-    """Create a task tool from pre-built subagent graphs.
+    """사전 빌드된 서브에이전트 그래프로부터 task 도구를 생성합니다.
+
+    이 함수는 서브에이전트 스펙 리스트를 받아, LLM이 호출할 수 있는
+    `task` StructuredTool을 생성합니다. 동기/비동기 양쪽 구현을 모두 제공합니다.
 
     Args:
-        subagents: List of subagent specs containing name, description, and runnable.
-        task_description: Custom description for the task tool. If `None`,
-            uses default template. Supports `{available_agents}` placeholder.
+        subagents: name, description, runnable을 포함하는 서브에이전트 스펙 리스트.
+        task_description: task 도구의 커스텀 설명. None이면 기본 템플릿 사용.
+            `{available_agents}` 플레이스홀더를 지원합니다.
 
     Returns:
-        A StructuredTool that can invoke subagents by type.
+        서브에이전트를 유형별로 호출할 수 있는 StructuredTool.
     """
-    # Build the graphs dict and descriptions from the unified spec list
+    # 스펙 리스트에서 이름→그래프 매핑 딕셔너리와 설명 문자열을 생성
     subagent_graphs: dict[str, Runnable] = {spec["name"]: spec["runnable"] for spec in subagents}
     subagent_description_str = "\n".join(f"- {s['name']}: {s['description']}" for s in subagents)
 
-    # Use custom description if provided, otherwise use default template
+    # 커스텀 설명이 없으면 기본 템플릿 사용, 있으면 플레이스홀더 치환
     if task_description is None:
         description = TASK_TOOL_DESCRIPTION.format(available_agents=subagent_description_str)
     elif "{available_agents}" in task_description:
@@ -322,7 +360,22 @@ def _build_task_tool(  # noqa: C901
         description = task_description
 
     def _return_command_with_state_update(result: dict, tool_call_id: str) -> Command:
-        # Validate that the result contains a 'messages' key
+        """서브에이전트 실행 결과를 Command 객체로 변환합니다.
+
+        서브에이전트의 최종 메시지를 추출하여 ToolMessage로 감싸고,
+        제외 키를 필터링한 상태 업데이트를 생성합니다.
+
+        Args:
+            result: 서브에이전트 실행 결과 딕셔너리.
+            tool_call_id: 원본 도구 호출 ID (ToolMessage에 연결).
+
+        Returns:
+            상태 업데이트가 포함된 Command 객체.
+
+        Raises:
+            ValueError: 결과에 'messages' 키가 없는 경우.
+        """
+        # 서브에이전트가 반드시 'messages' 키를 반환해야 함을 검증
         if "messages" not in result:
             error_msg = (
                 "CompiledSubAgent must return a state containing a 'messages' key. "
@@ -331,21 +384,40 @@ def _build_task_tool(  # noqa: C901
             )
             raise ValueError(error_msg)
 
+        # 제외 키를 필터링하여 부모에게 전달할 상태 업데이트 생성
         state_update = {k: v for k, v in result.items() if k not in _EXCLUDED_STATE_KEYS}
-        # Strip trailing whitespace to prevent API errors with Anthropic
+
+        # 후행 공백 제거 — Anthropic API에서 후행 공백이 있으면 오류 발생
         message_text = result["messages"][-1].text.rstrip() if result["messages"][-1].text else ""
+
         return Command(
             update={
                 **state_update,
+                # 서브에이전트의 마지막 메시지만 ToolMessage로 변환하여 부모에게 반환
                 "messages": [ToolMessage(message_text, tool_call_id=tool_call_id)],
             }
         )
 
     def _validate_and_prepare_state(subagent_type: str, description: str, runtime: ToolRuntime) -> tuple[Runnable, dict]:
-        """Prepare state for invocation."""
+        """서브에이전트 호출을 위한 상태를 준비합니다.
+
+        부모 상태에서 제외 키를 필터링하고, 서브에이전트용 메시지 히스토리를
+        사용자의 task description 단일 메시지로 초기화합니다.
+
+        Args:
+            subagent_type: 호출할 서브에이전트 유형 이름.
+            description: 서브에이전트에게 전달할 작업 설명.
+            runtime: 현재 도구 런타임 (부모 상태 접근용).
+
+        Returns:
+            (서브에이전트 Runnable, 준비된 상태 딕셔너리) 튜플.
+        """
         subagent = subagent_graphs[subagent_type]
-        # Create a new state dict to avoid mutating the original
+
+        # 부모 상태를 복사하되, 제외 키는 필터링 (상태 격리)
         subagent_state = {k: v for k, v in runtime.state.items() if k not in _EXCLUDED_STATE_KEYS}
+
+        # 서브에이전트는 부모의 대화 히스토리 대신, task description을 유일한 메시지로 받음
         subagent_state["messages"] = [HumanMessage(content=description)]
         return subagent, subagent_state
 
@@ -354,12 +426,29 @@ def _build_task_tool(  # noqa: C901
         subagent_type: str,
         runtime: ToolRuntime,
     ) -> str | Command:
+        """서브에이전트를 동기적으로 실행하는 task 도구 구현 (동기 버전).
+
+        Args:
+            description: 서브에이전트가 수행할 작업에 대한 상세 설명.
+            subagent_type: 사용할 서브에이전트 유형 이름.
+            runtime: 도구 런타임 (상태 접근 및 tool_call_id 제공).
+
+        Returns:
+            성공 시 Command 객체 (상태 업데이트 + ToolMessage),
+            실패 시 오류 메시지 문자열.
+
+        Raises:
+            ValueError: tool_call_id가 없는 경우.
+        """
+        # 존재하지 않는 서브에이전트 유형이면 오류 메시지 반환
         if subagent_type not in subagent_graphs:
             allowed_types = ", ".join([f"`{k}`" for k in subagent_graphs])
             return f"We cannot invoke subagent {subagent_type} because it does not exist, the only allowed types are {allowed_types}"
         if not runtime.tool_call_id:
             value_error_msg = "Tool call ID is required for subagent invocation"
             raise ValueError(value_error_msg)
+
+        # 서브에이전트 상태 준비 및 동기 실행
         subagent, subagent_state = _validate_and_prepare_state(subagent_type, description, runtime)
         result = subagent.invoke(subagent_state)
         return _return_command_with_state_update(result, runtime.tool_call_id)
@@ -369,12 +458,28 @@ def _build_task_tool(  # noqa: C901
         subagent_type: str,
         runtime: ToolRuntime,
     ) -> str | Command:
+        """서브에이전트를 비동기적으로 실행하는 task 도구 구현 (비동기 버전).
+
+        동기 버전 `task`와 동일한 로직이지만, `ainvoke`를 사용합니다.
+
+        Args:
+            description: 서브에이전트가 수행할 작업에 대한 상세 설명.
+            subagent_type: 사용할 서브에이전트 유형 이름.
+            runtime: 도구 런타임.
+
+        Returns:
+            성공 시 Command 객체, 실패 시 오류 메시지 문자열.
+
+        Raises:
+            ValueError: tool_call_id가 없는 경우.
+        """
         if subagent_type not in subagent_graphs:
             allowed_types = ", ".join([f"`{k}`" for k in subagent_graphs])
             return f"We cannot invoke subagent {subagent_type} because it does not exist, the only allowed types are {allowed_types}"
         if not runtime.tool_call_id:
             value_error_msg = "Tool call ID is required for subagent invocation"
             raise ValueError(value_error_msg)
+
         subagent, subagent_state = _validate_and_prepare_state(subagent_type, description, runtime)
         result = await subagent.ainvoke(subagent_state)
         return _return_command_with_state_update(result, runtime.tool_call_id)
@@ -384,34 +489,37 @@ def _build_task_tool(  # noqa: C901
         func=task,
         coroutine=atask,
         description=description,
-        infer_schema=False,
+        infer_schema=False,        # Pydantic 스키마를 명시적으로 제공하므로 자동 추론 비활성화
         args_schema=TaskToolSchema,
     )
 
 
 class SubAgentMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
-    """Middleware for providing subagents to an agent via a `task` tool.
+    """동기 서브에이전트를 `task` 도구를 통해 제공하는 미들웨어.
 
-    This middleware adds a `task` tool to the agent that can be used to invoke subagents.
-    Subagents are useful for handling complex tasks that require multiple steps, or tasks
-    that require a lot of context to resolve.
+    이 미들웨어는 에이전트에 `task` 도구를 추가하여 서브에이전트를 호출할 수 있게 합니다.
+    서브에이전트는 복잡한 다단계 작업이나 많은 컨텍스트가 필요한 작업을 처리하는 데 유용합니다.
 
-    A chief benefit of subagents is that they can handle multi-step tasks, and then return
-    a clean, concise response to the main agent.
+    서브에이전트의 핵심 장점:
+    - **컨텍스트 격리**: 서브에이전트는 격리된 컨텍스트 윈도우에서 실행되어 토큰 절약
+    - **병렬 실행**: 독립적인 작업을 병렬로 실행하여 성능 향상
+    - **전문화**: 각 서브에이전트가 전문 도구와 프롬프트를 사용
+    - **깔끔한 결과**: 중간 과정은 숨기고 최종 결과만 반환
 
-    Subagents are also great for different domains of expertise that require a narrower
-    subset of tools and focus.
+    동작 방식:
+        1. __init__에서 서브에이전트 스펙을 기반으로 LangGraph 에이전트 그래프를 생성
+        2. wrap_model_call에서 시스템 프롬프트에 task 도구 사용법 주입
+        3. LLM이 task 도구를 호출하면 해당 서브에이전트를 실행하고 결과 반환
 
     Args:
-        backend: Backend for file operations and execution.
-        subagents: List of fully-specified subagent configs. Each SubAgent
-            must specify `model` and `tools`. Optional `interrupt_on` on
-            individual subagents is respected.
-        system_prompt: Instructions appended to main agent's system prompt
-            about how to use the task tool.
-        task_description: Custom description for the task tool.
+        backend: 파일 작업 및 실행을 위한 백엔드.
+        subagents: 완전히 지정된 서브에이전트 설정 리스트. 각 SubAgent는
+            `model`과 `tools`를 반드시 지정해야 합니다. 개별 서브에이전트의
+            `interrupt_on` 설정도 존중됩니다.
+        system_prompt: 메인 에이전트의 시스템 프롬프트에 추가될 task 도구 사용 지침.
+        task_description: task 도구의 커스텀 설명.
 
-    Example:
+    사용 예시:
         ```python
         from deepagents.middleware import SubAgentMiddleware
         from langchain.agents import create_agent
@@ -434,7 +542,6 @@ class SubAgentMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
             ],
         )
         ```
-
     """
 
     def __init__(
@@ -445,7 +552,20 @@ class SubAgentMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
         system_prompt: str | None = TASK_SYSTEM_PROMPT,
         task_description: str | None = None,
     ) -> None:
-        """Initialize the `SubAgentMiddleware`."""
+        """SubAgentMiddleware를 초기화합니다.
+
+        서브에이전트 스펙을 검증하고, 각 서브에이전트를 실행 가능한 LangGraph 그래프로
+        컴파일한 후, task 도구와 시스템 프롬프트를 생성합니다.
+
+        Args:
+            backend: 파일 작업 백엔드.
+            subagents: 서브에이전트 설정 리스트 (최소 1개 필수).
+            system_prompt: task 도구 사용 지침 (None이면 시스템 프롬프트 주입 건너뜀).
+            task_description: task 도구의 커스텀 설명.
+
+        Raises:
+            ValueError: 서브에이전트가 비어있는 경우.
+        """
         super().__init__()
 
         if not subagents:
@@ -453,35 +573,45 @@ class SubAgentMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
             raise ValueError(msg)
         self._backend = backend
         self._subagents = subagents
+
+        # 서브에이전트 스펙을 실행 가능한 그래프로 컴파일
         subagent_specs = self._get_subagents()
 
+        # task 도구 생성
         task_tool = _build_task_tool(subagent_specs, task_description)
 
-        # Build system prompt with available agents
+        # 사용 가능한 서브에이전트 목록을 시스템 프롬프트에 추가
         if system_prompt and subagent_specs:
             agents_desc = "\n".join(f"- {s['name']}: {s['description']}" for s in subagent_specs)
             self.system_prompt = system_prompt + "\n\nAvailable subagent types:\n" + agents_desc
         else:
             self.system_prompt = system_prompt
 
+        # 미들웨어가 에이전트에 제공하는 도구 목록 (task 도구 1개)
         self.tools = [task_tool]
 
     def _get_subagents(self) -> list[_SubagentSpec]:
-        """Create runnable agents from specs.
+        """서브에이전트 스펙을 실행 가능한 에이전트로 컴파일합니다.
+
+        SubAgent는 create_agent()를 호출하여 LangGraph 그래프를 생성하고,
+        CompiledSubAgent는 이미 완성된 runnable을 그대로 사용합니다.
 
         Returns:
-            List of subagent specs with name, description, and runnable.
+            name, description, runnable을 포함하는 서브에이전트 스펙 리스트.
+
+        Raises:
+            ValueError: SubAgent에 model 또는 tools가 누락된 경우.
         """
         specs: list[_SubagentSpec] = []
 
         for spec in self._subagents:
             if "runnable" in spec:
-                # CompiledSubAgent - use as-is
+                # CompiledSubAgent — 이미 완성된 그래프를 그대로 사용
                 compiled = cast("CompiledSubAgent", spec)
                 specs.append({"name": compiled["name"], "description": compiled["description"], "runnable": compiled["runnable"]})
                 continue
 
-            # SubAgent - validate required fields
+            # SubAgent — 필수 필드 검증
             if "model" not in spec:
                 msg = f"SubAgent '{spec['name']}' must specify 'model'"
                 raise ValueError(msg)
@@ -489,18 +619,20 @@ class SubAgentMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
                 msg = f"SubAgent '{spec['name']}' must specify 'tools'"
                 raise ValueError(msg)
 
-            # Resolve model if string
+            # 문자열 모델 이름을 BaseChatModel 인스턴스로 해석
             from deepagents._models import resolve_model  # noqa: PLC0415
 
             model = resolve_model(spec["model"])
 
-            # Use middleware as provided (caller is responsible for building full stack)
+            # 호출자가 제공한 미들웨어를 그대로 사용 (전체 스택 구성은 호출자 책임)
             middleware: list[AgentMiddleware] = list(spec.get("middleware", []))
 
+            # interrupt_on 설정이 있으면 HIL 미들웨어 추가
             interrupt_on = spec.get("interrupt_on")
             if interrupt_on:
                 middleware.append(HumanInTheLoopMiddleware(interrupt_on=interrupt_on))
 
+            # create_agent()로 LangGraph 에이전트 그래프 생성
             specs.append(
                 {
                     "name": spec["name"],
@@ -522,7 +654,18 @@ class SubAgentMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
         request: ModelRequest[ContextT],
         handler: Callable[[ModelRequest[ContextT]], ModelResponse[ResponseT]],
     ) -> ModelResponse[ResponseT]:
-        """Update the system message to include instructions on using subagents."""
+        """시스템 메시지에 서브에이전트 사용 지침을 주입합니다 (동기 버전).
+
+        매 LLM 호출 전에 시스템 프롬프트에 task 도구 사용법과
+        사용 가능한 서브에이전트 목록을 추가합니다.
+
+        Args:
+            request: 처리 중인 모델 요청.
+            handler: 수정된 요청으로 호출할 핸들러 함수.
+
+        Returns:
+            핸들러로부터 받은 모델 응답.
+        """
         if self.system_prompt is not None:
             new_system_message = append_to_system_message(request.system_message, self.system_prompt)
             return handler(request.override(system_message=new_system_message))
@@ -533,7 +676,17 @@ class SubAgentMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
         request: ModelRequest[ContextT],
         handler: Callable[[ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]],
     ) -> ModelResponse[ResponseT]:
-        """(async) Update the system message to include instructions on using subagents."""
+        """시스템 메시지에 서브에이전트 사용 지침을 주입합니다 (비동기 버전).
+
+        동기 버전과 동일한 로직이지만, 비동기 핸들러를 await합니다.
+
+        Args:
+            request: 처리 중인 모델 요청.
+            handler: 수정된 요청으로 호출할 비동기 핸들러 함수.
+
+        Returns:
+            핸들러로부터 받은 모델 응답.
+        """
         if self.system_prompt is not None:
             new_system_message = append_to_system_message(request.system_message, self.system_prompt)
             return await handler(request.override(system_message=new_system_message))

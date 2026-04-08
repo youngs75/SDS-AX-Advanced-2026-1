@@ -1,12 +1,13 @@
-"""Base sandbox implementation (`BaseSandbox`) implementing `SandboxBackendProtocol`.
+"""기본 샌드박스 구현체 (`BaseSandbox`) — `SandboxBackendProtocol`을 구현합니다.
 
-File listing, grep, glob, and read use shell commands via `execute()`. Write
-delegates content transfer to `upload_files()`. Edit uses server-side `execute()`
-for payloads under `_EDIT_INLINE_MAX_BYTES` and falls back to uploading old/new
-strings as temp files with a server-side replace script for larger ones.
+파일 목록 조회, grep, glob, read는 `execute()`를 통해 셸 명령으로 처리됩니다.
+write는 `upload_files()`에 콘텐츠 전송을 위임합니다. edit은 페이로드가
+`_EDIT_INLINE_MAX_BYTES` 미만일 경우 서버 측 `execute()`를 사용하고,
+그보다 크면 old/new 문자열을 임시 파일로 업로드한 후 서버 측 replace 스크립트로
+처리합니다.
 
-Concrete subclasses implement `execute()` and `upload_files()`; all other
-operations are derived from those.
+구체적인 서브클래스는 `execute()`와 `upload_files()`를 구현하며,
+나머지 모든 작업은 이 두 메서드로부터 파생됩니다.
 """
 
 from __future__ import annotations
@@ -44,7 +45,7 @@ import os
 import json
 import base64
 
-# Decode base64-encoded parameters
+# base64로 인코딩된 파라미터를 디코딩
 path = base64.b64decode('{path_b64}').decode('utf-8')
 pattern = base64.b64decode('{pattern_b64}').decode('utf-8')
 
@@ -60,9 +61,9 @@ for m in matches:
     }}
     print(json.dumps(result))
 " 2>&1"""
-"""Find files matching a pattern with metadata.
+"""메타데이터와 함께 패턴에 일치하는 파일을 검색합니다.
 
-Uses base64-encoded parameters to avoid shell escaping issues.
+셸 이스케이핑 문제를 방지하기 위해 base64로 인코딩된 파라미터를 사용합니다.
 """
 
 _WRITE_CHECK_TEMPLATE = """python3 -c "
@@ -74,11 +75,11 @@ if os.path.exists(path):
     sys.exit(1)
 os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
 " 2>&1"""
-"""Preflight check for write operations: verify the target file does not already
-exist and create parent directories.
+"""쓰기 작업의 사전 확인: 대상 파일이 존재하지 않는지 검증하고
+상위 디렉터리를 생성합니다.
 
-Only the (small) base64-encoded path is interpolated — file content is
-transferred separately via `upload_files()`.
+base64로 인코딩된 경로(소형)만 보간되며, 파일 내용은
+`upload_files()`를 통해 별도로 전송됩니다.
 """
 
 _EDIT_COMMAND_TEMPLATE = """python3 -c "
@@ -118,30 +119,29 @@ print(json.dumps({{'count': count}}))
 {payload_b64}
 __DEEPAGENTS_EDIT_EOF__
 """
-# Make sure to maintain a new line at the end of DEEPAGENTS_EDIT_EOF to denote end of
-# feed. This may not matter for some integrations.
+# DEEPAGENTS_EDIT_EOF 끝에 개행을 유지해야 입력 종료를 인식합니다.
+# 일부 통합 환경에서는 필요하지 않을 수 있습니다.
 
-"""Server-side file edit via `execute()`.
+"""`execute()`를 통한 서버 측 파일 편집.
 
-Reads the file, performs string replacement, and writes back — all on the
-sandbox. The payload (path, old/new strings, replace_all flag) is passed as
-base64-encoded JSON via heredoc stdin to avoid shell escaping issues.
+파일을 읽고, 문자열 치환을 수행한 후 샌드박스 내에서 다시 씁니다.
+페이로드(경로, old/new 문자열, replace_all 플래그)는 셸 이스케이핑 문제를 피하기
+위해 heredoc stdin을 통해 base64 인코딩된 JSON으로 전달됩니다.
 
-Output: single-line JSON with `{{"count": N}}` on success or `{{"error": ...}}`
-on failure.
+출력: 성공 시 `{{"count": N}}`, 실패 시 `{{"error": ...}}`를 포함하는 단일 줄 JSON.
 
-Used for payloads under `_EDIT_INLINE_MAX_BYTES`; larger payloads fall back
-to `_edit_via_upload()` which transfers old/new strings as temp files.
+`_EDIT_INLINE_MAX_BYTES` 미만 페이로드에 사용되며, 그보다 큰 페이로드는
+old/new 문자열을 임시 파일로 전송하는 `_edit_via_upload()`로 폴백됩니다.
 
-Keeps a trailing newline after `__DEEPAGENTS_EDIT_EOF__` so integrations that
-detect end-of-input on a newline-delimited heredoc feed can observe completion.
+heredoc 피드를 개행으로 입력 종료를 감지하는 통합 환경에서 완료를 인식할 수
+있도록 `__DEEPAGENTS_EDIT_EOF__` 뒤에 후행 개행을 유지합니다.
 """
 
 _EDIT_INLINE_MAX_BYTES: Final = 50_000
-"""Maximum combined byte size of old_string + new_string for inline server-side edit.
+"""인라인 서버 측 편집을 위한 old_string + new_string의 최대 결합 바이트 크기.
 
-Payloads above this use _edit_via_upload (temp file upload + server-side replace)
-to avoid size limits on the execute() request body imposed by some sandbox providers.
+이 크기를 초과하는 페이로드는 일부 샌드박스 공급자가 execute() 요청 본문에 부과하는
+크기 제한을 피하기 위해 _edit_via_upload (임시 파일 업로드 + 서버 측 치환)를 사용합니다.
 """
 
 _EDIT_TMPFILE_TEMPLATE = """python3 -c "
@@ -190,17 +190,15 @@ with open(target, 'wb') as f:
 
 print(json.dumps({{'count': count}}))
 " 2>&1"""
-"""Server-side file edit via temp-file upload for large payloads.
+"""대형 페이로드를 위한 임시 파일 업로드 방식의 서버 측 파일 편집.
 
-Old/new strings are uploaded as temporary files via `upload_files()`, then this
-script reads them, performs the replacement on the source file (which never
-leaves the sandbox), and cleans up the temp files.
+old/new 문자열을 `upload_files()`를 통해 임시 파일로 업로드한 후, 이 스크립트가
+해당 파일을 읽어 소스 파일(샌드박스를 벗어나지 않음)에서 치환을 수행하고
+임시 파일을 정리합니다.
 
-Output: single-line JSON with `{{"count": N}}` on success or
-`{{"error": ...}}` on failure.  Same success contract as
-`_EDIT_COMMAND_TEMPLATE`; additionally produces
-`{{"error": "temp_read_failed", "detail": ...}}` when the uploaded temp
-files cannot be read.
+출력: 성공 시 `{{"count": N}}`, 실패 시 `{{"error": ...}}`를 포함하는 단일 줄 JSON.
+`_EDIT_COMMAND_TEMPLATE`과 동일한 성공 계약을 가지며, 추가로 업로드된 임시 파일을
+읽을 수 없을 때 `{{"error": "temp_read_failed", "detail": ...}}`를 생성합니다.
 """
 
 _READ_COMMAND_TEMPLATE = """python3 -c "
@@ -291,30 +289,30 @@ if truncated:
 
 print(json.dumps({{'encoding': 'utf-8', 'content': text}}))
 " 2>&1"""
-"""Read file content with server-side pagination.
+"""서버 측 페이지네이션으로 파일 내용을 읽습니다.
 
-Runs on the sandbox via `execute()`. Only the requested page is returned,
-avoiding full-file transfer for paginated text reads. The path is
-base64-encoded; `file_type`, `offset`, and `limit` are interpolated directly
-(safe because they come from internal code, not user input).
+`execute()`를 통해 샌드박스에서 실행됩니다. 페이지네이션된 텍스트 읽기에서
+전체 파일 전송을 피하기 위해 요청된 페이지만 반환합니다. 경로는 base64로
+인코딩되며, `file_type`, `offset`, `limit`은 직접 보간됩니다
+(내부 코드에서 오는 값이므로 안전).
 
-Output: single-line JSON with either `{{"encoding": ..., "content": ...}}` on
-success or `{{"error": ...}}` on failure.
+출력: 성공 시 `{{"encoding": ..., "content": ...}}`, 실패 시 `{{"error": ...}}`를
+포함하는 단일 줄 JSON.
 """
 
 
 class BaseSandbox(SandboxBackendProtocol, ABC):
-    """Base sandbox implementation with `execute()` as the core abstract method.
+    """execute()를 핵심 추상 메서드로 하는 기본 샌드박스 구현체.
 
-    This class provides default implementations for all protocol methods.
-    File listing, grep, and glob use shell commands via `execute()`. Read uses
-    a server-side Python script via `execute()` for paginated access. Write
-    delegates content transfer to `upload_files()`. Edit uses a server-side
-    script for small payloads and uploads old/new strings as temp files with
-    a server-side replace for large ones.
+    이 클래스는 모든 프로토콜 메서드의 기본 구현을 제공합니다.
+    파일 목록 조회, grep, glob은 `execute()`를 통해 셸 명령으로 처리됩니다.
+    read는 페이지네이션 접근을 위해 `execute()`를 통해 서버 측 Python 스크립트를
+    실행합니다. write는 `upload_files()`에 콘텐츠 전송을 위임합니다. edit은
+    소형 페이로드에는 서버 측 스크립트를 사용하고, 대형 페이로드에는 old/new 문자열을
+    임시 파일로 업로드한 후 서버 측 치환을 수행합니다.
 
-    Subclasses must implement `execute()`, `upload_files()`, `download_files()`,
-    and the `id` property.
+    서브클래스는 반드시 `execute()`, `upload_files()`, `download_files()`,
+    그리고 `id` 프로퍼티를 구현해야 합니다.
     """
 
     @abstractmethod
@@ -324,20 +322,20 @@ class BaseSandbox(SandboxBackendProtocol, ABC):
         *,
         timeout: int | None = None,
     ) -> ExecuteResponse:
-        """Execute a command in the sandbox and return ExecuteResponse.
+        """샌드박스에서 명령을 실행하고 ExecuteResponse를 반환합니다.
 
         Args:
-            command: Full shell command string to execute.
-            timeout: Maximum time in seconds to wait for the command to complete.
+            command: 실행할 전체 셸 명령 문자열.
+            timeout: 명령 완료까지 대기할 최대 시간(초).
 
-                If None, uses the backend's default timeout.
+                None이면 백엔드의 기본 타임아웃을 사용합니다.
 
         Returns:
-            ExecuteResponse with combined output, exit code, and truncation flag.
+            결합된 출력, 종료 코드, 절삭 플래그를 포함하는 ExecuteResponse.
         """
 
     def ls(self, path: str) -> LsResult:
-        """Structured listing with file metadata using os.scandir."""
+        """os.scandir을 사용해 파일 메타데이터를 포함한 구조화된 목록을 반환합니다."""
         path_b64 = base64.b64encode(path.encode("utf-8")).decode("ascii")
         cmd = f"""python3 -c "
 import os
@@ -380,35 +378,33 @@ except PermissionError:
         offset: int = 0,
         limit: int = 2000,
     ) -> ReadResult:
-        """Read file content with server-side line-based pagination.
+        """서버 측 줄 기반 페이지네이션으로 파일 내용을 읽습니다.
 
-        Runs a Python script on the sandbox via `execute()` that reads the
-        file, detects encoding, and applies offset/limit pagination for text
-        files. Only the requested page is returned over the wire, and text
-        output is capped to about 500 KiB to avoid backend stdout/log transport
-        failures. When that cap is exceeded, the returned content is truncated
-        with guidance to continue pagination using a different `offset` or
-        smaller `limit`.
+        `execute()`를 통해 샌드박스에서 Python 스크립트를 실행하여
+        파일을 읽고, 인코딩을 감지하며, 텍스트 파일에 대해 offset/limit 페이지네이션을
+        적용합니다. 요청된 페이지만 전송되며, 텍스트 출력은 백엔드 stdout/로그 전송
+        실패를 방지하기 위해 약 500 KiB로 제한됩니다. 이 제한을 초과하면 반환된
+        내용이 절삭되며 다른 `offset`이나 더 작은 `limit`으로 페이지네이션을 계속하도록
+        안내합니다.
 
-        Binary files (non-UTF-8) are returned base64-encoded without
-        pagination.
+        바이너리 파일(비 UTF-8)은 페이지네이션 없이 base64로 인코딩하여 반환됩니다.
 
         Args:
-            file_path: Absolute path to the file to read.
-            offset: Starting line number (0-indexed).
+            file_path: 읽을 파일의 절대 경로.
+            offset: 시작 줄 번호 (0 기반 인덱스).
 
-                Only applied to text files.
-            limit: Maximum number of lines to return.
+                텍스트 파일에만 적용됩니다.
+            limit: 반환할 최대 줄 수.
 
-                Only applied to text files.
+                텍스트 파일에만 적용됩니다.
 
         Returns:
-            `ReadResult` with `file_data` on success or `error` on failure.
+            성공 시 `file_data`, 실패 시 `error`를 포함하는 `ReadResult`.
         """
         file_type = _get_file_type(file_path)
         path_b64 = base64.b64encode(file_path.encode("utf-8")).decode("ascii")
 
-        # Defensive int coercion in case callers bypass type checking.
+        # 타입 검사를 우회하는 호출자를 방어하기 위해 int로 강제 변환합니다.
         cmd = _READ_COMMAND_TEMPLATE.format(
             path_b64=path_b64,
             file_type=file_type,
@@ -443,18 +439,18 @@ except PermissionError:
         file_path: str,
         content: str,
     ) -> WriteResult:
-        """Create a new file, failing if it already exists.
+        """이미 존재하는 경우 실패하며 새 파일을 생성합니다.
 
         Args:
-            file_path: Absolute path for the new file.
-            content: UTF-8 text content to write.
+            file_path: 새 파일의 절대 경로.
+            content: 쓸 UTF-8 텍스트 내용.
 
         Returns:
-            `WriteResult` with `path` on success or `error` on failure.
+            성공 시 `path`, 실패 시 `error`를 포함하는 `WriteResult`.
         """
-        # Existence check + mkdir. There is a TOCTOU window between this check
-        # and the upload below - a concurrent process could create the file in
-        # between. This is an inherent limitation of splitting the operation;
+        # 존재 여부 확인 + mkdir. 이 확인과 아래 업로드 사이에 TOCTOU 창이 있습니다 -
+        # 그 사이에 다른 프로세스가 파일을 생성할 수 있습니다.
+        # 작업을 분리하는 데 따른 고유한 한계입니다.
         path_b64 = base64.b64encode(file_path.encode("utf-8")).decode("ascii")
         check_cmd = _WRITE_CHECK_TEMPLATE.format(path_b64=path_b64)
         result = self.execute(check_cmd)
@@ -464,7 +460,7 @@ except PermissionError:
 
         responses = self.upload_files([(file_path, content.encode("utf-8"))])
         if not responses:
-            # An unreachable condition was reached
+            # 도달 불가능한 조건에 도달한 경우
             msg = f"Responses was expected to return 1 result, but it returned {len(responses)} with type {type(responses)}"
             raise AssertionError(msg)
         response = responses[0]
@@ -480,26 +476,23 @@ except PermissionError:
         new_string: str,
         replace_all: bool = False,  # noqa: FBT001, FBT002
     ) -> EditResult:
-        """Edit a file by replacing exact string occurrences.
+        """정확한 문자열 발생 횟수를 교체하여 파일을 편집합니다.
 
-        For small payloads (combined old/new under `_EDIT_INLINE_MAX_BYTES`),
-        runs a server-side Python script via `execute()` — single round-trip,
-        no file transfer.  For larger payloads, uploads old/new strings as
-        temp files and runs a server-side replace script — the source file
-        never leaves the sandbox.
+        소형 페이로드(`_EDIT_INLINE_MAX_BYTES` 미만의 결합 old/new)의 경우
+        `execute()`를 통해 서버 측 Python 스크립트를 실행합니다 — 단일 왕복,
+        파일 전송 없음. 대형 페이로드의 경우 old/new 문자열을 임시 파일로 업로드하고
+        서버 측 치환 스크립트를 실행합니다 — 소스 파일은 샌드박스를 벗어나지 않습니다.
 
         Args:
-            file_path: Absolute path to the file to edit.
-            old_string: The exact substring to find.
-            new_string: The replacement string.
-            replace_all: If `True`, replace every occurrence.
+            file_path: 편집할 파일의 절대 경로.
+            old_string: 찾을 정확한 부분 문자열.
+            new_string: 대체 문자열.
+            replace_all: `True`이면 모든 발생을 교체합니다.
 
-                If `False` (default), error when more than one
-                occurrence exists.
+                `False`(기본값)이면 발생 횟수가 2개 이상일 때 오류를 반환합니다.
 
         Returns:
-            `EditResult` with `path` and `occurrences` on success, or `error`
-                on failure.
+            성공 시 `path`와 `occurrences`, 실패 시 `error`를 포함하는 `EditResult`.
         """
         payload_size = len(old_string.encode("utf-8")) + len(new_string.encode("utf-8"))
 
@@ -515,7 +508,7 @@ except PermissionError:
         new_string: str,
         replace_all: bool,  # noqa: FBT001
     ) -> EditResult:
-        """Server-side replace via `execute()` — single round-trip."""
+        """`execute()`를 통한 서버 측 치환 — 단일 왕복."""
         payload = json.dumps(
             {
                 "path": file_path,
@@ -554,14 +547,14 @@ except PermissionError:
         new_string: str,
         replace_all: bool,  # noqa: FBT001
     ) -> EditResult:
-        """Upload old/new as temp files, replace server-side.
+        """old/new를 임시 파일로 업로드하고 서버 측에서 치환합니다.
 
-        The source file never leaves the sandbox. Only the old/new strings are
-        transferred via `upload_files()`, and a server-side script reads them,
-        performs the replacement, and cleans up the temp files.
+        소스 파일은 샌드박스를 벗어나지 않습니다. old/new 문자열만
+        `upload_files()`를 통해 전송되며, 서버 측 스크립트가 해당 파일을 읽고
+        치환을 수행한 후 임시 파일을 정리합니다.
         """
         uid = base64.b32encode(os.urandom(10)).decode("ascii").lower()
-        old_tmp = f"/tmp/.deepagents_edit_{uid}_old"  # noqa: S108  # sandbox-internal temp file with 80-bit random uid
+        old_tmp = f"/tmp/.deepagents_edit_{uid}_old"  # noqa: S108  # 80비트 랜덤 uid를 가진 샌드박스 내부 임시 파일
         new_tmp = f"/tmp/.deepagents_edit_{uid}_new"  # noqa: S108
 
         resps = self.upload_files(
@@ -570,7 +563,7 @@ except PermissionError:
                 (new_tmp, new_string.encode("utf-8")),
             ]
         )
-        if len(resps) < 2:  # noqa: PLR2004  # expecting exactly 2 responses
+        if len(resps) < 2:  # noqa: PLR2004  # 정확히 2개의 응답을 기대함
             return EditResult(error=f"Error editing file '{file_path}': upload returned no response")
         for r in resps:
             if r.error:
@@ -588,8 +581,8 @@ except PermissionError:
         try:
             data = json.loads(output)
         except (json.JSONDecodeError, ValueError):
-            # Script may not have started or its finally block may not have
-            # run — best-effort cleanup of temp files.
+            # 스크립트가 시작되지 않았거나 finally 블록이 실행되지 않았을 수 있으므로
+            # 임시 파일을 최선의 노력으로 정리합니다.
             cleanup = self.execute(f"rm -f {shlex.quote(old_tmp)} {shlex.quote(new_tmp)}")
             if cleanup.exit_code != 0:
                 logger.warning(
@@ -614,7 +607,7 @@ except PermissionError:
 
     @staticmethod
     def _map_edit_error(error: str, file_path: str, old_string: str) -> EditResult:
-        """Map server-side error codes to `EditResult` objects."""
+        """서버 측 오류 코드를 `EditResult` 객체로 매핑합니다."""
         if error == "file_not_found":
             return EditResult(
                 error=f"Error: File '{file_path}' not found",
@@ -639,30 +632,30 @@ except PermissionError:
         path: str | None = None,
         glob: str | None = None,
     ) -> GrepResult:
-        """Search file contents for a literal string using `grep -F`.
+        """`grep -F`를 사용해 리터럴 문자열로 파일 내용을 검색합니다.
 
         Args:
-            pattern: Literal string to search for (not a regex).
-            path: Directory or file to search in.
+            pattern: 검색할 리터럴 문자열 (정규식 아님).
+            path: 검색할 디렉터리 또는 파일.
 
-                Defaults to `"."`.
-            glob: Optional file-name glob to restrict the search
-                (e.g. `'*.py'`).
+                기본값은 `"."`.
+            glob: 검색을 제한하는 선택적 파일명 glob
+                (예: `'*.py'`).
 
         Returns:
-            `GrepResult` with a list of `GrepMatch` dicts, or `error` on failure.
+            `GrepMatch` 딕셔너리 목록을 포함하는 `GrepResult`, 실패 시 `error`.
         """
         search_path = shlex.quote(path or ".")
 
-        # Build grep command to get structured output
-        grep_opts = "-rHnF"  # recursive, with filename, with line number, fixed-strings (literal)
+        # 구조화된 출력을 위한 grep 명령 구성
+        grep_opts = "-rHnF"  # 재귀, 파일명 포함, 줄 번호 포함, 고정 문자열(리터럴)
 
-        # Add glob pattern if specified
+        # glob 패턴이 지정된 경우 추가
         glob_pattern = ""
         if glob:
             glob_pattern = f"--include='{glob}'"
 
-        # Escape pattern for shell
+        # 셸을 위한 패턴 이스케이핑
         pattern_escaped = shlex.quote(pattern)
 
         cmd = f"grep {grep_opts} {glob_pattern} -e {pattern_escaped} {search_path} 2>/dev/null || true"
@@ -672,12 +665,12 @@ except PermissionError:
         if not output:
             return GrepResult(matches=[])
 
-        # Parse grep output into GrepMatch objects
+        # grep 출력을 GrepMatch 객체로 파싱
         matches: list[GrepMatch] = []
         for line in output.split("\n"):
-            # Format is: path:line_number:text
+            # 형식: path:line_number:text
             parts = line.split(":", 2)
-            if len(parts) >= 3:  # noqa: PLR2004  # Grep output field count
+            if len(parts) >= 3:  # noqa: PLR2004  # grep 출력 필드 수
                 matches.append(
                     {
                         "path": parts[0],
@@ -689,8 +682,8 @@ except PermissionError:
         return GrepResult(matches=matches)
 
     def glob(self, pattern: str, path: str = "/") -> GlobResult:
-        """Structured glob matching returning `GlobResult`."""
-        # Encode pattern and path as base64 to avoid escaping issues
+        """`GlobResult`를 반환하는 구조화된 glob 매칭."""
+        # 이스케이핑 문제를 피하기 위해 패턴과 경로를 base64로 인코딩
         pattern_b64 = base64.b64encode(pattern.encode("utf-8")).decode("ascii")
         path_b64 = base64.b64encode(path.encode("utf-8")).decode("ascii")
 
@@ -701,7 +694,7 @@ except PermissionError:
         if not output:
             return GlobResult(matches=[])
 
-        # Parse JSON output into FileInfo dicts
+        # JSON 출력을 FileInfo 딕셔너리로 파싱
         file_infos: list[FileInfo] = []
         for line in output.split("\n"):
             try:
@@ -720,23 +713,23 @@ except PermissionError:
     @property
     @abstractmethod
     def id(self) -> str:
-        """Unique identifier for the sandbox backend."""
+        """샌드박스 백엔드의 고유 식별자."""
 
     @abstractmethod
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
-        """Upload multiple files to the sandbox.
+        """샌드박스에 여러 파일을 업로드합니다.
 
-        Implementations must support partial success - catch exceptions per-file
-        and return errors in `FileUploadResponse` objects rather than raising.
+        구현체는 부분 성공을 지원해야 합니다 - 파일별 예외를 처리하고
+        예외를 전파하는 대신 `FileUploadResponse` 객체에 오류를 반환합니다.
 
-        Upload files is responsible for ensuring that the parent path exists
-        (if user permissions allow the user to write to the given directory)
+        upload_files는 상위 경로가 존재하는지 확인할 책임이 있습니다
+        (사용자가 해당 디렉터리에 쓰기 권한이 있는 경우).
         """
 
     @abstractmethod
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
-        """Download multiple files from the sandbox.
+        """샌드박스에서 여러 파일을 다운로드합니다.
 
-        Implementations must support partial success - catch exceptions per-file
-        and return errors in `FileDownloadResponse` objects rather than raising.
+        구현체는 부분 성공을 지원해야 합니다 - 파일별 예외를 처리하고
+        예외를 전파하는 대신 `FileDownloadResponse` 객체에 오류를 반환합니다.
         """
