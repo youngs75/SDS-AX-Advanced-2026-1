@@ -1,21 +1,20 @@
-"""Non-interactive execution mode for deepagents CLI.
+"""deepagents CLI의 비대화형 실행 모드입니다.
 
-Provides `run_non_interactive` which runs a single user task against the
-agent graph, streams results to stdout, and exits with an appropriate code.
+에이전트 그래프에 대해 단일 사용자 작업을 실행하고 결과를 stdout으로 스트리밍하고 적절한 코드로 종료하는 `run_non_interactive`을
+제공합니다.
 
-The agent runs inside a `langgraph dev` server subprocess, connected via
-the `RemoteAgent` client (see `server_manager.server_session`).
+에이전트는 `RemoteAgent` 클라이언트를 통해 연결된 `langgraph dev` 서버 하위 프로세스 내에서
+실행됩니다(`server_manager.server_session` 참조).
 
-Shell commands are gated by an optional allow-list (`--shell-allow-list`):
+셸 명령은 선택적 허용 목록(`--shell-allow-list`)에 의해 관리됩니다.
 
-- Not set → shell disabled, all other tool calls auto-approved.
-- `recommended` or explicit list → shell enabled, commands validated
-    against the list; non-shell tools approved unconditionally.
-- `all` → shell enabled, any command allowed, all tools auto-approved.
+- 설정되지 않음 → 쉘이 비활성화되고 다른 모든 도구 호출은 자동 승인됩니다. - `recommended` 또는 명시적 목록 → 쉘 활성화, 명령 검증
+    목록에 반대; 비쉘 도구는 무조건 승인됩니다.
+- `all` → 쉘 활성화, 모든 명령 허용, 모든 도구 자동 승인.
 
-An optional quiet mode (`--quiet` / `-q`) redirects all console output to
-stderr, leaving stdout exclusively for the agent's response text.
+선택적 자동 모드(`--quiet` / `-q`)는 모든 콘솔 출력을 stderr로 리디렉션하고 stdout은 에이전트의 응답 텍스트용으로만 남겨둡니다.
 """
+
 
 from __future__ import annotations
 
@@ -68,65 +67,72 @@ logger = logging.getLogger(__name__)
 
 
 class HITLIterationLimitError(RuntimeError):
-    """Raised when the HITL interrupt loop exceeds `_MAX_HITL_ITERATIONS` rounds."""
+    """HITL 인터럽트 루프가 `_MAX_HITL_ITERATIONS` 라운드를 초과하면 발생합니다."""
+
 
 
 _HITL_REQUEST_ADAPTER = TypeAdapter(HITLRequest)
 
 _STREAM_CHUNK_LENGTH = 3
-"""Expected element counts for the tuples emitted by agent.astream.
+"""Agent.astream이 내보낸 튜플의 예상 요소 수입니다.
 
-Stream chunks are 3-tuples: (namespace, stream_mode, data).
+스트림 청크는 3개의 튜플(네임스페이스, stream_mode, 데이터)입니다.
 """
 
+
 _MESSAGE_DATA_LENGTH = 2
-"""Message-mode data is a 2-tuple: (message_obj, metadata)."""
+"""메시지 모드 데이터는 2-튜플(message_obj, 메타데이터)입니다."""
+
 
 _MAX_HITL_ITERATIONS = 50
-"""Safety cap on the number of HITL interrupt round-trips to prevent infinite
-loops (e.g. when the agent keeps retrying rejected commands)."""
+"""무한 루프를 방지하기 위해 HITL 인터럽트 왕복 횟수에 대한 안전 제한(예: 에이전트가 거부된 명령을 계속 재시도하는 경우)"""
+
 
 
 def _write_text(text: str) -> None:
-    """Write agent response text to stdout (without a trailing newline).
+    """stdout에 에이전트 응답 텍스트를 씁니다(후행 줄 바꿈 없이).
 
-    Uses `sys.stdout` directly (rather than the Rich Console) so that agent
-    response text always appears on stdout, even in quiet mode where the
-    Console is redirected to stderr.
+    콘솔이 stderr로 리디렉션되는 자동 모드에서도 에이전트 응답 텍스트가 항상 stdout에 표시되도록 `sys.stdout`을(Rich Console
+    대신) 직접 사용합니다.
 
     Args:
-        text: The text string to write.
+        text: 작성할 텍스트 문자열입니다.
+
     """
+
     sys.stdout.write(text)
     sys.stdout.flush()
 
 
 def _write_newline() -> None:
-    """Write a newline to stdout (and flush)."""
+    """stdout에 개행 문자를 쓰고 플러시합니다."""
+
     sys.stdout.write("\n")
     sys.stdout.flush()
 
 
 class _ConsoleSpinner:
-    """Animated spinner for non-interactive verbose output.
+    """비대화형 자세한 출력을 위한 애니메이션 스피너입니다.
 
-    Uses Rich's `Live` display with a transient braille-dot spinner that
-    disappears when stopped, keeping terminal output clean.
+    중지되면 사라지는 임시 점자 회전 기능이 있는 Rich의 `Live` 디스플레이를 사용하여 터미널 출력을 깔끔하게 유지합니다.
+
     """
+
 
     def __init__(self, console: Console) -> None:
         self._console = console
         self._live: Live | None = None
 
     def start(self, message: str = "Working...") -> None:
-        """Start the spinner with the given message.
+        """주어진 메시지로 스피너를 시작하십시오.
 
-        No-op if the spinner is already running. Fails silently if the console
-        cannot support live display.
+        스피너가 이미 실행 중이면 작동하지 않습니다. 콘솔이 라이브 디스플레이를 지원할 수 없으면 자동으로 실패합니다.
 
         Args:
-            message: Status text to display next to the spinner.
+            message: 스피너 옆에 표시할 상태 텍스트입니다.
+
         """
+
         if self._live is not None:
             return
         renderable = RichSpinner(
@@ -142,7 +148,8 @@ class _ConsoleSpinner:
             self._live = None
 
     def stop(self) -> None:
-        """Stop the spinner if running. Can be restarted with `start`."""
+        """실행 중인 경우 스피너를 중지합니다. `start`로 다시 시작할 수 있습니다."""
+
         if self._live is not None:
             try:
                 self._live.stop()
@@ -154,74 +161,92 @@ class _ConsoleSpinner:
 
 @dataclass
 class StreamState:
-    """Mutable state accumulated while iterating over the agent stream."""
+    """에이전트 스트림을 반복하는 동안 변경 가능한 상태가 누적되었습니다."""
+
 
     quiet: bool = False
-    """When `True`, diagnostic formatting that would otherwise go to stdout
-    (e.g. separator newlines before tool notifications) is suppressed so that
-    stdout contains only agent response text."""
-
-    stream: bool = True
-    """When `True` (default), text chunks are written to stdout as they arrive.
-
-    When `False`, text is buffered in `full_response` and flushed after the
-    agent finishes.
+    """`True`인 경우 표준 출력으로 이동되는 진단 형식
+    (예: 도구 알림 앞의 구분 기호 줄 바꿈)은 stdout에 에이전트 응답 텍스트만 포함되도록 억제됩니다.
     """
 
+
+    stream: bool = True
+    """`True`(기본값)이면 텍스트 청크가 도착하자마자 stdout에 기록됩니다.
+
+    `False`인 경우 텍스트는 `full_response`에 버퍼링되고 에이전트가 완료된 후 플러시됩니다.
+
+    """
+
+
     full_response: list[str] = field(default_factory=list)
-    """Accumulated text fragments from the AI message stream."""
+    """AI 메시지 스트림에서 누적된 텍스트 조각입니다."""
+
 
     tool_call_buffers: dict[int | str, dict[str, str | None]] = field(
         default_factory=dict
     )
-    """Maps a tool-call index or ID to its name/ID metadata for in-progress
-    tool calls."""
+    """진행 중인 도구 호출 색인 또는 ID를 해당 이름/ID 메타데이터에 매핑합니다.
+    도구 호출.
+    """
+
 
     pending_interrupts: dict[str, HITLRequest] = field(default_factory=dict)
-    """Maps interrupt IDs to their validated HITL requests that are awaiting
-    decisions."""
+    """대기 중인 검증된 HITL 요청에 인터럽트 ID를 매핑합니다.
+    결정.
+    """
+
 
     hitl_response: dict[str, dict[str, list[dict[str, str]]]] = field(
         default_factory=dict
     )
-    """Maps interrupt IDs to dicts containing a `'decisions'` key with a list of
-    decision dicts (each having a `'type'` key of `'approve'` or `'reject'`).
+    """인터럽트 ID를 다음 목록과 함께 `'decisions'` 키가 포함된 사전에 매핑합니다.
+    결정 명령(각각 `'approve'` 또는 `'reject'`의 `'type'` 키를 가짐)
 
-    Used to resume the agent after HITL processing.
+    HITL 처리 후 에이전트를 재개하는 데 사용됩니다.
+
     """
 
+
     interrupt_occurred: bool = False
-    """Flag indicating whether any HITL interrupt was received during the
-    current stream pass."""
+    """HITL 인터럽트가 수신되었는지 여부를 나타내는 플래그입니다.
+    현재 스트림 패스.
+    """
+
 
     stats: SessionStats = field(default_factory=SessionStats)
-    """Accumulated model usage stats for this stream."""
+    """이 스트림에 대해 누적된 모델 사용 통계입니다."""
+
 
     spinner: _ConsoleSpinner | None = None
-    """Optional animated spinner shown during agent work in verbose mode."""
+    """자세한 정보 표시 모드에서 에이전트 작업 중에 표시되는 선택적 애니메이션 스피너입니다."""
+
 
 
 @dataclass
 class ThreadUrlLookupState:
-    """Best-effort background LangSmith thread URL lookup state.
+    """최선의 노력을 기울이는 백그라운드 LangSmith 스레드 URL 조회 상태입니다.
 
-    Thread safety: the background thread sets `url` then calls `done.set()`.
-    Consumers must check `done.is_set()` before reading `url`.
+    스레드 안전성: 백그라운드 스레드는 `url`을 설정한 다음 `done.set()`을 호출합니다. 소비자는 `url`을 읽기 전에
+    `done.is_set()`을 확인해야 합니다.
+
     """
+
 
     done: threading.Event = field(default_factory=threading.Event)
     url: str | None = None
 
 
 def _start_langsmith_thread_url_lookup(thread_id: str) -> ThreadUrlLookupState:
-    """Start background LangSmith URL resolution without blocking.
+    """차단하지 않고 백그라운드 LangSmith URL 확인을 시작합니다.
 
     Args:
-        thread_id: Thread identifier to resolve.
+        thread_id: 해결할 스레드 식별자입니다.
 
     Returns:
-        Mutable lookup state whose completion can be checked later.
+        나중에 완료를 확인할 수 있는 변경 가능한 조회 상태입니다.
+
     """
+
     state = ThreadUrlLookupState()
 
     def _resolve() -> None:
@@ -245,13 +270,15 @@ def _process_interrupts(
     state: StreamState,
     console: Console,
 ) -> None:
-    """Extract HITL interrupts from an `updates` chunk and record them.
+    """`updates` 청크에서 HITL 인터럽트를 추출하고 기록합니다.
 
     Args:
-        data: The `updates` dict that contains an `__interrupt__` key.
-        state: Stream state to update with new pending interrupts.
-        console: Rich console for user-visible warnings.
+        data: `__interrupt__` 키가 포함된 `updates` 사전입니다.
+        state: 새로운 보류 중인 인터럽트로 업데이트할 상태를 스트리밍합니다.
+        console: 사용자에게 표시되는 경고를 위한 풍부한 콘솔.
+
     """
+
     interrupts = data["__interrupt__"]
     if interrupts:
         for interrupt_obj in interrupts:
@@ -285,18 +312,18 @@ def _process_ai_message(
     state: StreamState,
     console: Console,
 ) -> None:
-    """Extract text and tool-call blocks from an AI message and render them.
+    """AI 메시지에서 텍스트 및 도구 호출 블록을 추출하고 렌더링합니다.
 
-    When streaming is enabled, text blocks are written to stdout immediately;
-    otherwise they are accumulated in `state.full_response` for deferred
-    output. Tool-call blocks are buffered and their names are printed to the
-    console.
+    스트리밍이 활성화되면 텍스트 블록이 즉시 stdout에 기록됩니다. 그렇지 않으면 지연된 출력을 위해 `state.full_response`에
+    누적됩니다. 도구 호출 블록은 버퍼링되고 해당 이름이 콘솔에 인쇄됩니다.
 
     Args:
-        message_obj: The `AIMessage` received from the stream.
-        state: Stream state for accumulating response text and tool-call buffers.
-        console: Rich console for formatted output.
+        message_obj: 스트림에서 수신된 `AIMessage`입니다.
+        state: 응답 텍스트 및 도구 호출 버퍼를 축적하기 위한 스트림 상태입니다.
+        console: 형식화된 출력을 위한 풍부한 콘솔.
+
     """
+
     # Extract token usage for stats accumulation
     usage = getattr(message_obj, "usage_metadata", None)
     if usage:
@@ -356,18 +383,18 @@ def _process_message_chunk(
     console: Console,
     file_op_tracker: FileOpTracker,
 ) -> None:
-    """Handle a `messages`-mode chunk from the stream.
+    """스트림에서 `messages` 모드 청크를 처리합니다.
 
-    Dispatches to AI-message or tool-message processing depending on the
-    message type.
+    메시지 유형에 따라 AI 메시지 또는 도구 메시지 처리로 전달됩니다.
 
     Args:
-        data: A 2-tuple of `(message_obj, metadata)` from the messages
-            stream mode.
-        state: Shared stream state.
-        console: Rich console for formatted output.
-        file_op_tracker: Tracker for file-operation diffs.
+        data: 메시지 스트림 모드의 `(message_obj, metadata)` 2튜플.
+        state: 공유 스트림 상태.
+        console: 형식화된 출력을 위한 풍부한 콘솔.
+        file_op_tracker: 파일 작업 차이에 대한 추적기입니다.
+
     """
+
     if not isinstance(data, tuple) or len(data) != _MESSAGE_DATA_LENGTH:
         logger.debug(
             "Unexpected message-mode data (type=%s), skipping", type(data).__name__
@@ -403,20 +430,20 @@ def _process_stream_chunk(
     console: Console,
     file_op_tracker: FileOpTracker,
 ) -> None:
-    """Route a single raw stream chunk to the appropriate handler.
+    """단일 원시 스트림 청크를 적절한 핸들러로 라우팅합니다.
 
-    Only main-agent chunks are processed; sub-agent output is ignored so
-    that only top-level content is rendered.
+    주 에이전트 청크만 처리됩니다. 최상위 콘텐츠만 렌더링되도록 하위 에이전트 출력이 무시됩니다.
 
     Args:
-        chunk: A raw element yielded by `agent.astream`.
+        chunk: `agent.astream`에서 생성된 원시 요소입니다.
 
-            Expected to be a 3-tuple `(namespace, stream_mode, data)` for
-            main-agent output.
-        state: Shared stream state.
-        console: Rich console for formatted output.
-        file_op_tracker: Tracker for file-operation diffs.
+            주 에이전트 출력의 경우 3튜플 `(namespace, stream_mode, data)`이 될 것으로 예상됩니다.
+        state: 공유 스트림 상태.
+        console: 형식화된 출력을 위한 풍부한 콘솔.
+        file_op_tracker: 파일 작업 차이에 대한 추적기입니다.
+
     """
+
     if not isinstance(chunk, tuple) or len(chunk) != _STREAM_CHUNK_LENGTH:
         logger.debug(
             "Unexpected stream chunk (type=%s), skipping", type(chunk).__name__
@@ -443,28 +470,26 @@ def _process_stream_chunk(
 def _make_hitl_decision(
     action_request: ActionRequest, console: Console
 ) -> dict[str, str]:
-    """Decide whether to approve or reject a single action request.
+    """단일 작업 요청을 승인할지 거부할지 결정합니다.
 
-    This function is only invoked when a restrictive shell allow-list is
-    configured (not `all`). When shell is disabled or unrestricted,
-    `interrupt_on` is empty and this function is bypassed entirely.
+    이 함수는 제한적인 셸 허용 목록이 구성된 경우에만 호출됩니다(`all` 아님). 쉘이 비활성화되거나 제한되지 않으면 `interrupt_on`은 비어
+    있고 이 기능은 완전히 우회됩니다.
 
-    Shell tools are always gated: if an allow-list is configured, the command
-    is validated against it; if no allow-list is configured, shell commands
-    are rejected outright (defense-in-depth — the caller should disable
-    shell tools when no allow-list is present, but this function fails
-    closed regardless). Non-shell tools are approved unconditionally.
+    셸 도구는 항상 제한됩니다. 허용 목록이 구성된 경우 명령은 이에 대해 유효성이 검사됩니다. 허용 목록이 구성되지 않은 경우 셸 명령은 완전히
+    거부됩니다(심층 방어 — 허용 목록이 없을 때 호출자는 셸 도구를 비활성화해야 하지만 이 기능은 관계없이 실패합니다). 비쉘 도구는 무조건 승인됩니다.
 
     Args:
-        action_request: The action-request dict emitted by the HITL middleware.
+        action_request: HITL 미들웨어가 내보낸 작업 요청 사전입니다.
 
-            Must contain at least a `name` key.
-        console: Rich console for status output.
+            최소한 `name` 키를 포함해야 합니다.
+        console: 상태 출력을 위한 풍부한 콘솔.
 
     Returns:
-        Decision dict with a `type` key (`"approve"` or `"reject"`)
-            and an optional `message` key with a human-readable explanation.
+        `type` 키(`"approve"` 또는 `"reject"`)를 사용한 결정 dict
+            사람이 읽을 수 있는 설명이 포함된 선택적 `message` 키.
+
     """
+
     for warning in _collect_action_request_warnings(action_request):
         console.print(f"[yellow]Warning:[/yellow] {warning}")
 
@@ -511,13 +536,15 @@ def _make_hitl_decision(
 
 
 def _collect_action_request_warnings(action_request: ActionRequest) -> list[str]:
-    """Collect Unicode/URL safety warnings for one action request.
+    """하나의 작업 요청에 대한 유니코드/URL 안전 경고를 수집합니다.
 
-    Recursively inspects all nested string values in action arguments.
+    작업 인수에 중첩된 모든 문자열 값을 재귀적으로 검사합니다.
 
     Returns:
-        Warning messages for suspicious values in action arguments.
+        작업 인수의 의심스러운 값에 대한 경고 메시지입니다.
+
     """
+
     warnings: list[str] = []
     args = action_request.get("args", {})
     if not isinstance(args, dict):
@@ -546,15 +573,17 @@ def _collect_action_request_warnings(action_request: ActionRequest) -> list[str]
 
 
 def _process_hitl_interrupts(state: StreamState, console: Console) -> None:
-    """Iterate over pending HITL interrupts and build approval/rejection responses.
+    """보류 중인 HITL 인터럽트를 반복하고 승인/거부 응답을 빌드합니다.
 
-    After processing, `state.pending_interrupts` is cleared and decisions
-    are written into `state.hitl_response` so the agent can be resumed.
+    처리 후에는 `state.pending_interrupts`이 지워지고 결정 사항이 `state.hitl_response`에 기록되므로 에이전트를
+    재개할 수 있습니다.
 
     Args:
-        state: Stream state containing the pending interrupts to process.
-        console: Rich console for status output.
+        state: 처리할 보류 중인 인터럽트가 포함된 스트림 상태입니다.
+        console: 상태 출력을 위한 풍부한 콘솔.
+
     """
+
     current_interrupts = dict(state.pending_interrupts)
     state.pending_interrupts.clear()
 
@@ -574,17 +603,18 @@ async def _stream_agent(
     console: Console,
     file_op_tracker: FileOpTracker,
 ) -> None:
-    """Consume the full agent stream and update *state* with results.
+    """전체 에이전트 스트림을 사용하고 결과로 *상태*를 업데이트합니다.
 
     Args:
-        agent: The agent (Pregel or RemoteAgent).
-        stream_input: Either the initial user message dict or a
-            `Command(resume=...)` for HITL continuation.
-        config: LangGraph runnable config (thread ID, metadata, etc.).
-        state: Shared stream state.
-        console: Rich console for formatted output.
-        file_op_tracker: Tracker for file-operation diffs.
+        agent: 에이전트(Pregel 또는 RemoteAgent).
+        stream_input: 초기 사용자 메시지 dict 또는 HITL 연속을 위한 `Command(resume=...)`입니다.
+        config: LangGraph 실행 가능 구성(스레드 ID, 메타데이터 등)
+        state: 공유 스트림 상태.
+        console: 형식화된 출력을 위한 풍부한 콘솔.
+        file_op_tracker: 파일 작업 차이에 대한 추적기입니다.
+
     """
+
     if state.spinner:
         state.spinner.start()
     try:
@@ -612,28 +642,28 @@ async def _run_agent_loop(
     stream: bool = True,
     thread_url_lookup: ThreadUrlLookupState | None = None,
 ) -> None:
-    """Run the agent and handle HITL interrupts until the task completes.
+    """에이전트를 실행하고 작업이 완료될 때까지 HITL 인터럽트를 처리합니다.
 
-    The loop processes at most `_MAX_HITL_ITERATIONS` rounds to prevent
-    runaway retries (e.g. the agent repeatedly attempting rejected commands).
+    루프는 폭주 재시도를 방지하기 위해 최대 `_MAX_HITL_ITERATIONS` 라운드를 처리합니다(예: 에이전트가 거부된 명령을 반복적으로 시도하는
+    경우).
 
     Args:
-        agent: The agent (Pregel or RemoteAgent).
-        message: The user's task message.
-        config: LangGraph runnable config.
-        console: Rich console for formatted output.
-        file_op_tracker: Tracker for file-operation diffs.
-        quiet: Suppress diagnostic formatting on stdout.
-        stream: When `True`, text is written to stdout as it arrives.
+        agent: 에이전트(Pregel 또는 RemoteAgent).
+        message: 사용자의 작업 메시지입니다.
+        config: LangGraph 실행 가능 구성.
+        console: 형식화된 출력을 위한 풍부한 콘솔.
+        file_op_tracker: 파일 작업 차이에 대한 추적기입니다.
+        quiet: stdout에서 진단 형식을 억제합니다.
+        stream: `True`이면 텍스트가 도착하자마자 stdout에 기록됩니다.
 
-            When `False`, the full response is buffered and flushed at
-            the end.
-        thread_url_lookup: Optional non-blocking lookup state for rendering
-            a fast-follow LangSmith thread link.
+            `False`인 경우 전체 응답이 버퍼링되고 마지막에 플러시됩니다.
+        thread_url_lookup: Fast-Follow LangSmith 스레드 링크를 렌더링하기 위한 선택적 비차단 조회 상태입니다.
 
     Raises:
-        HITLIterationLimitError: If the HITL iteration limit is exceeded.
+        HITLIterationLimitError: HITL 반복 제한이 초과된 경우.
+
     """
+
     spinner = None if quiet else _ConsoleSpinner(console)
     state = StreamState(quiet=quiet, stream=stream, spinner=spinner)
     stream_input: dict[str, Any] | Command = {
@@ -699,20 +729,21 @@ def _build_non_interactive_header(
     *,
     include_thread_link: bool = False,
 ) -> Text:
-    """Build the non-interactive mode header with model, agent, and thread info.
+    """모델, 에이전트 및 스레드 정보를 사용하여 비대화형 모드 헤더를 빌드합니다.
 
-    By default, this function avoids LangSmith network lookups and renders the
-    thread ID as plain text. Callers can opt in to hyperlink resolution.
+    기본적으로 이 기능은 LangSmith 네트워크 조회를 방지하고 스레드 ID를 일반 텍스트로 렌더링합니다. 발신자는 하이퍼링크 확인을 선택할 수
+    있습니다.
 
     Args:
-        assistant_id: Agent identifier.
-        thread_id: Thread identifier.
-        include_thread_link: Whether to resolve and render a LangSmith link for
-            the thread ID.
+        assistant_id: 에이전트 식별자.
+        thread_id: 스레드 식별자.
+        include_thread_link: 스레드 ID에 대한 LangSmith 링크를 확인하고 렌더링할지 여부입니다.
 
     Returns:
-        Rich Text object with the formatted header line.
+        서식이 지정된 헤더 줄이 있는 서식 있는 텍스트 개체입니다.
+
     """
+
     default_label = " (default)" if assistant_id == DEFAULT_AGENT_NAME else ""
     parts: list[tuple[str, str | Style]] = [
         (f"CLI: v{__version__}", "dim"),
@@ -755,56 +786,50 @@ async def run_non_interactive(
     no_mcp: bool = False,
     trust_project_mcp: bool = False,
 ) -> int:
-    """Run a single task non-interactively and exit.
+    """단일 작업을 비대화식으로 실행하고 종료합니다.
 
-    The agent is created with `interactive=False`, which tailors the system
-    prompt for autonomous headless execution (no clarification questions,
-    reasonable assumptions).
+    에이전트는 자동 헤드리스 실행을 위한 시스템 프롬프트를 조정하는 `interactive=False`을 사용하여 생성됩니다(명확한 질문 없음, 합리적인
+    가정).
 
-    Shell access and auto-approval are controlled by `--shell-allow-list`:
+    셸 액세스 및 자동 승인은 `--shell-allow-list`에 의해 제어됩니다.
 
-    - Not set → shell disabled, all other tools auto-approved.
-    - `recommended` or explicit list → shell enabled, commands gated by
-        allow-list; non-shell tools approved unconditionally.
-    - `all` → shell enabled, any command allowed, all tools auto-approved.
+    - 설정되지 않음 → 셸이 비활성화되고 다른 모든 도구는 자동 승인됩니다. - `recommended` 또는 명시적 목록 → 쉘 활성화, 명령은
+    다음으로 제어됨
+        허용 목록; 비쉘 도구는 무조건 승인됩니다.
+    - `all` → 쉘 활성화, 모든 명령 허용, 모든 도구 자동 승인.
 
-    Note: startup header rendering avoids synchronous LangSmith URL lookups.
-    A background thread resolves the thread URL concurrently and the result is
-    displayed after task completion if available.
+    참고: 시작 헤더 렌더링은 동기식 LangSmith URL 조회를 방지합니다. 백그라운드 스레드는 스레드 URL을 동시에 확인하며 가능한 경우 작업
+    완료 후 결과가 표시됩니다.
 
     Args:
-        message: The task/message to execute.
-        assistant_id: Agent identifier for memory storage.
-        model_name: Optional model name to use.
-        model_params: Extra kwargs from `--model-params` to pass to the model.
+        message: 실행할 작업/메시지입니다.
+        assistant_id: 메모리 저장을 위한 에이전트 식별자입니다.
+        model_name: 사용할 선택적 모델 이름입니다.
+        model_params: 모델에 전달할 `--model-params`의 추가 kwargs입니다.
 
-            These override config file values.
-        sandbox_type: Type of sandbox (`'none'`, `'agentcore'`,
-            `'daytona'`, `'langsmith'`, `'modal'`, `'runloop'`).
-        sandbox_id: Optional existing sandbox ID to reuse.
-        sandbox_setup: Optional path to setup script to run in the sandbox
-            after creation.
-        profile_override: Extra profile fields from `--profile-override`.
+            이는 구성 파일 값을 재정의합니다.
+        sandbox_type: 샌드박스 유형(`'none'`, `'agentcore'`, `'daytona'`, `'langsmith'`,
+                      `'modal'`, `'runloop'`).
+        sandbox_id: 재사용할 선택적 기존 샌드박스 ID입니다.
+        sandbox_setup: 생성 후 샌드박스에서 실행할 설정 스크립트의 선택적 경로입니다.
+        profile_override: `--profile-override`의 추가 프로필 필드입니다.
 
-            Merged on top of config file profile overrides.
-        quiet: When `True`, all console output (headers, status messages,
-            tool notifications, HITL decisions, errors) is redirected to
-            stderr so that only the agent's response text appears on stdout.
-        stream: When `True` (default), text chunks are written to stdout
-            as they arrive.
+            구성 파일 프로필 재정의 위에 병합됩니다.
+        quiet: `True`인 경우 모든 콘솔 출력(헤더, 상태 메시지, 도구 알림, HITL 결정, 오류)이 stderr로 리디렉션되어 에이전트의
+               응답 텍스트만 stdout에 표시됩니다.
+        stream: `True`(기본값)이면 텍스트 청크가 도착하자마자 stdout에 기록됩니다.
 
-            When `False`, the full response is buffered and written to stdout in
-            one shot after the agent finishes.
-        mcp_config_path: Optional path to MCP servers JSON configuration file.
-            Merged on top of auto-discovered configs (highest precedence).
-        no_mcp: Disable all MCP tool loading.
-        trust_project_mcp: When `True`, allow project-level stdio MCP
-            servers. When `False` (default), project stdio servers are
-            silently skipped.
+            `False`인 경우 에이전트가 완료된 후 전체 응답이 버퍼링되어 한 번에 stdout에 기록됩니다.
+        mcp_config_path: MCP 서버 JSON 구성 파일의 선택적 경로입니다. 자동 검색된 구성 위에 병합됩니다(가장 높은 우선순위).
+        no_mcp: 모든 MCP 도구 로딩을 비활성화합니다.
+        trust_project_mcp: `True`인 경우 프로젝트 수준 stdio MCP 서버를 허용합니다. `False`(기본값)이면 프로젝트
+                           stdio 서버가 자동으로 건너뜁니다.
 
     Returns:
-        Exit code: 0 for success, 1 for error, 130 for keyboard interrupt.
+        Exit code: 0은 성공, 1은 오류, 130은 키보드 인터럽트입니다.
+
     """
+
     # stderr=True routes all console.print() to stderr; agent response text
     # uses _write_text() -> sys.stdout directly.
     console = Console(stderr=True) if quiet else Console()

@@ -1,7 +1,6 @@
-"""Small loading and elapsed-time widgets for agent activity.
+"""에이전트 활동을 위한 작은 로딩 및 경과 시간 위젯.
 
-These widgets supply the spinner and duration display used while the app waits
-for agent output or background operations to finish.
+이러한 위젯은 앱이 에이전트 출력 또는 백그라운드 작업이 완료되기를 기다리는 동안 사용되는 스피너 및 기간 표시를 제공합니다.
 """
 
 from __future__ import annotations
@@ -21,22 +20,23 @@ if TYPE_CHECKING:
 
 
 class Spinner:
-    """Animated spinner using charset-appropriate frames."""
+    """문자 세트에 적합한 프레임을 사용하는 애니메이션 스피너."""
 
     def __init__(self) -> None:
-        """Initialize spinner."""
+        """스피너를 초기화합니다."""
         self._position = 0
 
     @property
     def frames(self) -> tuple[str, ...]:
-        """Get spinner frames from glyphs config."""
+        """글리프 구성에서 스피너 프레임을 가져옵니다."""
         return get_glyphs().spinner_frames
 
     def next_frame(self) -> str:
-        """Get next animation frame.
+        """다음 애니메이션 프레임을 가져옵니다.
 
-        Returns:
-            The next spinner character in the animation sequence.
+Returns:
+            애니메이션 시퀀스의 다음 스피너 캐릭터입니다.
+
         """
         frames = self.frames
         frame = frames[self._position]
@@ -44,18 +44,20 @@ class Spinner:
         return frame
 
     def current_frame(self) -> str:
-        """Get current frame without advancing.
+        """진행하지 않고 현재 프레임을 가져옵니다.
 
-        Returns:
-            The current spinner character.
+Returns:
+            현재 스피너 캐릭터입니다.
+
         """
         return self.frames[self._position]
 
 
 class LoadingWidget(Static):
-    """Animated loading indicator with status text and elapsed time.
+    """상태 텍스트와 경과 시간이 포함된 애니메이션 로딩 표시기입니다.
 
-    Displays: <spinner> Thinking... (3s, esc to interrupt)
+    표시: <spinner> 생각 중...(3초, 중단하려면 esc)
+
     """
 
     DEFAULT_CSS = """
@@ -88,10 +90,11 @@ class LoadingWidget(Static):
     """
 
     def __init__(self, status: str = "Thinking") -> None:
-        """Initialize loading widget.
+        """로딩 위젯을 초기화합니다.
 
-        Args:
-            status: Initial status text to display
+Args:
+            status: 표시할 초기 상태 텍스트
+
         """
         super().__init__()
         self._status = status
@@ -104,10 +107,11 @@ class LoadingWidget(Static):
         self._paused_elapsed: int = 0
 
     def compose(self) -> ComposeResult:
-        """Compose the loading widget layout.
+        """로딩 위젯 레이아웃을 구성합니다.
 
-        Yields:
-            Widgets for spinner, status text, and hint.
+Yields:
+            스피너, 상태 텍스트 및 힌트용 위젯입니다.
+
         """
         with Horizontal(classes="loading-container"):
             self._spinner_widget = Static(
@@ -124,12 +128,12 @@ class LoadingWidget(Static):
             yield self._hint_widget
 
     def on_mount(self) -> None:
-        """Start animation on mount."""
+        """마운트 시 애니메이션을 시작합니다."""
         self._start_time = time()
         self.set_interval(0.1, self._update_animation)
 
     def _update_animation(self) -> None:
-        """Update spinner and elapsed time."""
+        """스피너와 경과 시간을 업데이트합니다."""
         if self._paused:
             return
 
@@ -142,20 +146,22 @@ class LoadingWidget(Static):
             self._hint_widget.update(f"({format_duration(elapsed)}, esc to interrupt)")
 
     def set_status(self, status: str) -> None:
-        """Update the status text.
+        """상태 텍스트를 업데이트합니다.
 
-        Args:
-            status: New status text
+Args:
+            status: 새 상태 텍스트
+
         """
         self._status = status
         if self._status_widget:
             self._status_widget.update(f" {self._status}... ")
 
     def pause(self, status: str = "Awaiting decision") -> None:
-        """Pause the animation and update status.
+        """애니메이션을 일시중지하고 상태를 업데이트합니다.
 
-        Args:
-            status: Status to show while paused
+Args:
+            status: 일시중지된 동안 표시되는 상태
+
         """
         self._paused = True
         if self._start_time is not None:
@@ -171,11 +177,11 @@ class LoadingWidget(Static):
             self._spinner_widget.update(Content.styled(get_glyphs().pause, "dim"))
 
     def resume(self) -> None:
-        """Resume the animation."""
+        """애니메이션을 재개합니다."""
         self._paused = False
         self._status = "Thinking"
         if self._status_widget:
             self._status_widget.update(f" {self._status}... ")
 
     def stop(self) -> None:
-        """Stop the animation (widget will be removed by caller)."""
+        """애니메이션을 중지합니다(위젯은 호출자에 의해 제거됩니다)."""

@@ -1,7 +1,6 @@
-"""Clipboard helpers for terminal and desktop copy workflows.
+"""터미널 및 데스크톱 복사 작업 흐름을 위한 클립보드 도우미입니다.
 
-The CLI prefers terminal-friendly mechanisms such as OSC 52 when possible and
-falls back to user-facing notifications that summarize what was copied.
+CLI는 가능한 경우 OSC 52와 같은 터미널 친화적인 메커니즘을 선호하며 복사된 내용을 요약하는 사용자 대상 알림으로 대체됩니다.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ _PREVIEW_MAX_LENGTH = 40
 
 
 def _copy_osc52(text: str) -> None:
-    """Copy text using OSC 52 escape sequence (works over SSH/tmux)."""
+    """OSC 52 이스케이프 시퀀스를 사용하여 텍스트를 복사합니다(SSH/tmux에서 작동)."""
     encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
     osc52_seq = f"\033]52;c;{encoded}\a"
     if os.environ.get("TMUX"):
@@ -35,10 +34,11 @@ def _copy_osc52(text: str) -> None:
 
 
 def _shorten_preview(texts: list[str]) -> str:
-    """Shorten text for notification preview.
+    """알림 미리보기 텍스트를 줄입니다.
 
-    Returns:
-        Shortened preview text suitable for notification display.
+Returns:
+        알림 표시에 적합한 단축된 미리보기 텍스트입니다.
+
     """
     glyphs = get_glyphs()
     dense_text = glyphs.newline.join(texts).replace("\n", glyphs.newline)
@@ -48,10 +48,10 @@ def _shorten_preview(texts: list[str]) -> str:
 
 
 def copy_selection_to_clipboard(app: App) -> None:
-    """Copy selected text from app widgets to clipboard.
+    """앱 위젯에서 선택한 텍스트를 클립보드로 복사합니다.
 
-    This queries all widgets for their text_selection and copies
-    any selected text to the system clipboard.
+    이는 text_selection에 대한 모든 위젯을 쿼리하고 선택한 텍스트를 시스템 클립보드에 복사합니다.
+
     """
     selected_texts = []
 

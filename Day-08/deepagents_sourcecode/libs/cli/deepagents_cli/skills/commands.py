@@ -1,10 +1,7 @@
-"""CLI commands for skill management.
+"""스킬 관리를 위한 CLI 명령입니다.
 
-These commands are registered with the CLI via main.py:
-- deepagents skills list [options]
-- deepagents skills create <name> [options]
-- deepagents skills info <name> [options]
-- deepagents skills delete <name> [options]
+이러한 명령은 main.py를 통해 CLI에 등록됩니다. - deepagents Skill list [옵션] - deepagents Skill create
+<이름> [옵션] - deepagents Skill Info <이름> [옵션] - deepagents Skill delete <이름> [옵션]
 """
 
 from __future__ import annotations
@@ -27,26 +24,21 @@ MAX_SKILL_NAME_LENGTH = 64
 
 
 def _validate_name(name: str) -> tuple[bool, str]:
-    """Validate name per Agent Skills spec.
+    """에이전트 기술 사양에 따라 이름을 확인하세요.
 
-    Requirements (https://agentskills.io/specification):
-    - Max 64 characters
-    - Unicode lowercase alphanumeric and hyphens only
-    - Cannot start or end with hyphen
-    - No consecutive hyphens
-    - No path traversal sequences
+    요구 사항(https://agentskills.io/specification): - 최대 64자 - 유니코드 소문자 영숫자 및 하이픈만 - 하이픈으로
+    시작하거나 끝날 수 없음 - 연속 하이픈 없음 - 경로 순회 시퀀스 없음
 
-    Unicode lowercase alphanumeric means any character where
-    `c.isalpha() and c.islower()` or `c.isdigit()` returns `True`,
-    which covers accented Latin characters (e.g., `'cafe'`,
-    `'uber-tool'`) and other scripts.  This matches the SDK's
-    `_validate_skill_name` implementation.
+    유니코드 소문자 영숫자는 `c.isalpha() and c.islower()` 또는 `c.isdigit()`이 `True`를 반환하는 모든 문자를
+    의미하며, 여기에는 악센트가 있는 라틴 문자(예: `'cafe'`, `'uber-tool'`) 및 기타 스크립트가 포함됩니다.  이는 SDK의
+    `_validate_skill_name` 구현과 일치합니다.
 
     Args:
-        name: The name to validate.
+        name: 유효성을 검사할 이름입니다.
 
     Returns:
-        Tuple of (is_valid, error_message). If valid, error_message is empty.
+        (is_valid, error_message)의 튜플입니다. 유효한 경우 error_message는 비어 있습니다.
+
     """
     # Check for empty or whitespace-only names
     if not name or not name.strip():
@@ -84,14 +76,15 @@ def _validate_name(name: str) -> tuple[bool, str]:
 
 
 def _validate_skill_path(skill_dir: Path, base_dir: Path) -> tuple[bool, str]:
-    """Validate that the resolved skill directory is within the base directory.
+    """해결된 기술 디렉터리가 기본 디렉터리 내에 있는지 확인합니다.
 
     Args:
-        skill_dir: The skill directory path to validate
-        base_dir: The base skills directory that should contain skill_dir
+        skill_dir: 유효성을 검사할 기술 디렉터리 경로
+        base_dir: Skill_dir을 포함해야 하는 기본 기술 디렉터리
 
     Returns:
-        Tuple of (is_valid, error_message). If valid, error_message is empty.
+        (is_valid, error_message)의 튜플입니다. 유효한 경우 error_message는 비어 있습니다.
+
     """
     try:
         # Resolve both paths to their canonical form
@@ -108,19 +101,18 @@ def _validate_skill_path(skill_dir: Path, base_dir: Path) -> tuple[bool, str]:
 
 
 def _format_info_fields(skill: SkillMetadata) -> list[tuple[str, str]]:
-    """Extract non-empty optional metadata fields for display.
+    """표시할 비어 있지 않은 선택적 메타데이터 필드를 추출합니다.
 
-    The upstream `_parse_skill_metadata` normalises empty/whitespace license
-    and compatibility values to `None`, so the truthy checks below are
-    sufficient.
+    업스트림 `_parse_skill_metadata`은 빈/공백 라이선스 및 호환성 값을 `None`로 정규화하므로 아래의 진실성 확인만으로 충분합니다.
 
     Args:
-        skill: Skill metadata to extract display fields from.
+        skill: 표시 필드를 추출할 기술 메타데이터입니다.
 
     Returns:
-        Ordered list of (label, value) tuples for non-empty fields.
-            Fields appear in order: License, Compatibility, Allowed Tools,
-            Metadata.
+        비어 있지 않은 필드에 대한 (레이블, 값) 튜플의 순서가 지정된 목록입니다.
+            Fields appear in order: 라이센스, 호환성, 허용된 도구,
+            메타데이터.
+
     """
     fields: list[tuple[str, str]] = []
     license_val = skill.get("license")
@@ -143,13 +135,13 @@ def _format_info_fields(skill: SkillMetadata) -> list[tuple[str, str]]:
 def _list(
     agent: str, *, project: bool = False, output_format: OutputFormat = "text"
 ) -> None:
-    """List all available skills for the specified agent.
+    """지정된 에이전트에게 사용 가능한 모든 기술을 나열합니다.
 
     Args:
-        agent: Agent identifier for skills (default: agent).
-        project: If True, show only project skills.
-            If False, show all skills (user + project).
-        output_format: Output format — `'text'` (Rich) or `'json'`.
+        agent: 스킬에 대한 에이전트 식별자(기본값: 에이전트).
+        project: True인 경우 프로젝트 기술만 표시합니다. False인 경우 모든 기술(사용자 + 프로젝트)을 표시합니다.
+        output_format: 출력 형식 — `'text'`(Rich) 또는 `'json'`.
+
     """
     from rich.markup import escape as escape_markup
 
@@ -325,19 +317,18 @@ def _list(
 
 
 def _generate_template(skill_name: str) -> str:
-    """Generate a `SKILL.md` template for a new skill.
+    """새 기술에 대한 `SKILL.md` 템플릿을 생성합니다.
 
-    The template follows the Agent Skills spec
-    (https://agentskills.io/specification) and the skill-creator guidance:
+    템플릿은 에이전트 기술 사양(https://agentskills.io/specification) 및 기술 생성자 지침:
 
-    - Description includes "when to use" trigger information (not the body)
-    - Body contains only instructions loaded after the skill triggers
+    - 설명에는 "사용 시기" 트리거 정보가 포함됩니다(본문 아님) - 본문에는 스킬 트리거 이후 로드된 지침만 포함됩니다.
 
     Args:
-        skill_name: Name of the skill (used in frontmatter and heading).
+        skill_name: 스킬의 이름(머리말과 제목에 사용됨)
 
     Returns:
-        Complete `SKILL.md` content with YAML frontmatter and markdown body.
+        YAML 머리말과 마크다운 본문으로 `SKILL.md` 콘텐츠를 완성하세요.
+
     """
     title = skill_name.title().replace("-", " ")
     description = (
@@ -403,17 +394,17 @@ def _create(
     *,
     output_format: OutputFormat = "text",
 ) -> None:
-    """Create a new skill with a template SKILL.md file.
+    """템플릿 SKILL.md 파일을 사용하여 새 기술을 만듭니다.
 
     Args:
-        skill_name: Name of the skill to create.
-        agent: Agent identifier for skills
-        project: If True, create in project skills directory.
-            If False, create in user skills directory.
-        output_format: Output format — `'text'` (Rich) or `'json'`.
+        skill_name: 생성할 스킬의 이름입니다.
+        agent: 스킬에 대한 에이전트 식별자
+        project: True인 경우 프로젝트 기술 디렉터리에 만듭니다. False인 경우 사용자 기술 디렉터리에 만듭니다.
+        output_format: 출력 형식 — `'text'`(Rich) 또는 `'json'`.
 
     Raises:
-        SystemExit: If the skill name is invalid or the directory cannot be created.
+        SystemExit: 스킬 이름이 유효하지 않거나 디렉터리를 생성할 수 없는 경우.
+
     """
     from deepagents_cli.config import Settings, console, get_glyphs
 
@@ -528,17 +519,17 @@ def _info(
     project: bool = False,
     output_format: OutputFormat = "text",
 ) -> None:
-    """Show detailed information about a specific skill.
+    """특정 기술에 대한 자세한 정보를 표시합니다.
 
     Args:
-        skill_name: Name of the skill to show info for.
-        agent: Agent identifier for skills (default: agent).
-        project: If True, only search in project skills.
-            If False, search in both user and project skills.
-        output_format: Output format — `'text'` (Rich) or `'json'`.
+        skill_name: 정보를 표시할 스킬의 이름입니다.
+        agent: 스킬에 대한 에이전트 식별자(기본값: 에이전트).
+        project: True인 경우 프로젝트 기술에서만 검색합니다. False인 경우 사용자 및 프로젝트 기술을 모두 검색합니다.
+        output_format: 출력 형식 — `'text'`(Rich) 또는 `'json'`.
 
     Raises:
-        SystemExit: If the skill is not found or not in a project directory.
+        SystemExit: 스킬을 찾을 수 없거나 프로젝트 디렉터리에 없는 경우.
+
     """
     from rich.markup import escape as escape_markup
 
@@ -667,24 +658,24 @@ def _delete(
     dry_run: bool = False,
     output_format: OutputFormat = "text",
 ) -> None:
-    """Delete a skill directory after validation and optional user confirmation.
+    """유효성 검사 및 선택적 사용자 확인 후 기술 디렉터리를 삭제합니다.
 
-    Validates the skill name, locates the skill in user or project directories,
-    confirms the deletion with the user (unless `force` is `True`), and
-    recursively removes the skill directory.
+    기술 이름을 검증하고, 사용자 또는 프로젝트 디렉터리에서 기술을 찾고, 사용자에게 삭제를 확인하고(`force`이 `True`이 아닌 경우) 기술
+    디렉터리를 반복적으로 제거합니다.
 
     Args:
-        skill_name: Name of the skill to delete.
-        agent: Agent identifier for skills.
-        project: If `True`, only search in project skills.
+        skill_name: 삭제할 스킬의 이름입니다.
+        agent: 스킬에 대한 에이전트 식별자입니다.
+        project: `True`인 경우 프로젝트 기술에서만 검색하세요.
 
-            If `False`, search in both user and project skills.
-        force: If `True`, skip confirmation prompt.
-        dry_run: If `True`, print what would be removed without deleting.
-        output_format: Output format — `'text'` (Rich) or `'json'`.
+            `False`인 경우 사용자 및 프로젝트 기술을 모두 검색하세요.
+        force: `True`인 경우 확인 메시지를 건너뜁니다.
+        dry_run: `True`인 경우 삭제하지 않고 제거할 항목을 인쇄합니다.
+        output_format: 출력 형식 — `'text'`(Rich) 또는 `'json'`.
 
     Raises:
-        SystemExit: If the deletion fails or a safety check is violated.
+        SystemExit: 삭제에 실패하거나 안전 점검을 위반한 경우.
+
     """
     from rich.markup import escape as escape_markup
 
@@ -867,20 +858,19 @@ def setup_skills_parser(
     make_help_action: Callable[[Callable[[], None]], type[argparse.Action]],
     add_output_args: Callable[[argparse.ArgumentParser], None] | None = None,
 ) -> argparse.ArgumentParser:
-    """Setup the skills subcommand parser with all its subcommands.
+    """모든 하위 명령을 사용하여 기술 하위 명령 구문 분석기를 설정합니다.
 
-    Each subcommand gets a dedicated help screen so that
-    `deepagents skills -h` shows skills-specific help, not the
-    global help.
+    각 하위 명령에는 전용 도움말 화면이 있으므로 `deepagents skills -h`은 전역 도움말이 아닌 기술별 도움말을 표시합니다.
 
     Args:
-        subparsers: The parent subparsers object to add the skills parser to.
-        make_help_action: Factory that accepts a zero-argument help
-            callable and returns an argparse Action class wired to it.
-        add_output_args: Optional hook to add a shared `--json` flag.
+        subparsers: 기술 파서를 추가할 상위 하위 파서 개체입니다.
+        make_help_action: 인수가 없는 도움말 호출 가능 항목을 허용하고 이에 연결된 argparse Action 클래스를 반환하는
+                          팩토리입니다.
+        add_output_args: 공유 `--json` 플래그를 추가하는 선택적 후크입니다.
 
     Returns:
-        The skills subparser for argument handling.
+        인수 처리를 위한 기술 하위 구문 분석기입니다.
+
     """
 
     # Lazy wrapper: defers ui import until the help action fires.
@@ -1024,13 +1014,14 @@ def setup_skills_parser(
 
 
 def execute_skills_command(args: argparse.Namespace) -> None:
-    """Execute skills subcommands based on parsed arguments.
+    """구문 분석된 인수를 기반으로 기술 하위 명령을 실행합니다.
 
     Args:
-        args: Parsed command line arguments with skills_command attribute
+        args: Skill_command 속성을 사용하여 구문 분석된 명령줄 인수
 
     Raises:
-        SystemExit: If the agent name is invalid.
+        SystemExit: 에이전트 이름이 잘못된 경우.
+
     """
     from deepagents_cli.config import console
 

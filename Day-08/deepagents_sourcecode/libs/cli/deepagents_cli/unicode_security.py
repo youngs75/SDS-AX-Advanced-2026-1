@@ -1,7 +1,6 @@
-"""Unicode security helpers for deceptive text and URL checks.
+"""사기성 텍스트 및 URL 검사를 위한 유니코드 보안 도우미입니다.
 
-This module is intentionally lightweight so it can be imported in display and
-approval paths without affecting startup performance.
+이 모듈은 의도적으로 경량이므로 시작 성능에 영향을 주지 않고 표시 및 승인 경로로 가져올 수 있습니다.
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ _DANGEROUS_CODEPOINTS: frozenset[int] = frozenset(
         0x1160,  # HANGUL JUNGSEONG FILLER
     }
 )
-"""Code points that should be treated as deceptive/invisible for CLI safety."""
+"""CLI 안전을 위해 사기성/보이지 않는 것으로 처리되어야 하는 코드 포인트입니다."""
 
 _DANGEROUS_CHARACTERS: frozenset[str] = frozenset(
     chr(codepoint) for codepoint in _DANGEROUS_CODEPOINTS
@@ -76,20 +75,21 @@ CONFUSABLES: dict[str, str] = {
 URL_ARG_KEYS: frozenset[str] = frozenset(
     {"url", "uri", "href", "link", "base_url", "endpoint"}
 )
-"""Argument key names that likely contain URLs and should be safety-checked."""
+"""URL을 포함할 가능성이 높으며 안전 확인이 필요한 인수 키 이름입니다."""
 
 _URL_SAFE_LOCAL_HOSTS: frozenset[str] = frozenset({"localhost"})
 
 
 @dataclass(frozen=True, slots=True)
 class UnicodeIssue:
-    """A dangerous Unicode character found in text.
+    """텍스트에서 위험한 유니코드 문자가 발견되었습니다.
 
-    Attributes:
-        position: Zero-based index in the original string.
-        character: The single raw character found in the input.
-        codepoint: Uppercase code point string like ``U+202E``.
-        name: Unicode character name.
+Attributes:
+        position: 원래 문자열의 0부터 시작하는 인덱스입니다.
+        character: 입력에서 발견된 단일 원시 문자입니다.
+        codepoint: ``U+202E``과 같은 대문자 코드 포인트 문자열입니다.
+        name: 유니코드 문자 이름입니다.
+
     """
 
     position: int
@@ -115,20 +115,19 @@ class UnicodeIssue:
 
 @dataclass(frozen=True, slots=True)
 class UrlSafetyResult:
-    """Safety analysis output for a URL string.
+    """URL 문자열에 대한 안전 분석 출력입니다.
 
-    A result may have `safe=True` with non-empty `warnings` when
-    informational warnings (e.g. punycode decoding) are present without
-    suspicious patterns.
+    의심스러운 패턴 없이 정보 경고(예: 퓨니코드 디코딩)가 있는 경우 결과에는 비어 있지 않은 `warnings`이 있는 `safe=True`이 있을 수
+    있습니다.
 
-    Attributes:
-        safe: `True` if no suspicious patterns were found.
-        decoded_domain: Punycode-decoded hostname when it differs from the
-            original hostname.
+Attributes:
+        safe: `True` 의심스러운 패턴이 발견되지 않은 경우.
+        decoded_domain: Punycode로 디코딩된 호스트 이름이 원래 호스트 이름과 다른 경우.
 
-            `None` when unchanged or no hostname exists.
-        warnings: Human-readable warning strings (immutable).
-        issues: Dangerous Unicode issues found in the full URL (immutable).
+            `None`은 변경되지 않았거나 호스트 이름이 존재하지 않는 경우입니다.
+        warnings: 사람이 읽을 수 있는 경고 문자열(불변)
+        issues: 전체 URL에서 위험한 유니코드 문제가 발견되었습니다(불변).
+
     """
 
     safe: bool
@@ -138,13 +137,14 @@ class UrlSafetyResult:
 
 
 def detect_dangerous_unicode(text: str) -> list[UnicodeIssue]:
-    """Detect deceptive or hidden Unicode code points in text.
+    """텍스트에서 사기성 또는 숨겨진 유니코드 코드 포인트를 탐지합니다.
 
-    Args:
-        text: Input text to inspect.
+Args:
+        text: 검사할 텍스트를 입력하세요.
 
-    Returns:
-        A list of `UnicodeIssue` entries in source order.
+Returns:
+        소스 순서대로 `UnicodeIssue` 항목 목록입니다.
+
     """
     issues: list[UnicodeIssue] = []
     for position, character in enumerate(text):
@@ -162,27 +162,29 @@ def detect_dangerous_unicode(text: str) -> list[UnicodeIssue]:
 
 
 def strip_dangerous_unicode(text: str) -> str:
-    """Remove known dangerous/invisible Unicode characters from text.
+    """텍스트에서 알려진 위험하거나 보이지 않는 유니코드 문자를 제거합니다.
 
-    Args:
-        text: Input text to sanitize.
+Args:
+        text: 정리할 텍스트를 입력하세요.
 
-    Returns:
-        Sanitized text with dangerous characters removed.
+Returns:
+        위험한 문자가 제거된 텍스트를 정리했습니다.
+
     """
     return "".join(ch for ch in text if ch not in _DANGEROUS_CHARACTERS)
 
 
 def render_with_unicode_markers(text: str) -> str:
-    """Render hidden Unicode characters as explicit markers.
+    """숨겨진 유니코드 문자를 명시적 마커로 렌더링합니다.
 
-    Example output: `abc<U+202E RIGHT-TO-LEFT OVERRIDE>def`.
+    출력 예: `abc<U+202E RIGHT-TO-LEFT OVERRIDE>def`.
 
-    Args:
-        text: Input text to render.
+Args:
+        text: 렌더링할 텍스트를 입력합니다.
 
-    Returns:
-        Text where dangerous characters are replaced with visible markers.
+Returns:
+        위험한 문자가 보이는 마커로 대체되는 텍스트입니다.
+
     """
     rendered_parts: list[str] = []
     for character in text:
@@ -196,18 +198,18 @@ def render_with_unicode_markers(text: str) -> str:
 
 
 def summarize_issues(issues: list[UnicodeIssue], *, max_items: int = 3) -> str:
-    """Summarize Unicode issues for warning messages.
+    """경고 메시지에 대한 유니코드 문제를 요약합니다.
 
-    Deduplicates by code point. When more than *max_items* unique entries exist,
-    the summary is truncated with a `+N more entries` suffix.
+    코드 포인트별로 중복을 제거합니다. *max_items*개 이상의 고유 항목이 존재하는 경우 요약은 `+N more entries` 접미사로 잘립니다.
 
-    Args:
-        issues: A list of detected issues.
-        max_items: Max unique code points to include in output.
+Args:
+        issues: 감지된 문제 목록입니다.
+        max_items: 출력에 포함할 최대 고유 코드 포인트입니다.
 
-    Returns:
-        Comma-separated summary, e.g.
+Returns:
+        쉼표로 구분된 요약(예:
             `U+202E RIGHT-TO-LEFT OVERRIDE, U+200B ZERO WIDTH SPACE`.
+
     """
     unique_entries: list[str] = []
     seen: set[str] = set()
@@ -228,14 +230,15 @@ def summarize_issues(issues: list[UnicodeIssue], *, max_items: int = 3) -> str:
 
 
 def format_warning_detail(warnings: tuple[str, ...], *, max_shown: int = 2) -> str:
-    """Join safety warnings into a display string with overflow indicator.
+    """오버플로 표시기를 사용하여 안전 경고를 표시 문자열에 결합합니다.
 
-    Args:
-        warnings: Warning strings from a `UrlSafetyResult`.
-        max_shown: Maximum warnings to include before truncating.
+Args:
+        warnings: `UrlSafetyResult`의 경고 문자열입니다.
+        max_shown: 자르기 전에 포함할 최대 경고입니다.
 
-    Returns:
-        Semicolon-separated detail string, e.g. `'warn1; warn2; +1 more'`.
+Returns:
+        세미콜론으로 구분된 세부 문자열(예: `'warn1; warn2; +1 more'`.
+
     """
     shown = warnings[:max_shown]
     detail = "; ".join(shown)
@@ -246,13 +249,14 @@ def format_warning_detail(warnings: tuple[str, ...], *, max_shown: int = 2) -> s
 
 
 def check_url_safety(url: str) -> UrlSafetyResult:
-    """Check a URL for suspicious Unicode and domain spoofing patterns.
+    """의심스러운 유니코드 및 도메인 스푸핑 패턴이 있는지 URL을 확인하세요.
 
-    Args:
-        url: URL string to inspect.
+Args:
+        url: 검사할 URL 문자열입니다.
 
-    Returns:
-        `UrlSafetyResult` including decoded domain and warning details.
+Returns:
+        `UrlSafetyResult` 디코딩된 도메인 및 경고 세부정보를 포함합니다.
+
     """
     warnings: list[str] = []
     suspicious = False
@@ -313,10 +317,11 @@ def check_url_safety(url: str) -> UrlSafetyResult:
 
 
 def _decode_hostname(hostname: str) -> tuple[str, list[str]]:
-    """Decode `xn--` punycode labels into Unicode labels when possible.
+    """가능하면 `xn--` 퓨니코드 레이블을 유니코드 레이블로 디코딩합니다.
 
-    Returns:
-        Tuple of (decoded hostname, list of labels that failed to decode).
+Returns:
+        (디코딩된 호스트 이름, 디코딩에 실패한 라벨 목록)의 튜플입니다.
+
     """
     decoded_labels: list[str] = []
     failed_labels: list[str] = []
@@ -333,19 +338,21 @@ def _decode_hostname(hostname: str) -> tuple[str, list[str]]:
 
 
 def _split_hostname_labels(hostname: str) -> list[str]:
-    """Split a hostname into non-empty labels.
+    """호스트 이름을 비어 있지 않은 라벨로 분할합니다.
 
-    Returns:
-        Hostname labels without empty entries.
+Returns:
+        빈 항목이 없는 호스트 이름 라벨입니다.
+
     """
     return [label for label in hostname.split(".") if label]
 
 
 def _is_local_or_ip_hostname(hostname: str) -> bool:
-    """Return whether hostname is localhost or an IP address literal.
+    """호스트 이름이 localhost인지 아니면 IP 주소 리터럴인지 반환합니다.
 
-    Returns:
-        `True` when hostname is localhost or an IP literal, else `False`.
+Returns:
+        호스트 이름이 localhost 또는 IP 리터럴인 경우 `True`, 그렇지 않은 경우 `False`.
+
     """
     host = hostname.strip().rstrip(".")
     if not host:
@@ -362,10 +369,11 @@ def _is_local_or_ip_hostname(hostname: str) -> bool:
 
 
 def _scripts_in_label(label: str) -> set[str]:
-    """Collect non-common scripts used by a domain label.
+    """도메인 라벨에서 사용되는 일반적이지 않은 스크립트를 수집합니다.
 
-    Returns:
-        Set of script names used by the label, excluding common/inherited.
+Returns:
+        공통/상속을 제외하고 레이블에서 사용하는 스크립트 이름 집합입니다.
+
     """
     scripts: set[str] = set()
     for character in label:
@@ -377,14 +385,14 @@ def _scripts_in_label(label: str) -> set[str]:
 
 
 def _label_has_suspicious_confusable_mix(label: str) -> bool:
-    """Return whether a label has likely deceptive confusable characters.
+    """레이블에 사기성 혼동 가능성이 있는 문자가 있는지 여부를 반환합니다.
 
-    Only flags labels that mix multiple scripts while containing confusable
-    characters. Single-script labels (even with confusables) are not flagged
-    because they represent legitimate use of that script.
+    혼란스러운 문자를 포함하면서 여러 스크립트를 혼합하는 레이블에만 플래그를 지정합니다. 단일 스크립트 레이블(혼란 가능한 레이블 포함)은 해당 스크립트의
+    합법적인 사용을 나타내기 때문에 플래그가 지정되지 않습니다.
 
-    Returns:
-        `True` when the label mixes scripts and contains confusable characters.
+Returns:
+        `True` 라벨에 스크립트가 혼합되어 있고 혼동하기 쉬운 문자가 포함되어 있는 경우.
+
     """
     if not any(character in CONFUSABLES for character in label):
         return False
@@ -394,11 +402,12 @@ def _label_has_suspicious_confusable_mix(label: str) -> bool:
 
 
 def _char_script(character: str) -> str:
-    """Classify a character into a coarse Unicode script bucket.
+    """문자를 거친 유니코드 스크립트 버킷으로 분류합니다.
 
-    Returns:
+Returns:
         One of: `'Fullwidth'`, `'Latin'`, `'Cyrillic'`, `'Greek'`, `'Armenian'`,
-            `'EastAsian'`, `'Inherited'`, `'Common'`, or `'Other'`.
+                `'EastAsian'`, `'Inherited'`, `'Common'` 또는 `'Other'`.
+
     """
     name = unicodedata.name(character, "")
     category = unicodedata.category(character)
@@ -435,19 +444,21 @@ def _char_script(character: str) -> str:
 
 
 def _format_codepoint(character: str) -> str:
-    """Format character code point in `U+XXXX` uppercase form.
+    """문자 코드 포인트를 `U+XXXX` 대문자 형식으로 지정합니다.
 
-    Returns:
-        Uppercase `U+XXXX` codepoint string.
+Returns:
+        대문자 `U+XXXX` 코드포인트 문자열.
+
     """
     return f"U+{ord(character):04X}"
 
 
 def _unicode_name(character: str) -> str:
-    """Return a stable Unicode name with a fallback for unknown code points.
+    """알 수 없는 코드 포인트를 대체하여 안정적인 유니코드 이름을 반환합니다.
 
-    Returns:
-        Unicode name string for the character.
+Returns:
+        문자의 유니코드 이름 문자열입니다.
+
     """
     return unicodedata.name(character, "UNKNOWN CHARACTER")
 
@@ -462,10 +473,11 @@ def iter_string_values(
     *,
     prefix: str = "",
 ) -> list[tuple[str, str]]:
-    """Flatten nested dict/list structures into key-path/string pairs.
+    """중첩된 사전/목록 구조를 키-경로/문자열 쌍으로 평면화합니다.
 
-    Returns:
-        List of ``(path, value)`` tuples for all string leaves.
+Returns:
+        모든 문자열 리프에 대한 ``(path, value)`` 튜플 목록입니다.
+
     """
     values: list[tuple[str, str]] = []
     for key, value in data.items():
@@ -486,10 +498,11 @@ def _iter_string_values_from_list(
     *,
     prefix: str,
 ) -> list[tuple[str, str]]:
-    """Flatten nested list values into key-path/string pairs.
+    """중첩된 목록 값을 키-경로/문자열 쌍으로 평면화합니다.
 
-    Returns:
-        List of `(path, value)` tuples for all string leaves.
+Returns:
+        모든 문자열 리프에 대한 `(path, value)` 튜플 목록입니다.
+
     """
     entries: list[tuple[str, str]] = []
     for index, value in enumerate(values):
@@ -506,10 +519,11 @@ def _iter_string_values_from_list(
 
 
 def looks_like_url_key(arg_path: str) -> bool:
-    """Return whether a key path suggests URL-like content.
+    """키 경로가 URL과 유사한 콘텐츠를 제안하는지 여부를 반환합니다.
 
-    Returns:
-        `True` for URL-like key names, otherwise `False`.
+Returns:
+        URL과 유사한 키 이름의 경우 `True`, 그렇지 않은 경우 `False`.
+
     """
     key = arg_path.rsplit(".", maxsplit=1)[-1]
     key = key.split("[", maxsplit=1)[0].lower()

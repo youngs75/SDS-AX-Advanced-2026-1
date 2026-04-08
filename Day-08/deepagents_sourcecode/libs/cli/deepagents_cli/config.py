@@ -1,8 +1,7 @@
-"""Central configuration and model bootstrap logic for the CLI.
+"""CLI에 대한 중앙 구성 및 모델 부트스트랩 논리입니다.
 
-This module owns lazy environment/bootstrap loading, glyph and console setup,
-provider/model resolution, shell safety checks, and the `settings` singleton
-consumed across the rest of the package.
+이 모듈은 지연 환경/부트스트랩 로딩, 문자 모양 및 콘솔 설정, 공급자/모델 확인, 셸 안전 확인, 패키지의 나머지 부분에서 사용되는 `settings`
+싱글톤을 소유합니다.
 """
 
 from __future__ import annotations
@@ -34,34 +33,34 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _bootstrap_done = False
-"""Whether `_ensure_bootstrap()` has executed."""
+"""`_ensure_bootstrap()`이 실행되었는지 여부."""
 
 _bootstrap_lock = threading.Lock()
-"""Guards `_ensure_bootstrap()` against concurrent access from the main
-thread and the prewarm worker thread."""
+"""기본 스레드와 사전 준비 작업자 스레드의 동시 액세스로부터 `_ensure_bootstrap()`을 보호합니다."""
 
 _singleton_lock = threading.Lock()
-"""Guards lazy singleton construction in `_get_console` / `_get_settings`."""
+"""`_get_console` / `_get_settings`에서 게으른 싱글톤 구성을 보호합니다."""
 
 _bootstrap_start_path: Path | None = None
-"""Working directory captured at bootstrap time for dotenv and project discovery."""
+"""dotenv 및 프로젝트 검색을 위해 부트스트랩 시간에 캡처된 작업 디렉터리입니다."""
 
 _original_langsmith_project: str | None = None
-"""Caller's `LANGSMITH_PROJECT` value before the CLI overrides it for agent traces.
+"""CLI가 에이전트 추적을 위해 이를 재정의하기 전 호출자의 `LANGSMITH_PROJECT` 값입니다.
 
-Captured inside `_ensure_bootstrap()` after dotenv loading but before the
-`LANGSMITH_PROJECT` override, so `.env`-only values are visible.
+dotenv 로드 후 `LANGSMITH_PROJECT` 재정의 전에 `_ensure_bootstrap()` 내부에서 캡처되므로 `.env` 전용 값이
+표시됩니다.
 """
 
 
 def _find_dotenv_from_start_path(start_path: Path) -> Path | None:
-    """Find the nearest `.env` file from an explicit start path upward.
+    """명시적인 시작 경로에서 위쪽으로 가장 가까운 `.env` 파일을 찾습니다.
 
-    Args:
-        start_path: Directory to start searching from.
+Args:
+        start_path:
 
-    Returns:
-        Path to the nearest `.env` file, or `None` if not found.
+Returns:
+        가장 가까운 `.env` 파일의 경로입니다. 파일을 찾을 수 없으면 `None`입니다.
+
     """
     current = start_path.expanduser().resolve()
     for parent in [current, *list(current.parents)]:
@@ -83,32 +82,30 @@ except RuntimeError:
 
 
 def _load_dotenv(*, start_path: Path | None = None) -> bool:
-    """Load environment variables from project and global `.env` files.
+    """프로젝트 및 전역 `.env` 파일에서 환경 변수를 로드합니다.
 
-    Loads in order (first write wins, `override=False`):
+    순서대로 로드됩니다(첫 번째 쓰기 성공, `override=False`):
 
-    1. Project/CWD `.env` — project-specific values
-    2. `~/.deepagents/.env` — global user defaults
+    1. 프로젝트/CWD `.env` — 프로젝트별 값 2. `~/.deepagents/.env` — 전역 사용자 기본값
 
-    Both layers use `override=False` (the python-dotenv default) so that
-    shell-exported variables always take precedence over dotenv files.
-    Because project loads first, the effective precedence is:
+    두 레이어 모두 `override=False`(python-dotenv 기본값)을 사용하므로 쉘에서 내보낸 변수가 항상 dotenv 파일보다
+    우선합니다. 프로젝트가 먼저 로드되므로 유효한 우선순위는 다음과 같습니다.
 
     ```text
     shell env (incl. inline `VAR=x`)  >  project `.env`  >  global `.env`
     ```
 
-    !!! note
+    !!! 메모
 
-        To scope credentials to the CLI without colliding with
-        identically-named shell exports, use the `DEEPAGENTS_CLI_` env-var
-        prefix (see `resolve_env_var` in `deepagents_cli.model_config`).
+        동일한 이름의 셸 내보내기와 충돌하지 않고 자격 증명의 범위를 CLI로 지정하려면 `DEEPAGENTS_CLI_` env-var 접두사를
+        사용하세요(`deepagents_cli.model_config`의 `resolve_env_var` 참조).
 
-    Args:
-        start_path: Directory to use for project `.env` discovery.
+Args:
+        start_path: 프로젝트 `.env` 검색에 사용할 디렉터리입니다.
 
-    Returns:
-        `True` when at least one dotenv file was loaded, `False` otherwise.
+Returns:
+        적어도 하나의 dotenv 파일이 로드된 경우 `True`, 그렇지 않은 경우 `False`.
+
     """
     import dotenv
 
@@ -155,15 +152,14 @@ def _load_dotenv(*, start_path: Path | None = None) -> bool:
 
 
 def _ensure_bootstrap() -> None:
-    """Run one-time bootstrap: dotenv loading and `LANGSMITH_PROJECT` override.
+    """일회성 부트스트랩 실행: dotenv 로딩 및 `LANGSMITH_PROJECT` 재정의.
 
-    Idempotent and thread-safe — subsequent calls are no-ops. Called
-    automatically by `_get_settings()` when `settings` is first accessed.
+    멱등성 및 스레드 안전성 - 후속 호출은 작동하지 않습니다. `settings`에 처음 액세스할 때 `_get_settings()`에 의해 자동으로
+    호출됩니다.
 
-    The flag is set in `finally` so that partial failures (e.g. a
-    malformed `.env`) still mark bootstrap as done — preventing infinite retry
-    loops. Exceptions are caught and logged at ERROR level; the CLI proceeds
-    with the environment as-is.
+    부분적인 실패(예: 잘못된 형식의 `.env`)가 여전히 부트스트랩을 완료로 표시하도록 플래그가 `finally`에 설정되어 무한 재시도 루프를
+    방지합니다. 예외는 ERROR 수준에서 포착되어 기록됩니다. CLI는 환경을 있는 그대로 진행합니다.
+
     """
     global _bootstrap_done, _bootstrap_start_path, _original_langsmith_project  # noqa: PLW0603
 
@@ -251,13 +247,13 @@ MODE_PREFIXES: dict[str, str] = {
     "shell": "!",
     "command": "/",
 }
-"""Maps each non-normal mode to its trigger character."""
+"""각 비정규 모드를 해당 트리거 문자에 매핑합니다."""
 
 MODE_DISPLAY_GLYPHS: dict[str, str] = {
     "shell": "$",
     "command": "/",
 }
-"""Maps each non-normal mode to its display glyph shown in the prompt/UI."""
+"""각 비정규 모드를 프롬프트/UI에 표시된 표시 문자 모양으로 매핑합니다."""
 
 if MODE_PREFIXES.keys() != MODE_DISPLAY_GLYPHS.keys():
     _only_prefixes = MODE_PREFIXES.keys() - MODE_DISPLAY_GLYPHS.keys()
@@ -269,25 +265,25 @@ if MODE_PREFIXES.keys() != MODE_DISPLAY_GLYPHS.keys():
     raise ValueError(msg)
 
 PREFIX_TO_MODE: dict[str, str] = {v: k for k, v in MODE_PREFIXES.items()}
-"""Reverse lookup: trigger character -> mode name."""
+"""역방향 조회: 트리거 문자 -> 모드 이름."""
 
 
 class CharsetMode(StrEnum):
-    """Character set mode for TUI display."""
+    """TUI 디스플레이를 위한 문자 세트 모드입니다."""
 
     UNICODE = "unicode"
-    """Always use Unicode glyphs (e.g. `⏺`, `✓`, `…`)."""
+    """항상 유니코드 문자 모양을 사용하십시오(예: `⏺`, `✓`, `…`)."""
 
     ASCII = "ascii"
-    """Always use ASCII-safe fallbacks (e.g. `(*)`, `[OK]`, `...`)."""
+    """항상 ASCII 안전 대체(예: `(*)`, `[OK]`, `...`)를 사용하세요."""
 
     AUTO = "auto"
-    """Detect charset support at runtime and pick Unicode or ASCII."""
+    """런타임 시 문자 세트 지원을 감지하고 유니코드 또는 ASCII를 선택합니다."""
 
 
 @dataclass(frozen=True)
 class Glyphs:
-    """Character glyphs for TUI display."""
+    """TUI 표시용 문자 모양입니다."""
 
     tool_prefix: str  # ⏺ vs (*)
     ellipsis: str  # … vs ...
@@ -342,7 +338,7 @@ UNICODE_GLYPHS = Glyphs(
     gutter_bar="▌",
     git_branch="↗",
 )
-"""Glyph set for terminals with full Unicode support."""
+"""전체 유니코드를 지원하는 터미널에 대한 문자 집합입니다."""
 
 ASCII_GLYPHS = Glyphs(
     tool_prefix="(*)",
@@ -368,31 +364,31 @@ ASCII_GLYPHS = Glyphs(
     gutter_bar="|",
     git_branch="git:",
 )
-"""Glyph set for terminals limited to 7-bit ASCII."""
+"""7비트 ASCII로 제한된 터미널에 대한 문자 집합입니다."""
 
 _glyphs_cache: Glyphs | None = None
-"""Module-level cache for detected glyphs."""
+"""감지된 문자 모양에 대한 모듈 수준 캐시입니다."""
 
 _editable_cache: tuple[bool, str | None] | None = None
-"""Module-level cache for editable install info: (is_editable, source_path)."""
+"""편집 가능한 설치 정보를 위한 모듈 수준 캐시: (is_editable, source_path)"""
 
 _langsmith_url_cache: tuple[str, str] | None = None
-"""Module-level cache for successful LangSmith project URL lookups."""
+"""성공적인 LangSmith 프로젝트 URL 조회를 위한 모듈 수준 캐시입니다."""
 
 _LANGSMITH_URL_LOOKUP_TIMEOUT_SECONDS = 2.0
-"""Max seconds to wait for LangSmith project URL lookup.
+"""LangSmith 프로젝트 URL 조회를 기다리는 최대 시간(초)입니다.
 
-Kept short so tracing metadata can never stall CLI flows.
+추적 메타데이터가 CLI 흐름을 중단하지 않도록 짧게 유지합니다.
 """
 
 
 def _resolve_editable_info() -> tuple[bool, str | None]:
-    """Parse PEP 610 `direct_url.json` once and cache both results.
+    """PEP 610 `direct_url.json`을 한 번 구문 분석하고 두 결과를 모두 캐시합니다.
 
-    Returns:
-        Tuple of (is_editable, contracted_source_path). The path is
-        `~`-contracted when it falls under the user's home directory, or
-        `None` when the install is non-editable or the path is unavailable.
+Returns:
+        (is_editable, contracted_source_path)의 튜플입니다. 경로가 사용자의 홈 디렉토리에 속할 경우 경로는 `~`로
+        축소되고, 설치를 편집할 수 없거나 경로를 사용할 수 없는 경우에는 `None`입니다.
+
     """
     global _editable_cache  # noqa: PLW0603  # Module-level cache requires global statement
     if _editable_cache is not None:
@@ -425,30 +421,32 @@ def _resolve_editable_info() -> tuple[bool, str | None]:
 
 
 def _is_editable_install() -> bool:
-    """Check if deepagents-cli is installed in editable mode.
+    """deepagents-cli가 편집 가능 모드로 설치되어 있는지 확인하세요.
 
-    Uses PEP 610 `direct_url.json` metadata to detect editable installs.
+    PEP 610 `direct_url.json` 메타데이터를 사용하여 편집 가능한 설치를 감지합니다.
 
-    Returns:
-        `True` if installed in editable mode, `False` otherwise.
+Returns:
+        편집 가능 모드로 설치된 경우 `True`, 그렇지 않은 경우 `False`.
+
     """
     return _resolve_editable_info()[0]
 
 
 def _get_editable_install_path() -> str | None:
-    """Return the `~`-contracted source directory for an editable install.
+    """편집 가능한 설치를 위해 `~` 계약 소스 디렉터리를 반환합니다.
 
-    Returns `None` for non-editable installs or when the path cannot be
-    determined.
+    편집할 수 없는 설치의 경우 또는 경로를 결정할 수 없는 경우 `None`을 반환합니다.
+
     """
     return _resolve_editable_info()[1]
 
 
 def _detect_charset_mode() -> CharsetMode:
-    """Auto-detect terminal charset capabilities.
+    """터미널 문자 세트 기능을 자동 감지합니다.
 
-    Returns:
-        The detected CharsetMode based on environment and terminal encoding.
+Returns:
+        환경 및 터미널 인코딩을 기반으로 감지된 CharsetMode입니다.
+
     """
     env_mode = os.environ.get("UI_CHARSET_MODE", "auto").lower()
     if env_mode == "unicode":
@@ -467,10 +465,11 @@ def _detect_charset_mode() -> CharsetMode:
 
 
 def get_glyphs() -> Glyphs:
-    """Get the glyph set for the current charset mode.
+    """현재 문자 세트 모드에 대한 글리프 세트를 가져옵니다.
 
-    Returns:
-        The appropriate Glyphs instance based on charset mode detection.
+Returns:
+        문자 세트 모드 감지를 기반으로 하는 적절한 Glyphs 인스턴스입니다.
+
     """
     global _glyphs_cache  # noqa: PLW0603  # Module-level cache requires global statement
     if _glyphs_cache is not None:
@@ -482,31 +481,32 @@ def get_glyphs() -> Glyphs:
 
 
 def reset_glyphs_cache() -> None:
-    """Reset the glyphs cache (for testing)."""
+    """글리프 캐시를 재설정합니다(테스트용)."""
     global _glyphs_cache  # noqa: PLW0603  # Module-level cache requires global statement
     _glyphs_cache = None
 
 
 def is_ascii_mode() -> bool:
-    """Check whether the terminal is in ASCII charset mode.
+    """터미널이 ASCII 문자셋 모드인지 확인하세요.
 
-    Convenience wrapper so widgets can branch on charset without importing
-    both `_detect_charset_mode` and `CharsetMode`.
+    `_detect_charset_mode` 및 `CharsetMode`을 모두 가져오지 않고도 위젯이 문자 세트에서 분기할 수 있도록 하는 편리한
+    래퍼입니다.
 
-    Returns:
-        `True` when the detected charset mode is ASCII.
+Returns:
+        `True` 감지된 문자 세트 모드가 ASCII인 경우.
+
     """
     return _detect_charset_mode() == CharsetMode.ASCII
 
 
 def newline_shortcut() -> str:
-    """Return the platform-native label for the newline keyboard shortcut.
+    """개행 키보드 단축키에 대한 플랫폼 고유 라벨을 반환합니다.
 
-    macOS labels the modifier "Option" while other platforms use Ctrl+J
-    as the most reliable cross-terminal shortcut.
+    macOS에서는 수정자 레이블을 "옵션"으로 지정하는 반면, 다른 플랫폼에서는 가장 안정적인 터미널 간 단축키로 Ctrl+J를 사용합니다.
 
-    Returns:
-        A human-readable shortcut string, e.g. `'Option+Enter'` or `'Ctrl+J'`.
+Returns:
+        사람이 읽을 수 있는 바로가기 문자열입니다. 예: `'Option+Enter'` 또는 `'Ctrl+J'`.
+
     """
     return "Option+Enter" if sys.platform == "darwin" else "Ctrl+J"
 
@@ -546,12 +546,13 @@ _ASCII_BANNER = f"""
 
 
 def get_banner() -> str:
-    """Get the appropriate banner for the current charset mode.
+    """현재 문자 세트 모드에 적합한 배너를 가져옵니다.
 
-    Returns:
-        The text art banner string (Unicode or ASCII based on charset mode).
+Returns:
+        텍스트 아트 배너 문자열(문자 세트 모드 기반 유니코드 또는 ASCII)입니다.
 
-            Includes "(local)" suffix when installed in editable mode.
+            편집 가능 모드로 설치된 경우 "(로컬)" 접미사가 포함됩니다.
+
     """
     if _detect_charset_mode() == CharsetMode.ASCII:
         banner = _ASCII_BANNER
@@ -565,32 +566,29 @@ def get_banner() -> str:
 
 
 MAX_ARG_LENGTH = 150
-"""Character limit for tool argument values in the UI.
+"""UI의 도구 인수 값에 대한 문자 제한입니다.
 
-Longer values are truncated with an ellipsis by `truncate_value`
-in `tool_display`.
+더 긴 값은 `tool_display`에서 `truncate_value`만큼 줄임표로 잘립니다.
 """
 
 config: RunnableConfig = {
     "recursion_limit": 1000,
 }
-"""Default LangGraph runnable config.
+"""기본 LangGraph 실행 가능 구성입니다.
 
-Sets `recursion_limit` to 1000 to accommodate deeply nested agent graphs without
-hitting the default LangGraph ceiling.
+기본 LangGraph 최대 한도에 도달하지 않고 깊게 중첩된 에이전트 그래프를 수용하려면 `recursion_limit`을 1000으로 설정합니다.
 """
 
 _git_branch_cache: dict[str, str | None] = {}
-"""Per-cwd cache of resolved git branch names.
+"""해결된 git 브랜치 이름의 cwd별 캐시입니다.
 
-Avoids repeated `git rev-parse` subprocess calls within the same session. Keyed
-by `str(Path.cwd())`; `None` values indicate the directory is not inside a git
-repository.
+동일한 세션 내에서 반복되는 `git rev-parse` 하위 프로세스 호출을 방지합니다. `str(Path.cwd())`로 입력됨; `None` 값은
+디렉터리가 git 저장소 내부에 없음을 나타냅니다.
 """
 
 
 def _get_git_branch() -> str | None:
-    """Return the current git branch name, or `None` if not in a repo."""
+    """현재 git 브랜치 이름을 반환하거나 저장소에 없으면 `None`을 반환합니다."""
     import subprocess  # noqa: S404
 
     try:
@@ -625,33 +623,28 @@ def build_stream_config(
     *,
     sandbox_type: str | None = None,
 ) -> RunnableConfig:
-    """Build the LangGraph stream config dict.
+    """LangGraph 스트림 구성 사전을 빌드합니다.
 
-    Injects CLI and SDK versions into `metadata["versions"]` so LangSmith traces
-    can be correlated with specific releases.
+    CLI 및 SDK 버전을 `metadata["versions"]`에 삽입하여 LangSmith 추적을 특정 릴리스와 연관시킬 수 있습니다.
 
-    Why the CLI sets *both* versions:
+    CLI가 *두 버전*을 모두 설정하는 이유:
 
-    * `create_deep_agent` bakes `versions: {"deepagents": "X.Y.Z"}` into the
-        compiled graph via `with_config`. At stream time, LangGraph merges
-        the graph config with the runtime config passed here. Because the
-        metadata merge is shallow (effectively `{**graph_meta, **runtime_meta}`
-        for top-level keys), both configs containing a `versions` key means
-        the runtime dict **replaces** the graph dict entirely — the SDK
-        version would be lost.
-    * Including the SDK version here ensures it survives the merge.
+    * `create_deep_agent`은 `versions: {"deepagents": "X.Y.Z"}`을(를)
+        `with_config`을 통해 컴파일된 그래프. 스트림 시간에 LangGraph는 그래프 구성을 여기에 전달된 런타임 구성과 병합합니다.
+        메타데이터 병합이 얕기 때문에(최상위 키의 경우 사실상 `{**graph_meta, **runtime_meta}`) `versions` 키를
+        포함하는 두 구성 모두 런타임 dict가 그래프 dict를 완전히 **대체**하므로 SDK 버전이 손실됩니다.
+    * 여기에 SDK 버전을 포함하면 병합 후에도 유지됩니다.
 
-    Includes `ls_integration` metadata so LangSmith traces originating from the CLI
-    are distinguishable from bare SDK usage.
+    CLI에서 시작되는 LangSmith 추적이 기본 SDK 사용과 구별될 수 있도록 `ls_integration` 메타데이터를 포함합니다.
 
-    Args:
-        thread_id: The CLI session thread identifier.
-        assistant_id: The agent/assistant identifier, if any.
-        sandbox_type: Sandbox provider name for trace metadata, or `None` if no
-            sandbox is active.
+Args:
+        thread_id: CLI 세션 스레드 식별자입니다.
+        assistant_id: 에이전트/보조자 식별자입니다(있는 경우).
+        sandbox_type: 추적 메타데이터에 대한 샌드박스 제공자 이름 또는 활성화된 샌드박스가 없는 경우 `None`입니다.
 
-    Returns:
-        Config dict with `configurable` and `metadata` keys.
+Returns:
+        `configurable` 및 `metadata` 키를 사용하여 사전을 구성합니다.
+
     """
     import contextlib
     import importlib.metadata as importlib_metadata
@@ -699,37 +692,36 @@ def build_stream_config(
 
 
 class _ShellAllowAll(list):  # noqa: FURB189  # sentinel type, not a general-purpose list subclass
-    """Sentinel subclass for unrestricted shell access.
+    """무제한 셸 액세스를 위한 Sentinel 하위 클래스입니다.
 
-    Using a dedicated type instead of a plain list lets consumers use
-    `isinstance` checks, which survive serialization/copy unlike identity
-    checks (`is`).
+    일반 목록 대신 전용 유형을 사용하면 소비자는 ID 확인(`is`)과 달리 직렬화/복사 후에도 유지되는 `isinstance` 확인을 사용할 수
+    있습니다.
+
     """
 
 
 SHELL_ALLOW_ALL: list[str] = _ShellAllowAll(["__ALL__"])
-"""Sentinel value returned by `parse_shell_allow_list` for `--shell-allow-list=all`."""
+"""`--shell-allow-list=all`에 대해 `parse_shell_allow_list`에서 반환된 센티널 값입니다."""
 
 
 def parse_shell_allow_list(allow_list_str: str | None) -> list[str] | None:
-    """Parse shell allow-list from string.
+    """문자열에서 셸 허용 목록을 구문 분석합니다.
 
-    Args:
-        allow_list_str: Comma-separated list of commands, `'recommended'` for
-            safe defaults, or `'all'` to allow any command.
+Args:
+        allow_list_str: 쉼표로 구분된 명령 목록입니다. 안전한 기본값의 경우 `'recommended'`, 모든 명령을 허용하려면
+                        `'all'`입니다.
 
-            `'all'` must be the sole value — it is not recognized inside a
-            comma-separated list (unlike `'recommended'`).
+            `'all'`은 유일한 값이어야 합니다. `'recommended'`과 달리 쉼표로 구분된 목록 내에서는 인식되지 않습니다.
 
-            Can also include `'recommended'` in the list to merge with custom
-            commands.
+            사용자 정의 명령과 병합하기 위해 목록에 `'recommended'`을 포함할 수도 있습니다.
 
-    Returns:
-        List of allowed commands, `SHELL_ALLOW_ALL` if `'all'` was specified,
-            or `None` if no allow-list configured.
+Returns:
+        허용되는 명령 목록, `'all'`이 지정된 경우 `SHELL_ALLOW_ALL`,
+            또는 허용 목록이 구성되지 않은 경우 `None`입니다.
 
-    Raises:
-        ValueError: If `'all'` is combined with other commands.
+Raises:
+        ValueError: `'all'`이 다른 명령과 결합된 경우.
+
     """
     if not allow_list_str:
         return None
@@ -772,11 +764,12 @@ def parse_shell_allow_list(allow_list_str: str | None) -> list[str] | None:
 
 
 def _read_config_toml_skills_dirs() -> list[str] | None:
-    """Read `[skills].extra_allowed_dirs` from `~/.deepagents/config.toml`.
+    """`~/.deepagents/config.toml`에서 `[skills].extra_allowed_dirs`을(를) 읽습니다.
 
-    Returns:
-        List of path strings, or `None` if the key is absent or the file
-            cannot be read.
+Returns:
+        경로 문자열 목록 또는 키가 없거나 파일이 있는 경우 `None`
+            읽을 수 없습니다.
+
     """
     import tomllib
 
@@ -806,27 +799,23 @@ def _parse_extra_skills_dirs(
     env_raw: str | None,
     config_toml_dirs: list[str] | None = None,
 ) -> list[Path] | None:
-    """Merge extra skill directories from env var and config.toml.
+    """env var 및 config.toml의 추가 기술 디렉터리를 병합합니다.
 
-    Extra skills directories extend the containment allowlist used by
-    `load_skill_content` to validate that a resolved skill path lives inside a
-    trusted root. They do **not** add new skill discovery locations — skills are
-    still discovered only from the standard directories. This exists so that
-    symlinks inside standard skill directories can legitimately point to targets
-    in user-specified locations without being rejected by the path
-    containment check.
+    추가 기술 디렉터리는 해결된 기술 경로가 신뢰할 수 있는 루트 내에 있는지 확인하기 위해 `load_skill_content`에서 사용하는 격리 허용
+    목록을 확장합니다. 새로운 기술 검색 위치를 추가하지 **않습니다** — 기술은 여전히 ​​표준 디렉터리에서만 검색됩니다. 이는 표준 기술 디렉터리
+    내부의 심볼릭 링크가 경로 포함 검사에서 거부되지 않고 사용자가 지정한 위치의 대상을 합법적으로 가리킬 수 있도록 하기 위해 존재합니다.
 
-    The env var (`DEEPAGENTS_CLI_EXTRA_SKILLS_DIRS`, colon-separated) takes
-    precedence: when set, `config.toml` values are ignored.
+    env var(`DEEPAGENTS_CLI_EXTRA_SKILLS_DIRS`, 콜론으로 구분)가 우선합니다. 설정되면 `config.toml` 값이
+    무시됩니다.
 
-    Args:
-        env_raw: Value of `DEEPAGENTS_CLI_EXTRA_SKILLS_DIRS` (colon-separated), or
-            `None` if unset.
-        config_toml_dirs: List of path strings from
-            `[skills].extra_allowed_dirs` in `~/.deepagents/config.toml`.
+Args:
+        env_raw: `DEEPAGENTS_CLI_EXTRA_SKILLS_DIRS`(콜론으로 구분) 값 또는 설정되지 않은 경우 `None`입니다.
+        config_toml_dirs: `~/.deepagents/config.toml`에 있는 `[skills].extra_allowed_dirs`의
+                          경로 문자열 목록입니다.
 
-    Returns:
-        List of resolved `Path` objects, or `None` if not configured.
+Returns:
+        해결된 `Path` 객체 목록 또는 구성되지 않은 경우 `None`.
+
     """
     # Env var takes precedence when set
     if env_raw:
@@ -850,79 +839,76 @@ def _parse_extra_skills_dirs(
 
 @dataclass
 class Settings:
-    """Global settings and environment detection for deepagents-cli.
+    """deepagents-cli에 대한 전역 설정 및 환경 감지.
 
-    This class is initialized once at startup and provides access to:
-    - Available models and API keys
-    - Current project information
-    - Tool availability (e.g., Tavily)
-    - File system paths
+    이 클래스는 시작 시 한 번 초기화되며 다음에 대한 액세스를 제공합니다. - 사용 가능한 모델 및 API 키 - 현재 프로젝트 정보 - 도구
+    가용성(예: Tavily) - 파일 시스템 경로
+
     """
 
     openai_api_key: str | None
-    """OpenAI API key if available."""
+    """OpenAI API 키(사용 가능한 경우)"""
 
     anthropic_api_key: str | None
-    """Anthropic API key if available."""
+    """가능한 경우 Anthropic API 키입니다."""
 
     google_api_key: str | None
-    """Google API key if available."""
+    """사용 가능한 경우 Google API 키입니다."""
 
     nvidia_api_key: str | None
-    """NVIDIA API key if available."""
+    """NVIDIA API 키(사용 가능한 경우)"""
 
     tavily_api_key: str | None
-    """Tavily API key if available."""
+    """사용 가능한 경우 Tavily API 키입니다."""
 
     google_cloud_project: str | None
-    """Google Cloud project ID for VertexAI authentication."""
+    """VertexAI 인증을 위한 Google Cloud 프로젝트 ID입니다."""
 
     deepagents_langchain_project: str | None
-    """LangSmith project name for deepagents agent tracing."""
+    """deepagents 에이전트 추적을 위한 LangSmith 프로젝트 이름입니다."""
 
     user_langchain_project: str | None
-    """Original `LANGSMITH_PROJECT` from environment (for user code)."""
+    """환경의 원본 `LANGSMITH_PROJECT`(사용자 코드용)"""
 
     model_name: str | None = None
-    """Currently active model name, set after model creation."""
+    """현재 활성 모델 이름으로, 모델 생성 후 설정됩니다."""
 
     model_provider: str | None = None
-    """Provider identifier (e.g., `openai`, `anthropic`, `google_genai`)."""
+    """제공자 식별자(예: `openai`, `anthropic`, `google_genai`)."""
 
     model_context_limit: int | None = None
-    """Maximum input token count from the model profile."""
+    """모델 프로필의 최대 입력 토큰 수입니다."""
 
     model_unsupported_modalities: frozenset[str] = frozenset()
-    """Input modalities not indicated as supported by the model profile."""
+    """모델 프로필에서 지원되는 것으로 표시되지 않은 입력 양식입니다."""
 
     project_root: Path | None = None
-    """Current project root directory, or `None` if not in a git project."""
+    """현재 프로젝트 루트 디렉터리 또는 git 프로젝트에 없는 경우 `None`입니다."""
 
     shell_allow_list: list[str] | None = None
-    """Shell commands that don't require user approval."""
+    """사용자 승인이 필요하지 않은 셸 명령입니다."""
 
     extra_skills_dirs: list[Path] | None = None
-    """Extra directories added to the skill path containment allowlist.
+    """기술 경로 격리 허용 목록에 추가 디렉터리가 추가되었습니다.
 
-    These do NOT add new skill discovery locations — skills are still only
-    discovered from the standard directories. They exist so that symlinks inside
-    standard skill directories can point to targets in these additional
-    locations without being rejected by the containment check
-    in `load_skill_content`.
+    이는 새로운 기술 발견 위치를 추가하지 않습니다. 기술은 여전히 ​​표준 디렉터리에서만 발견됩니다. 표준 기술 디렉터리 내부의 심볼릭 링크가
+    `load_skill_content`의 격리 검사에서 거부되지 않고 이러한 추가 위치의 대상을 가리킬 수 있도록 존재합니다.
 
-    Set via `DEEPAGENTS_CLI_EXTRA_SKILLS_DIRS` env var (colon-separated) or
-    `[skills].extra_allowed_dirs` in `~/.deepagents/config.toml`.
+    `DEEPAGENTS_CLI_EXTRA_SKILLS_DIRS` env var(콜론으로 구분) 또는 `~/.deepagents/config.toml`의
+    `[skills].extra_allowed_dirs`을 통해 설정합니다.
+
     """
 
     @classmethod
     def from_environment(cls, *, start_path: Path | None = None) -> Settings:
-        """Create settings by detecting the current environment.
+        """현재 환경을 감지하여 설정을 만듭니다.
 
-        Args:
-            start_path: Directory to start project detection from (defaults to cwd)
+Args:
+            start_path: 프로젝트 감지를 시작할 디렉터리(기본값은 cwd)
 
-        Returns:
-            Settings instance with detected configuration
+Returns:
+            감지된 구성이 있는 설정 인스턴스
+
         """
         # Detect API keys (normalize empty strings to None).
         from deepagents_cli.model_config import resolve_env_var
@@ -985,29 +971,27 @@ class Settings:
         )
 
     def reload_from_environment(self, *, start_path: Path | None = None) -> list[str]:
-        """Reload selected settings from environment variables and project files.
+        """환경 변수 및 프로젝트 파일에서 선택한 설정을 다시 로드합니다.
 
-        This refreshes only fields that are expected to change at runtime
-        (API keys, Google Cloud project, project root, shell allow-list, and
-        LangSmith tracing project).
+        런타임 시 변경될 것으로 예상되는 필드(API 키, Google Cloud 프로젝트, 프로젝트 루트, 셸 허용 목록, LangSmith 추적
+        프로젝트)만 새로고침됩니다.
 
-        Runtime model state (`model_name`, `model_provider`,
-        `model_context_limit`) and the original user LangSmith project
-        (`user_langchain_project`) are intentionally preserved -- they are
-        not in `reloadable_fields` and are never touched by this method.
+        런타임 모델 상태(`model_name`, `model_provider`, `model_context_limit`)와 원래 사용자
+        LangSmith 프로젝트(`user_langchain_project`)는 의도적으로 보존됩니다. 즉, `reloadable_fields`에
+        없으며 이 방법으로 건드리지 않습니다.
 
-        !!! note
+        !!! 메모
 
-            `.env` files are loaded with `override=False`, so shell-exported
-            variables always take precedence.  To override a shell-exported key
-            from `.env`, use the `DEEPAGENTS_CLI_` prefix (e.g.
-            `DEEPAGENTS_CLI_OPENAI_API_KEY`).
+            `.env` 파일은 `override=False`을 사용하여 로드되므로 쉘에서 내보낸 변수가 항상 우선합니다.  `.env`에서 쉘에서
+            내보낸 키를 재정의하려면 `DEEPAGENTS_CLI_` 접두사(예: `DEEPAGENTS_CLI_OPENAI_API_KEY`)를
+            사용하세요.
 
-        Args:
-            start_path: Directory to start project detection from (defaults to cwd).
+Args:
+            start_path: 프로젝트 검색을 시작할 디렉터리입니다(기본값은 cwd).
 
-        Returns:
-            A list of human-readable change descriptions.
+Returns:
+            사람이 읽을 수 있는 변경 설명 목록입니다.
+
         """
         _load_dotenv(start_path=start_path)
 
@@ -1018,8 +1002,9 @@ class Settings:
             "nvidia_api_key",
             "tavily_api_key",
         }
-        """Fields that hold API keys — used to mask values in change reports
-        so secrets are not logged as plaintext."""
+        """API 키를 보유하는 필드 — 변경 보고서의 값을 마스킹하는 데 사용됩니다.
+        따라서 비밀은 일반 텍스트로 기록되지 않습니다.
+        """
 
         reloadable_fields = (
             "openai_api_key",
@@ -1033,11 +1018,11 @@ class Settings:
             "shell_allow_list",
             "extra_skills_dirs",
         )
-        """Fields refreshed on `/reload`.
+        """`/reload`에 필드가 새로 고쳐졌습니다.
 
-        Runtime model state (`model_name`, `model_provider`, `model_context_limit`)
-        and the original user LangSmith project are intentionally excluded —
-        they are set once and should not change across reloads.
+        런타임 모델 상태(`model_name`, `model_provider`, `model_context_limit`) 및 원래 사용자
+        LangSmith 프로젝트는 의도적으로 제외됩니다. 이는 한 번 설정되며 다시 로드할 때 변경되어서는 안 됩니다.
+
         """
 
         previous = {field: getattr(self, field) for field in reloadable_fields}
@@ -1118,76 +1103,77 @@ class Settings:
 
     @property
     def has_openai(self) -> bool:
-        """Check if OpenAI API key is configured."""
+        """OpenAI API 키가 구성되어 있는지 확인하세요."""
         return self.openai_api_key is not None
 
     @property
     def has_anthropic(self) -> bool:
-        """Check if Anthropic API key is configured."""
+        """Anthropic API 키가 구성되어 있는지 확인하세요."""
         return self.anthropic_api_key is not None
 
     @property
     def has_google(self) -> bool:
-        """Check if Google API key is configured."""
+        """Google API 키가 구성되어 있는지 확인하세요."""
         return self.google_api_key is not None
 
     @property
     def has_nvidia(self) -> bool:
-        """Check if NVIDIA API key is configured."""
+        """NVIDIA API 키가 구성되어 있는지 확인하세요."""
         return self.nvidia_api_key is not None
 
     @property
     def has_vertex_ai(self) -> bool:
-        """Check if VertexAI is available (Google Cloud project set, no API key).
+        """VertexAI를 사용할 수 있는지 확인하세요(Google Cloud 프로젝트 세트, API 키 없음).
 
-        VertexAI uses Application Default Credentials (ADC) for authentication,
-        so if GOOGLE_CLOUD_PROJECT is set and GOOGLE_API_KEY is not, we assume
-        VertexAI.
+        VertexAI는 인증을 위해 ADC(애플리케이션 기본 자격 증명)를 사용하므로 GOOGLE_CLOUD_PROJECT가 설정되고
+        GOOGLE_API_KEY가 설정되지 않은 경우 VertexAI로 가정합니다.
+
         """
         return self.google_cloud_project is not None and self.google_api_key is None
 
     @property
     def has_tavily(self) -> bool:
-        """Check if Tavily API key is configured."""
+        """Tavily API 키가 구성되어 있는지 확인하세요."""
         return self.tavily_api_key is not None
 
     @property
     def user_deepagents_dir(self) -> Path:
-        """Get the base user-level .deepagents directory.
+        """기본 사용자 수준 .deepagents 디렉터리를 가져옵니다.
 
-        Returns:
-            Path to ~/.deepagents
+Returns:
+            ~/.deepagents 경로
+
         """
         return Path.home() / ".deepagents"
 
     @staticmethod
     def get_user_agent_md_path(agent_name: str) -> Path:
-        """Get user-level AGENTS.md path for a specific agent.
+        """특정 에이전트에 대한 사용자 수준 AGENTS.md 경로를 가져옵니다.
 
-        Returns path regardless of whether the file exists.
+        파일 존재 여부에 관계없이 경로를 반환합니다.
 
-        Args:
-            agent_name: Name of the agent
+Args:
+            agent_name: 대리인의 이름
 
-        Returns:
-            Path to ~/.deepagents/{agent_name}/AGENTS.md
+Returns:
+            ~/.deepagents/{agent_name}/AGENTS.md 경로
+
         """
         return Path.home() / ".deepagents" / agent_name / "AGENTS.md"
 
     def get_project_agent_md_path(self) -> list[Path]:
-        """Get project-level AGENTS.md paths.
+        """프로젝트 수준 AGENTS.md 경로를 가져옵니다.
 
-        Checks both `{project_root}/.deepagents/AGENTS.md` and
-        `{project_root}/AGENTS.md`, returning all that exist. If both are
-        present, both are loaded and their instructions are combined, with
-        `.deepagents/AGENTS.md` first.
+        `{project_root}/.deepagents/AGENTS.md` 및 `{project_root}/AGENTS.md`을 모두 확인하여
+        존재하는 모든 항목을 반환합니다. 둘 다 존재하는 경우 둘 다 로드되고 해당 명령이 먼저 `.deepagents/AGENTS.md`과
+        결합됩니다.
 
-        Returns:
-            Existing AGENTS.md paths.
+Returns:
+            기존 AGENTS.md 경로.
 
-                Empty if neither file exists or not in a project, one entry if
-                only one is present, or two entries if both locations have the
-                file.
+                파일이 둘 다 없거나 프로젝트에 없는 경우 비어 있고, 하나만 있는 경우 항목이 하나이고, 두 위치 모두에 파일이 있는 경우
+                항목이 두 개입니다.
+
         """
         if not self.project_root:
             return []
@@ -1197,10 +1183,11 @@ class Settings:
 
     @staticmethod
     def _is_valid_agent_name(agent_name: str) -> bool:
-        """Validate to prevent invalid filesystem paths and security issues.
+        """잘못된 파일 시스템 경로 및 보안 문제를 방지하려면 유효성을 검사하십시오.
 
-        Returns:
-            True if the agent name is valid, False otherwise.
+Returns:
+            에이전트 이름이 유효하면 True이고, 그렇지 않으면 False입니다.
+
         """
         if not agent_name or not agent_name.strip():
             return False
@@ -1208,16 +1195,17 @@ class Settings:
         return bool(re.match(r"^[a-zA-Z0-9_\-\s]+$", agent_name))
 
     def get_agent_dir(self, agent_name: str) -> Path:
-        """Get the global agent directory path.
+        """글로벌 에이전트 디렉터리 경로를 가져옵니다.
 
-        Args:
-            agent_name: Name of the agent
+Args:
+            agent_name: 대리인의 이름
 
-        Returns:
-            Path to ~/.deepagents/{agent_name}
+Returns:
+            ~/.deepagents/{agent_name} 경로
 
-        Raises:
-            ValueError: If the agent name contains invalid characters.
+Raises:
+            ValueError: 에이전트 이름에 잘못된 문자가 포함된 경우.
+
         """
         if not self._is_valid_agent_name(agent_name):
             msg = (
@@ -1228,16 +1216,17 @@ class Settings:
         return Path.home() / ".deepagents" / agent_name
 
     def ensure_agent_dir(self, agent_name: str) -> Path:
-        """Ensure the global agent directory exists and return its path.
+        """글로벌 에이전트 디렉터리가 있는지 확인하고 해당 경로를 반환합니다.
 
-        Args:
-            agent_name: Name of the agent
+Args:
+            agent_name: 대리인의 이름
 
-        Returns:
-            Path to ~/.deepagents/{agent_name}
+Returns:
+            ~/.deepagents/{agent_name} 경로
 
-        Raises:
-            ValueError: If the agent name contains invalid characters.
+Raises:
+            ValueError: 에이전트 이름에 잘못된 문자가 포함된 경우.
+
         """
         if not self._is_valid_agent_name(agent_name):
             msg = (
@@ -1250,44 +1239,48 @@ class Settings:
         return agent_dir
 
     def get_user_skills_dir(self, agent_name: str) -> Path:
-        """Get user-level skills directory path for a specific agent.
+        """특정 에이전트에 대한 사용자 수준 기술 디렉터리 경로를 가져옵니다.
 
-        Args:
-            agent_name: Name of the agent
+Args:
+            agent_name: 대리인의 이름
 
-        Returns:
-            Path to ~/.deepagents/{agent_name}/skills/
+Returns:
+            ~/.deepagents/{agent_name}/skills/ 경로
+
         """
         return self.get_agent_dir(agent_name) / "skills"
 
     def ensure_user_skills_dir(self, agent_name: str) -> Path:
-        """Ensure user-level skills directory exists and return its path.
+        """사용자 수준 기술 디렉터리가 있는지 확인하고 해당 경로를 반환합니다.
 
-        Args:
-            agent_name: Name of the agent
+Args:
+            agent_name: 대리인의 이름
 
-        Returns:
-            Path to ~/.deepagents/{agent_name}/skills/
+Returns:
+            ~/.deepagents/{agent_name}/skills/ 경로
+
         """
         skills_dir = self.get_user_skills_dir(agent_name)
         skills_dir.mkdir(parents=True, exist_ok=True)
         return skills_dir
 
     def get_project_skills_dir(self) -> Path | None:
-        """Get project-level skills directory path.
+        """프로젝트 수준 기술 디렉터리 경로를 가져옵니다.
 
-        Returns:
-            Path to {project_root}/.deepagents/skills/, or None if not in a project
+Returns:
+            {project_root}/.deepagents/skills/ 경로 또는 프로젝트에 없는 경우 없음
+
         """
         if not self.project_root:
             return None
         return self.project_root / ".deepagents" / "skills"
 
     def ensure_project_skills_dir(self) -> Path | None:
-        """Ensure project-level skills directory exists and return its path.
+        """프로젝트 수준 기술 디렉터리가 있는지 확인하고 해당 경로를 반환합니다.
 
-        Returns:
-            Path to {project_root}/.deepagents/skills/, or None if not in a project
+Returns:
+            {project_root}/.deepagents/skills/ 경로 또는 프로젝트에 없는 경우 없음
+
         """
         if not self.project_root:
             return None
@@ -1298,21 +1291,23 @@ class Settings:
         return skills_dir
 
     def get_user_agents_dir(self, agent_name: str) -> Path:
-        """Get user-level agents directory path for custom subagent definitions.
+        """사용자 정의 하위 에이전트 정의에 대한 사용자 수준 에이전트 디렉터리 경로를 가져옵니다.
 
-        Args:
-            agent_name: Name of the CLI agent (e.g., "deepagents")
+Args:
+            agent_name: CLI 에이전트의 이름(예: "deepagents")
 
-        Returns:
-            Path to ~/.deepagents/{agent_name}/agents/
+Returns:
+            ~/.deepagents/{agent_name}/agents/ 경로
+
         """
         return self.get_agent_dir(agent_name) / "agents"
 
     def get_project_agents_dir(self) -> Path | None:
-        """Get project-level agents directory path for custom subagent definitions.
+        """사용자 정의 하위 에이전트 정의에 대한 프로젝트 수준 에이전트 디렉터리 경로를 가져옵니다.
 
-        Returns:
-            Path to {project_root}/.deepagents/agents/, or None if not in a project
+Returns:
+            {project_root}/.deepagents/agents/ 경로 또는 프로젝트에 없는 경우 없음
+
         """
         if not self.project_root:
             return None
@@ -1320,30 +1315,33 @@ class Settings:
 
     @property
     def user_agents_dir(self) -> Path:
-        """Get the base user-level `.agents` directory (`~/.agents`).
+        """기본 사용자 수준 `.agents` 디렉터리(`~/.agents`)를 가져옵니다.
 
-        Returns:
-            Path to `~/.agents`
+Returns:
+            `~/.agents` 경로
+
         """
         return Path.home() / ".agents"
 
     def get_user_agent_skills_dir(self) -> Path:
-        """Get user-level `~/.agents/skills/` directory.
+        """사용자 수준 `~/.agents/skills/` 디렉터리를 가져옵니다.
 
-        This is a generic alias path for skills that is tool-agnostic.
+        이는 도구에 구애받지 않는 기술에 대한 일반적인 별칭 경로입니다.
 
-        Returns:
-            Path to `~/.agents/skills/`
+Returns:
+            `~/.agents/skills/` 경로
+
         """
         return self.user_agents_dir / "skills"
 
     def get_project_agent_skills_dir(self) -> Path | None:
-        """Get project-level `.agents/skills/` directory.
+        """프로젝트 수준 `.agents/skills/` 디렉터리를 가져옵니다.
 
-        This is a generic alias path for skills that is tool-agnostic.
+        이는 도구에 구애받지 않는 기술에 대한 일반적인 별칭 경로입니다.
 
-        Returns:
-            Path to `{project_root}/.agents/skills/`, or `None` if not in a project
+Returns:
+            `{project_root}/.agents/skills/` 경로 또는 프로젝트에 없는 경우 `None` 경로
+
         """
         if not self.project_root:
             return None
@@ -1351,24 +1349,24 @@ class Settings:
 
     @staticmethod
     def get_user_claude_skills_dir() -> Path:
-        """Get user-level `~/.claude/skills/` directory (experimental).
+        """사용자 수준 `~/.claude/skills/` 디렉터리를 가져옵니다(실험적).
 
-        Convenience bridge for cross-tool skill sharing with Claude Code.
-        This is experimental and may be removed.
+        Claude Code와 교차 도구 기술 공유를 위한 편의 다리입니다. 이는 실험적이므로 삭제될 수 있습니다.
 
-        Returns:
-            Path to `~/.claude/skills/`
+Returns:
+            `~/.claude/skills/` 경로
+
         """
         return Path.home() / ".claude" / "skills"
 
     def get_project_claude_skills_dir(self) -> Path | None:
-        """Get project-level `.claude/skills/` directory (experimental).
+        """프로젝트 수준 `.claude/skills/` 디렉터리를 가져옵니다(실험적).
 
-        Convenience bridge for cross-tool skill sharing with Claude Code.
-        This is experimental and may be removed.
+        Claude Code와 교차 도구 기술 공유를 위한 편의 다리입니다. 이는 실험적이므로 삭제될 수 있습니다.
 
-        Returns:
-            Path to `{project_root}/.claude/skills/`, or `None` if not in a project.
+Returns:
+            `{project_root}/.claude/skills/` 경로 또는 프로젝트에 없는 경우 `None` 경로입니다.
+
         """
         if not self.project_root:
             return None
@@ -1376,46 +1374,46 @@ class Settings:
 
     @staticmethod
     def get_built_in_skills_dir() -> Path:
-        """Get the directory containing built-in skills that ship with the CLI.
+        """CLI와 함께 제공되는 기본 제공 기술이 포함된 디렉터리를 가져옵니다.
 
-        Returns:
-            Path to the `built_in_skills/` directory within the package.
+Returns:
+            패키지 내의 `built_in_skills/` 디렉터리 경로입니다.
+
         """
         return Path(__file__).parent / "built_in_skills"
 
     def get_extra_skills_dirs(self) -> list[Path]:
-        """Get user-configured extra skill directories.
+        """사용자가 구성한 추가 기술 디렉터리를 가져옵니다.
 
-        Set via `DEEPAGENTS_CLI_EXTRA_SKILLS_DIRS` (colon-separated paths) or
-        `[skills].extra_allowed_dirs` in `~/.deepagents/config.toml`.
+        `DEEPAGENTS_CLI_EXTRA_SKILLS_DIRS`(콜론으로 구분된 경로) 또는 `~/.deepagents/config.toml`의
+        `[skills].extra_allowed_dirs`을 통해 설정합니다.
 
-        Returns:
-            List of extra skill directory paths, or empty list if not configured.
+Returns:
+            추가 기술 디렉터리 경로 목록 또는 구성되지 않은 경우 빈 목록입니다.
+
         """
         return self.extra_skills_dirs or []
 
 
 class SessionState:
-    """Mutable session state shared across the app, adapter, and agent.
+    """앱, 어댑터 및 에이전트 전체에서 공유되는 변경 가능한 세션 상태입니다.
 
-    Tracks runtime flags like auto-approve that can be toggled during a
-    session via keybindings or the HITL approval menu's "Auto-approve all"
-    option.
+    세션 중에 키 바인딩이나 HITL 승인 메뉴의 '모두 자동 승인' 옵션을 통해 전환할 수 있는 자동 승인과 같은 런타임 플래그를 추적합니다.
 
-    The `auto_approve` flag controls whether tool calls (shell execution, file
-    writes/edits, web search, URL fetch) require user confirmation before running.
+    `auto_approve` 플래그는 도구 호출(셸 실행, 파일 쓰기/편집, 웹 검색, URL 가져오기)을 실행하기 전에 사용자 확인이 필요한지 여부를
+    제어합니다.
+
     """
 
     def __init__(self, auto_approve: bool = False, no_splash: bool = False) -> None:
-        """Initialize session state with optional flags.
+        """선택적 플래그를 사용하여 세션 상태를 초기화합니다.
 
-        Args:
-            auto_approve: Whether to auto-approve tool calls without
-                prompting.
+Args:
+            auto_approve: 메시지를 표시하지 않고 도구 호출을 자동 승인할지 여부입니다.
 
-                Can be toggled at runtime via Shift+Tab or the HITL
-                approval menu.
-            no_splash: Whether to skip displaying the splash screen on startup.
+                Shift+Tab 또는 HITL 승인 메뉴를 통해 런타임에 전환할 수 있습니다.
+            no_splash: 시작 시 스플래시 화면 표시를 건너뛸지 여부입니다.
+
         """
         self.auto_approve = auto_approve
         self.no_splash = no_splash
@@ -1426,25 +1424,25 @@ class SessionState:
         self.thread_id = generate_thread_id()
 
     def toggle_auto_approve(self) -> bool:
-        """Toggle auto-approve and return the new state.
+        """자동 승인을 전환하고 새 상태를 반환합니다.
 
-        Called by the Shift+Tab keybinding in the Textual app.
+        텍스트 앱에서 Shift+Tab 키 바인딩으로 호출됩니다.
 
-        When auto-approve is on, all tool calls execute without prompting.
+        자동 승인이 켜져 있으면 모든 도구 호출이 메시지 없이 실행됩니다.
 
-        Returns:
-            The new `auto_approve` state after toggling.
+Returns:
+            전환 후 새로운 `auto_approve` 상태.
+
         """
         self.auto_approve = not self.auto_approve
         return self.auto_approve
 
 
 SHELL_TOOL_NAMES: frozenset[str] = frozenset({"bash", "shell", "execute"})
-"""Tool names recognized as shell/command-execution tools.
+"""쉘/명령 실행 도구로 인식되는 도구 이름입니다.
 
-Only `'execute'` is registered by the SDK and CLI backends in practice.
-`'bash'` and `'shell'` are legacy names carried over and kept as
-backwards-compatible aliases.
+실제로 SDK 및 CLI 백엔드에는 `'execute'`만 등록됩니다. `'bash'` 및 `'shell'`은 이전 버전과 호환되는 별칭으로 이전되고 유지되는
+레거시 이름입니다.
 """
 
 DANGEROUS_SHELL_PATTERNS = (
@@ -1463,11 +1461,10 @@ DANGEROUS_SHELL_PATTERNS = (
     "<",  # Input redirect
     "${",  # Variable expansion with braces (can run commands via ${var:-$(cmd)})
 )
-"""Literal substrings that indicate shell injection risk.
+"""쉘 주입 위험을 나타내는 리터럴 하위 문자열입니다.
 
-Used by `contains_dangerous_patterns` to reject commands that embed arbitrary
-execution via redirects, substitution operators, or control characters — even
-when the base command is on the allow-list.
+기본 명령이 허용 목록에 있는 경우에도 리디렉션, 대체 연산자 또는 제어 문자를 통해 임의 실행을 포함하는 명령을 거부하기 위해
+`contains_dangerous_patterns`에서 사용됩니다.
 """
 
 RECOMMENDED_SAFE_SHELL_COMMANDS = (
@@ -1504,29 +1501,25 @@ RECOMMENDED_SAFE_SHELL_COMMANDS = (
     # Process viewing (read-only)
     "ps",
 )
-"""Read-only commands auto-approved in non-interactive mode.
+"""읽기 전용 명령은 비대화형 모드에서 자동 승인됩니다.
 
-Only includes readers and formatters — shells, editors, interpreters, package
-managers, network tools, archivers, and anything on GTFOBins/LOOBins is
-intentionally excluded. File-write and injection vectors are blocked separately
-by `DANGEROUS_SHELL_PATTERNS`.
+리더와 포맷터만 포함됩니다. 셸, 편집기, 인터프리터, 패키지 관리자, 네트워크 도구, 아카이버 및 GTFOBins/LOOBins의 모든 항목은 의도적으로
+제외됩니다. 파일 쓰기 및 주입 벡터는 `DANGEROUS_SHELL_PATTERNS`에 의해 별도로 차단됩니다.
 """
 
 
 def contains_dangerous_patterns(command: str) -> bool:
-    """Check if a command contains dangerous shell patterns.
+    """명령에 위험한 쉘 패턴이 포함되어 있는지 확인하십시오.
 
-    These patterns can be used to bypass allow-list validation by embedding
-    arbitrary commands within seemingly safe commands. The check includes
-    both literal substring patterns (redirects, substitution operators, etc.)
-    and regex patterns for bare variable expansion (`$VAR`) and the background
-    operator (`&`).
+    이러한 패턴은 안전해 보이는 명령 내에 임의의 명령을 삽입하여 허용 목록 유효성 검사를 우회하는 데 사용될 수 있습니다. 검사에는 리터럴 하위 문자열
+    패턴(리디렉션, 대체 연산자 등)과 단순 변수 확장(`$VAR`) 및 백그라운드 연산자(`&`)에 대한 정규식 패턴이 모두 포함됩니다.
 
-    Args:
-        command: The shell command to check.
+Args:
+        command: 확인할 쉘 명령입니다.
 
-    Returns:
-        True if dangerous patterns are found, False otherwise.
+Returns:
+        위험한 패턴이 발견되면 True이고, 그렇지 않으면 False입니다.
+
     """
     if any(pattern in command for pattern in DANGEROUS_SHELL_PATTERNS):
         return True
@@ -1542,27 +1535,24 @@ def contains_dangerous_patterns(command: str) -> bool:
 
 
 def is_shell_command_allowed(command: str, allow_list: list[str] | None) -> bool:
-    """Check if a shell command is in the allow-list.
+    """쉘 명령이 허용 목록에 있는지 확인하십시오.
 
-    The allow-list matches against the first token of the command (the executable
-    name). This allows read-only commands like ls, cat, grep, etc. to be
-    auto-approved.
+    허용 목록은 명령의 첫 번째 토큰(실행 파일 이름)과 일치합니다. 이를 통해 ls, cat, grep 등과 같은 읽기 전용 명령을 자동 승인할 수
+    있습니다.
 
-    When `allow_list` is the `SHELL_ALLOW_ALL` sentinel, all non-empty commands
-    are approved unconditionally — dangerous pattern checks are skipped.
+    `allow_list`이 `SHELL_ALLOW_ALL` 센티널인 경우 비어 있지 않은 모든 명령은 무조건 승인됩니다. 위험한 패턴 검사는 건너뜁니다.
 
-    SECURITY: For regular allow-lists, this function rejects commands containing
-    dangerous shell patterns (command substitution, redirects, process
-    substitution, etc.) BEFORE parsing, to prevent injection attacks that could
-    bypass the allow-list.
+    보안: 일반 허용 목록의 경우 이 기능은 허용 목록을 우회할 수 있는 주입 공격을 방지하기 위해 구문 분석 전에 위험한 셸 패턴(명령 대체, 리디렉션,
+    프로세스 대체 등)이 포함된 명령을 거부합니다.
 
-    Args:
-        command: The full shell command to check.
-        allow_list: List of allowed command names (e.g., `["ls", "cat", "grep"]`),
-            the `SHELL_ALLOW_ALL` sentinel to allow any command, or `None`.
+Args:
+        command: 확인할 전체 쉘 명령입니다.
+        allow_list: 허용되는 명령 이름 목록(예: `["ls", "cat", "grep"]`), 모든 명령을 허용하는
+                    `SHELL_ALLOW_ALL` 센티널 또는 `None`.
 
-    Returns:
-        `True` if the command is allowed, `False` otherwise.
+Returns:
+        명령이 허용되면 `True`, 그렇지 않으면 `False`입니다.
+
     """
     if not allow_list or not command or not command.strip():
         return False
@@ -1610,17 +1600,16 @@ def is_shell_command_allowed(command: str, allow_list: list[str] | None) -> bool
 
 
 def get_langsmith_project_name() -> str | None:
-    """Resolve the LangSmith project name if tracing is configured.
+    """추적이 구성된 경우 LangSmith 프로젝트 이름을 확인합니다.
 
-    Checks for the required API key and tracing environment variables.
-    When both are present, resolves the project name with priority:
-    `settings.deepagents_langchain_project` (from
-    `DEEPAGENTS_CLI_LANGSMITH_PROJECT`), then `LANGSMITH_PROJECT` from the
-    environment (note: this may already have been overridden at bootstrap time
-    to match `DEEPAGENTS_CLI_LANGSMITH_PROJECT`), then `'deepagents-cli'`.
+    필수 API 키 및 추적 환경 변수를 확인합니다. 둘 다 존재하는 경우 우선순위가
+    `settings.deepagents_langchain_project`(`DEEPAGENTS_CLI_LANGSMITH_PROJECT`에서), 환경에서
+    `LANGSMITH_PROJECT`(참고: `DEEPAGENTS_CLI_LANGSMITH_PROJECT`과 일치하도록 부트스트랩 시간에 이미
+    재정의되었을 수 있음), `'deepagents-cli'`로 프로젝트 이름을 확인합니다.
 
-    Returns:
-        Project name string when LangSmith tracing is active, None otherwise.
+Returns:
+        LangSmith 추적이 활성화된 경우 프로젝트 이름 문자열이고, 그렇지 않은 경우 없음입니다.
+
     """
     from deepagents_cli.model_config import resolve_env_var
 
@@ -1641,24 +1630,22 @@ def get_langsmith_project_name() -> str | None:
 
 
 def fetch_langsmith_project_url(project_name: str) -> str | None:
-    """Fetch the LangSmith project URL via the LangSmith client.
+    """LangSmith 클라이언트를 통해 LangSmith 프로젝트 URL을 가져옵니다.
 
-    Successful results are cached at module level so repeated calls do not
-    make additional network requests.
+    성공적인 결과는 모듈 수준에서 캐시되므로 반복 호출로 인해 추가 네트워크 요청이 발생하지 않습니다.
 
-    The network call runs in a daemon thread with a hard timeout of
-    `_LANGSMITH_URL_LOOKUP_TIMEOUT_SECONDS`, so this function blocks the
-    calling thread for at most that duration even if LangSmith is unreachable.
+    네트워크 호출은 `_LANGSMITH_URL_LOOKUP_TIMEOUT_SECONDS`의 하드 타임아웃으로 데몬 스레드에서 실행되므로 이 함수는
+    LangSmith에 연결할 수 없는 경우에도 최대 해당 기간 동안 호출 스레드를 차단합니다.
 
-    Returns None (with a debug log) on any failure: missing `langsmith` package,
-    network errors, invalid project names, client initialization issues,
-    or timeouts.
+    `langsmith` 패키지 누락, 네트워크 오류, 잘못된 프로젝트 이름, 클라이언트 초기화 문제 또는 시간 초과 등 오류가 발생하면 None(디버그
+    로그와 함께)을 반환합니다.
 
-    Args:
-        project_name: LangSmith project name to look up.
+Args:
+        project_name: 조회할 LangSmith 프로젝트 이름입니다.
 
-    Returns:
-        Project URL string if found, None otherwise.
+Returns:
+        프로젝트 URL 문자열이 발견되면, 그렇지 않으면 없음.
+
     """
     global _langsmith_url_cache  # noqa: PLW0603  # Module-level cache requires global statement
 
@@ -1728,17 +1715,17 @@ def fetch_langsmith_project_url(project_name: str) -> str | None:
 
 
 def build_langsmith_thread_url(thread_id: str) -> str | None:
-    """Build a full LangSmith thread URL if tracing is configured.
+    """추적이 구성된 경우 전체 LangSmith 스레드 URL을 작성하십시오.
 
-    Combines `get_langsmith_project_name` and `fetch_langsmith_project_url`
-    into a single convenience helper.
+    `get_langsmith_project_name` 및 `fetch_langsmith_project_url`을 하나의 편리한 도우미로 결합합니다.
 
-    Args:
-        thread_id: Thread identifier to build the URL for.
+Args:
+        thread_id: URL을 구축할 스레드 식별자입니다.
 
-    Returns:
-        Full thread URL string, or `None` if unavailable (LangSmith is not
-            configured or the project URL cannot be resolved.)
+Returns:
+        전체 스레드 URL 문자열 또는 사용할 수 없는 경우 `None`(LangSmith는
+            구성되었거나 프로젝트 URL을 확인할 수 없습니다.)
+
     """
     project_name = get_langsmith_project_name()
     if not project_name:
@@ -1752,42 +1739,41 @@ def build_langsmith_thread_url(thread_id: str) -> str | None:
 
 
 def reset_langsmith_url_cache() -> None:
-    """Reset the LangSmith URL cache (for testing)."""
+    """LangSmith URL 캐시를 재설정합니다(테스트용)."""
     global _langsmith_url_cache  # noqa: PLW0603  # Module-level cache requires global statement
     _langsmith_url_cache = None
 
 
 def get_default_coding_instructions() -> str:
-    """Get the default coding agent instructions.
+    """기본 코딩 에이전트 지침을 받으세요.
 
-    These are the immutable base instructions that cannot be modified by the agent.
-    Long-term memory (AGENTS.md) is handled separately by the middleware.
+    이는 에이전트가 수정할 수 없는 변경 불가능한 기본 명령어입니다. 장기 메모리(AGENTS.md)는 미들웨어에 의해 별도로 처리됩니다.
 
-    Returns:
-        The default agent instructions as a string.
+Returns:
+        문자열로 된 기본 에이전트 지침입니다.
+
     """
     default_prompt_path = Path(__file__).parent / "default_agent_prompt.md"
     return default_prompt_path.read_text()
 
 
 def detect_provider(model_name: str) -> str | None:
-    """Auto-detect provider from model name.
+    """모델 이름에서 공급자를 자동 감지합니다.
 
-    Intentionally duplicates a subset of LangChain's
-    `_attempt_infer_model_provider` because we need to resolve the provider
-    **before** calling `init_chat_model` in order to:
+    다음을 수행하려면 `init_chat_model`을 호출하기 **전에** 공급자를 확인해야 하기 때문에 LangChain의
+    `_attempt_infer_model_provider` 하위 집합을 의도적으로 복제합니다.
 
-    1. Build provider-specific kwargs (API base URLs, headers, etc.) that are
-       passed *into* `init_chat_model`.
-    2. Validate credentials early to surface user-friendly errors.
+    1. 다음과 같은 공급자별 kwargs(API 기본 URL, 헤더 등)를 구축합니다.
+       `init_chat_model` *에* 전달되었습니다.
+    2. 사용자에게 친숙한 오류를 표시하기 위해 자격 증명을 조기에 검증합니다.
 
-    Args:
-        model_name: Model name to detect provider from.
+Args:
+        model_name: 공급자를 감지할 모델 이름입니다.
 
-    Returns:
-        Provider name (openai, anthropic, google_genai, google_vertexai,
-            nvidia) or `None` if the provider cannot be determined from the
-            name alone.
+Returns:
+        제공업체 이름(openai, anthropic, google_genai, google_vertexai,
+            nvidia) 또는 이름만으로는 공급자를 확인할 수 없는 경우 `None`입니다.
+
     """
     model_lower = model_name.lower()
 
@@ -1813,19 +1799,19 @@ def detect_provider(model_name: str) -> str | None:
 
 
 def _get_default_model_spec() -> str:
-    """Get default model specification based on available credentials.
+    """사용 가능한 자격 증명을 기반으로 기본 모델 사양을 가져옵니다.
 
-    Checks in order:
+    순서대로 확인합니다.
 
-    1. `[models].default` in config file (user's intentional preference).
-    2. `[models].recent` in config file (last `/model` switch).
-    3. Auto-detection based on available API credentials.
+    1. 구성 파일의 `[models].default`(사용자의 의도적인 기본 설정) 2. 구성 파일의 `[models].recent`(마지막
+    `/model` 스위치). 3. 사용 가능한 API 자격 증명을 기반으로 자동 감지합니다.
 
-    Returns:
-        Model specification in provider:model format.
+Returns:
+        Model specification in provider: 모델 형식.
 
-    Raises:
-        ModelConfigError: If no credentials are configured.
+Raises:
+        ModelConfigError: 자격 증명이 구성되지 않은 경우.
+
     """
     from deepagents_cli.model_config import ModelConfig, ModelConfigError
 
@@ -1857,28 +1843,26 @@ def _get_default_model_spec() -> str:
 
 
 _OPENROUTER_APP_URL = "https://pypi.org/project/deepagents-cli/"
-"""Default `app_url` (maps to `HTTP-Referer`) for OpenRouter attribution.
+"""OpenRouter 특성에 대한 기본 `app_url`(`HTTP-Referer`에 매핑).
 
-See https://openrouter.ai/docs/app-attribution for details.
+자세한 내용은 https://openrouter.ai/docs/app-attribution을 참조하세요.
 """
 
 _OPENROUTER_APP_TITLE = "Deep Agents CLI"
-"""Default `app_title` (maps to `X-Title`) for OpenRouter attribution."""
+"""OpenRouter 특성에 대한 기본 `app_title`(`X-Title`에 매핑)."""
 
 _OPENROUTER_APP_CATEGORIES: list[str] = ["cli-agent"]
-"""Default `app_categories` (maps to `X-OpenRouter-Categories`) for OpenRouter."""
+"""OpenRouter의 기본값은 `app_categories`(`X-OpenRouter-Categories`에 매핑됨)입니다."""
 
 
 def _apply_openrouter_defaults(kwargs: dict[str, Any]) -> None:
-    """Inject default OpenRouter attribution kwargs.
+    """기본 OpenRouter 속성 kwargs를 삽입합니다.
 
-    Sets `app_url` and `app_title` via `setdefault` so that user-supplied
-    values in config take precedence. These map to the `HTTP-Referer` and
-    `X-Title` headers that `ChatOpenRouter` sends for app attribution
-    (see https://openrouter.ai/docs/app-attribution).
+    구성에서 사용자가 제공한 값이 우선하도록 `setdefault`를 통해 `app_url` 및 `app_title`을 설정합니다. 이는
+    `ChatOpenRouter`에서 앱 속성을 위해 전송하는 `HTTP-Referer` 및 `X-Title` 헤더에
+    매핑됩니다(https://openrouter.ai/docs/app-attribution). 참조).
 
-    Users can override either value provider-wide or per-model in
-    `~/.deepagents/config.toml`:
+    사용자는 `~/.deepagents/config.toml`에서 공급자 전체 또는 모델별 값을 재정의할 수 있습니다.
 
     ```toml
     # Provider-wide
@@ -1891,8 +1875,9 @@ def _apply_openrouter_defaults(kwargs: dict[str, Any]) -> None:
     app_title = "My App (GPT)"
     ```
 
-    Args:
-        kwargs: Mutable kwargs dict to update in place.
+Args:
+        kwargs: 변경 가능한 kwargs는 제자리에서 업데이트하도록 지시합니다.
+
     """
     kwargs.setdefault("app_url", _OPENROUTER_APP_URL)
     kwargs.setdefault("app_title", _OPENROUTER_APP_TITLE)
@@ -1902,20 +1887,19 @@ def _apply_openrouter_defaults(kwargs: dict[str, Any]) -> None:
 def _get_provider_kwargs(
     provider: str, *, model_name: str | None = None
 ) -> dict[str, Any]:
-    """Get provider-specific kwargs from the config file.
+    """구성 파일에서 공급자별 kwargs를 가져옵니다.
 
-    Reads `base_url`, `api_key_env`, and the `params` table from the user's
-    `config.toml` for the given provider.
+    지정된 공급자에 대한 사용자의 `config.toml`에서 `base_url`, `api_key_env` 및 `params` 테이블을 읽습니다.
 
-    When `model_name` is provided, per-model overrides from the `params`
-    sub-table are shallow-merged on top.
+    `model_name`이 제공되면 `params` 하위 테이블의 모델별 재정의가 맨 위에 얕은 병합됩니다.
 
-    Args:
-        provider: Provider name (e.g., openai, anthropic, fireworks, ollama).
-        model_name: Optional model name for per-model overrides.
+Args:
+        provider: 제공자 이름(예: openai, anthropic, Fireworks, ollama)
+        model_name: 모델별 재정의를 위한 선택적 모델 이름입니다.
 
-    Returns:
-        Dictionary of provider-specific kwargs.
+Returns:
+        공급자별 kwargs 사전입니다.
+
     """
     from deepagents_cli.model_config import ModelConfig
 
@@ -1955,20 +1939,21 @@ def _create_model_from_class(
     provider: str,
     kwargs: dict[str, Any],
 ) -> BaseChatModel:
-    """Import and instantiate a custom `BaseChatModel` class.
+    """사용자 정의 `BaseChatModel` 클래스를 가져오고 인스턴스화합니다.
 
-    Args:
-        class_path: Fully-qualified class in `module.path:ClassName` format.
-        model_name: Model identifier to pass as `model` kwarg.
-        provider: Provider name (for error messages).
-        kwargs: Additional keyword arguments for the constructor.
+Args:
+        class_path: `module.path:ClassName` 형식의 정규화된 클래스입니다.
+        model_name: `model` kwarg로 전달할 모델 식별자입니다.
+        provider: 공급자 이름(오류 메시지용)
+        kwargs: 생성자의 추가 키워드 인수입니다.
 
-    Returns:
-        Instantiated `BaseChatModel`.
+Returns:
+        `BaseChatModel` 인스턴스화되었습니다.
 
-    Raises:
-        ModelConfigError: If the class cannot be imported, is not a
-            `BaseChatModel` subclass, or fails to instantiate.
+Raises:
+        ModelConfigError: 클래스를 가져올 수 없거나, `BaseChatModel` 하위 클래스가 아니거나, 인스턴스화에 실패하는
+                          경우입니다.
+
     """
     from langchain_core.language_models import (
         BaseChatModel as _BaseChatModel,  # Runtime import; module level is typing only
@@ -2017,18 +2002,19 @@ def _create_model_via_init(
     provider: str,
     kwargs: dict[str, Any],
 ) -> BaseChatModel:
-    """Create a model using langchain's `init_chat_model`.
+    """langchain의 `init_chat_model`을 사용하여 모델을 만듭니다.
 
-    Args:
-        model_name: Model identifier.
-        provider: Provider name (may be empty for auto-detection).
-        kwargs: Additional keyword arguments.
+Args:
+        model_name: 모델 식별자.
+        provider: 공급자 이름(자동 감지를 위해 비어 있을 수 있음)
+        kwargs: 추가 키워드 인수.
 
-    Returns:
-        Instantiated `BaseChatModel`.
+Returns:
+        `BaseChatModel` 인스턴스화되었습니다.
 
-    Raises:
-        ModelConfigError: On import, value, or runtime errors.
+Raises:
+        ModelConfigError: 가져오기, 값 또는 런타임 오류 시.
+
     """
     from langchain.chat_models import init_chat_model
 
@@ -2080,18 +2066,17 @@ def _create_model_via_init(
 
 @dataclass(frozen=True)
 class ModelResult:
-    """Result of creating a chat model, bundling the model with its metadata.
+    """채팅 모델을 생성하고 모델을 해당 메타데이터와 번들링한 결과입니다.
 
-    This separates model creation from settings mutation so callers can decide
-    when to commit the metadata to global settings.
+    이를 통해 모델 생성과 설정 변형이 분리되므로 호출자는 메타데이터를 전역 설정으로 커밋할 시기를 결정할 수 있습니다.
 
-    Attributes:
-        model: The instantiated chat model.
-        model_name: Resolved model name.
-        provider: Resolved provider name.
-        context_limit: Max input tokens from the model profile, or `None`.
-        unsupported_modalities: Input modalities not indicated as supported by
-            the model profile (e.g. `{"audio", "video"}`).
+Attributes:
+        model: 인스턴스화된 채팅 모델.
+        model_name: 모델명이 해결되었습니다.
+        provider: 확인된 공급자 이름입니다.
+        context_limit: 모델 프로필의 최대 입력 토큰 또는 `None`.
+        unsupported_modalities: 모델 프로필에서 지원되는 것으로 표시되지 않은 입력 양식(예: `{"audio", "video"}`)
+
     """
 
     model: BaseChatModel
@@ -2101,7 +2086,7 @@ class ModelResult:
     unsupported_modalities: frozenset[str] = frozenset()
 
     def apply_to_settings(self) -> None:
-        """Commit this result's metadata to global `settings`."""
+        """이 결과의 메타데이터를 전역 `settings`에 커밋합니다."""
         s = _get_settings()
         s.model_name = self.model_name
         s.model_provider = self.provider
@@ -2117,23 +2102,20 @@ def _apply_profile_overrides(
     label: str,
     raise_on_failure: bool = False,
 ) -> None:
-    """Merge `overrides` into `model.profile`.
+    """`overrides`을(를) `model.profile`에 병합합니다.
 
-    If the model already has a dict profile, overrides are layered on top
-    so existing keys (e.g., `tool_calling`) are preserved unchanged.
+    모델에 이미 사전 프로필이 있는 경우 재정의가 맨 위에 계층화되어 기존 키(예: `tool_calling`)가 변경되지 않고 유지됩니다.
 
-    Args:
-        model: The chat model whose profile will be updated.
-        overrides: Key/value pairs to merge into the profile.
-        model_name: Model name used in log/error messages.
-        label: Human-readable source label for messages
-            (e.g., `"config.toml"`, `"CLI --profile-override"`).
-        raise_on_failure: When `True`, raise `ModelConfigError` instead
-            of logging a warning if assignment fails.
+Args:
+        model: 프로필이 업데이트될 채팅 모델입니다.
+        overrides: 프로필에 병합할 키/값 쌍입니다.
+        model_name: 로그/오류 메시지에 사용되는 모델 이름입니다.
+        label: 사람이 읽을 수 있는 메시지 소스 라벨(예: `"config.toml"`, `"CLI --profile-override"`)
+        raise_on_failure: `True`인 경우 할당이 실패하면 경고를 기록하는 대신 `ModelConfigError`을 발생시킵니다.
 
-    Raises:
-        ModelConfigError: If `raise_on_failure` is `True` and the model
-            rejects profile assignment.
+Raises:
+        ModelConfigError: `raise_on_failure`이(가) `True`이고 모델이 프로필 할당을 거부하는 경우.
+
     """
     from deepagents_cli.model_config import ModelConfigError
 
@@ -2164,40 +2146,40 @@ def create_model(
     extra_kwargs: dict[str, Any] | None = None,
     profile_overrides: dict[str, Any] | None = None,
 ) -> ModelResult:
-    """Create a chat model.
+    """채팅 모델을 만듭니다.
 
-    Uses `init_chat_model` for standard providers, or imports a custom
-    `BaseChatModel` subclass when the provider has a `class_path` in config.
+    표준 공급자에 대해 `init_chat_model`을 사용하거나 공급자의 구성에 `class_path`이 있는 경우 사용자 지정
+    `BaseChatModel` 하위 클래스를 가져옵니다.
 
-    Supports `provider:model` format (e.g., `'anthropic:claude-sonnet-4-5'`)
-    for explicit provider selection, or bare model names for auto-detection.
+    명시적인 공급자 선택을 위해 `provider:model` 형식(예: `'anthropic:claude-sonnet-4-5'`)을 지원하거나 자동
+    감지를 위해 기본 모델 이름을 지원합니다.
 
-    Args:
-        model_spec: Model specification in `provider:model` format (e.g.,
-            `'anthropic:claude-sonnet-4-5'`, `'openai:gpt-4o'`) or just the model
-            name for auto-detection (e.g., `'claude-sonnet-4-5'`).
+Args:
+        model_spec: `provider:model` 형식(예: `'anthropic:claude-sonnet-4-5'`,
+                    `'openai:gpt-4o'`) 또는 자동 감지를 위한 모델 이름(예: `'claude-sonnet-4-5'`)의 모델
+                    사양입니다.
 
-                If not provided, uses environment-based defaults.
-        extra_kwargs: Additional kwargs to pass to the model constructor.
+                제공되지 않으면 환경 기반 기본값을 사용합니다.
+        extra_kwargs: 모델 생성자에 전달할 추가 kwargs입니다.
 
-            These take highest priority, overriding values from the config file.
-        profile_overrides: Extra profile fields from `--profile-override`.
+            이는 구성 파일의 값보다 우선하여 가장 높은 우선순위를 갖습니다.
+        profile_overrides: `--profile-override`의 추가 프로필 필드입니다.
 
-            Merged on top of config file profile overrides (CLI wins).
+            구성 파일 프로필 재정의 위에 병합됩니다(CLI가 우선).
 
-    Returns:
-        A `ModelResult` containing the model and its metadata.
+Returns:
+        모델과 해당 메타데이터가 포함된 `ModelResult`입니다.
 
-    Raises:
-        ModelConfigError: If provider cannot be determined from the model name,
-            required provider package is not installed, or no credentials are
-            configured.
+Raises:
+        ModelConfigError: 모델 이름으로 공급자를 확인할 수 없는 경우 필수 공급자 패키지가 설치되지 않았거나 자격 증명이 구성되지 않은
+                          것입니다.
 
-    Examples:
+Examples:
         >>> model = create_model("anthropic:claude-sonnet-4-5")
         >>> model = create_model("openai:gpt-4o")
         >>> model = create_model("gpt-4o")  # Auto-detects openai
         >>> model = create_model()  # Uses environment defaults
+
     """
     from deepagents_cli.model_config import ModelConfig, ModelConfigError, ModelSpec
 
@@ -2298,20 +2280,19 @@ def create_model(
 
 
 def validate_model_capabilities(model: BaseChatModel, model_name: str) -> None:
-    """Validate that the model has required capabilities for `deepagents`.
+    """모델에 `deepagents`에 필요한 기능이 있는지 확인하십시오.
 
-    Checks the model's profile (if available) to ensure it supports tool calling, which
-    is required for agent functionality. Issues warnings for models without profiles or
-    with limited context windows.
+    모델의 프로필(사용 가능한 경우)을 확인하여 에이전트 기능에 필요한 도구 호출을 지원하는지 확인합니다. 프로파일이 없거나 상황 창이 제한된 모델에 대해
+    경고를 표시합니다.
 
-    Args:
-        model: The instantiated model to validate.
-        model_name: Model name for error/warning messages.
+Args:
+        model: 유효성을 검사할 인스턴스화된 모델입니다.
+        model_name: 오류/경고 메시지의 모델 이름입니다.
 
-    Note:
-        This validation is best-effort. Models without profiles will pass with
-        a warning. Exits via sys.exit(1) if model profile explicitly indicates
-        tool_calling=False.
+Note:
+        이 검증은 최선의 노력입니다. 프로필이 없는 모델은 경고와 함께 통과됩니다. 모델 프로필이 명시적으로 tool_calling=False를
+        나타내는 경우 sys.exit(1)을 통해 종료됩니다.
+
     """
     console = _get_console()
     profile = getattr(model, "profile", None)
@@ -2351,13 +2332,13 @@ def validate_model_capabilities(model: BaseChatModel, model_name: str) -> None:
 
 
 def _get_console() -> Console:
-    """Return the lazily-initialized global `Console` instance.
+    """지연 초기화된 전역 `Console` 인스턴스를 반환합니다.
 
-    Defers the `rich.console` import until console output is actually
-    needed. The result is cached in `globals()["console"]`.
+    콘솔 출력이 실제로 필요할 때까지 `rich.console` 가져오기를 연기합니다. 결과는 `globals()["console"]`에 캐시됩니다.
 
-    Returns:
-        The global Rich `Console` singleton.
+Returns:
+        전역 Rich `Console` 싱글톤입니다.
+
     """
     cached = globals().get("console")
     if cached is not None:
@@ -2374,14 +2355,14 @@ def _get_console() -> Console:
 
 
 def _get_settings() -> Settings:
-    """Return the lazily-initialized global `Settings` instance.
+    """지연 초기화된 전역 `Settings` 인스턴스를 반환합니다.
 
-    Ensures bootstrap has run before constructing settings. The result is cached
-    in `globals()["settings"]` so subsequent access — including
-    `from config import settings` in other modules — resolves instantly.
+    설정을 구성하기 전에 부트스트랩이 실행되었는지 확인합니다. 결과는 `globals()["settings"]`에 캐시되므로 다른 모듈의 `from
+    config import settings`을 포함한 후속 액세스는 즉시 해결됩니다.
 
-    Returns:
-        The global `Settings` singleton.
+Returns:
+        전역 `Settings` 싱글톤.
+
     """
     cached = globals().get("settings")
     if cached is not None:
@@ -2404,16 +2385,16 @@ def _get_settings() -> Settings:
 
 
 def __getattr__(name: str) -> Settings | Console:
-    """Lazy module attributes for `settings` and `console`.
+    """`settings` 및 `console`에 대한 지연 모듈 속성입니다.
 
-    Defers heavy initialization until first access. Subsequent accesses hit
-    the module-level attribute directly (no `__getattr__` overhead).
+    처음 액세스할 때까지 대규모 초기화를 연기합니다. 후속 액세스는 모듈 수준 속성에 직접 적중합니다(`__getattr__` 오버헤드 없음).
 
-    Returns:
-        The requested lazy singleton.
+Returns:
+        요청된 게으른 싱글톤입니다.
 
-    Raises:
-        AttributeError: If *name* is not a lazily-provided attribute.
+Raises:
+        AttributeError: *name*이 느리게 제공되는 속성이 아닌 경우.
+
     """
     if name == "settings":
         return _get_settings()

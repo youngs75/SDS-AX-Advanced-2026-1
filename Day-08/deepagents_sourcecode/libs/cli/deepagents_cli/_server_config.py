@@ -1,12 +1,8 @@
-"""Typed configuration for the CLI-to-server subprocess communication channel.
+"""CLI-서버 하위 프로세스 통신 채널에 대해 입력된 구성입니다.
 
-The CLI spawns a `langgraph dev` subprocess and passes configuration via
-environment variables prefixed with `DEEPAGENTS_CLI_SERVER_`. This module
-provides a single
-`ServerConfig` dataclass that both sides share so that the set of variables,
-their serialization format, and their default values are defined in one place.
-The CLI writes config with `to_env()` and the server graph reads it back
-with `from_env()`.
+CLI는 `langgraph dev` 하위 프로세스를 생성하고 `DEEPAGENTS_CLI_SERVER_` 접두사가 붙은 환경 변수를 통해 구성을 전달합니다.
+이 모듈은 변수 세트, 직렬화 형식 및 기본값이 한 곳에서 정의되도록 양측이 공유하는 단일 `ServerConfig` 데이터 클래스를 제공합니다. CLI는
+`to_env()`을 사용하여 구성을 작성하고 서버 그래프는 `from_env()`을 사용하여 이를 다시 읽습니다.
 """
 
 from __future__ import annotations
@@ -29,17 +25,17 @@ _DEFAULT_ASSISTANT_ID = "agent"
 
 
 def _read_env_bool(suffix: str, *, default: bool = False) -> bool:
-    """Read a `DEEPAGENTS_CLI_SERVER_*` boolean from the environment.
+    """환경에서 `DEEPAGENTS_CLI_SERVER_*` 부울을 읽습니다.
 
-    Boolean env vars use the `'true'` / `'false'` convention (case insensitive).
-    Missing variables fall back to *default*.
+    부울 환경 변수는 `'true'` / `'false'` 규칙을 사용합니다(대소문자를 구분하지 않음). 누락된 변수는 *기본값*으로 돌아갑니다.
 
-    Args:
-        suffix: Variable name suffix after the `DEEPAGENTS_CLI_SERVER_` prefix.
-        default: Value when the variable is absent.
+Args:
+        suffix: `DEEPAGENTS_CLI_SERVER_` 접두사 뒤의 변수 이름 접미사.
+        default: 변수가 없을 때의 값입니다.
 
-    Returns:
-        Parsed boolean.
+Returns:
+        구문 분석된 부울입니다.
+
     """
     raw = os.environ.get(f"{SERVER_ENV_PREFIX}{suffix}")
     if raw is None:
@@ -48,16 +44,17 @@ def _read_env_bool(suffix: str, *, default: bool = False) -> bool:
 
 
 def _read_env_json(suffix: str) -> Any:  # noqa: ANN401
-    """Read a JSON-encoded `DEEPAGENTS_CLI_SERVER_*` variable.
+    """JSON으로 인코딩된 `DEEPAGENTS_CLI_SERVER_*` 변수를 읽습니다.
 
-    Args:
-        suffix: Variable name suffix after the `DEEPAGENTS_CLI_SERVER_` prefix.
+Args:
+        suffix: `DEEPAGENTS_CLI_SERVER_` 접두사 뒤의 변수 이름 접미사.
 
-    Returns:
-        Parsed JSON value, or `None` if the variable is absent.
+Returns:
+        구문 분석된 JSON 값 또는 변수가 없는 경우 `None`입니다.
 
-    Raises:
-        ValueError: If the variable is present but not valid JSON.
+Raises:
+        ValueError: 변수가 있지만 유효한 JSON이 아닌 경우.
+
     """
     raw = os.environ.get(f"{SERVER_ENV_PREFIX}{suffix}")
     if raw is None:
@@ -73,28 +70,29 @@ def _read_env_json(suffix: str) -> Any:  # noqa: ANN401
 
 
 def _read_env_str(suffix: str) -> str | None:
-    """Read an optional `DEEPAGENTS_CLI_SERVER_*` string variable.
+    """선택적 `DEEPAGENTS_CLI_SERVER_*` 문자열 변수를 읽습니다.
 
-    Args:
-        suffix: Variable name suffix after the `DEEPAGENTS_CLI_SERVER_` prefix.
+Args:
+        suffix: `DEEPAGENTS_CLI_SERVER_` 접두사 뒤의 변수 이름 접미사.
 
-    Returns:
-        The string value, or `None` if absent.
+Returns:
+        문자열 값 또는 없는 경우 `None`입니다.
+
     """
     return os.environ.get(f"{SERVER_ENV_PREFIX}{suffix}")
 
 
 def _read_env_optional_bool(suffix: str) -> bool | None:
-    """Read a tri-state `DEEPAGENTS_CLI_SERVER_*` boolean (`True` / `False` / `None`).
+    """세 가지 상태 `DEEPAGENTS_CLI_SERVER_*` 부울(`True` / `False` / `None`)을 읽습니다.
 
-    Used for settings where `None` carries a distinct meaning (e.g. "not
-    specified, use default logic").
+    `None`이 고유한 의미를 전달하는 설정에 사용됩니다(예: "지정되지 않음, 기본 논리 사용").
 
-    Args:
-        suffix: Variable name suffix after the `DEEPAGENTS_CLI_SERVER_` prefix.
+Args:
+        suffix: `DEEPAGENTS_CLI_SERVER_` 접두사 뒤의 변수 이름 접미사.
 
-    Returns:
-        `True`, `False`, or `None` when the variable is absent.
+Returns:
+        변수가 없는 경우 `True`, `False` 또는 `None`입니다.
+
     """
     raw = os.environ.get(f"{SERVER_ENV_PREFIX}{suffix}")
     if raw is None:
@@ -104,12 +102,11 @@ def _read_env_optional_bool(suffix: str) -> bool | None:
 
 @dataclass(frozen=True)
 class ServerConfig:
-    """Full configuration payload passed from the CLI to the server subprocess.
+    """CLI에서 서버 하위 프로세스로 전달된 전체 구성 페이로드입니다.
 
-    Serialized to/from `DEEPAGENTS_CLI_SERVER_*` environment variables so
-    that the server
-    graph (which runs in a separate Python interpreter) can reconstruct the
-    CLI's intent without sharing memory.
+    서버 그래프(별도의 Python 인터프리터에서 실행됨)가 메모리를 공유하지 않고도 CLI의 의도를 재구성할 수 있도록
+    `DEEPAGENTS_CLI_SERVER_*` 환경 변수에서 직렬화됩니다.
+
     """
 
     model: str | None = None
@@ -134,10 +131,11 @@ class ServerConfig:
     trust_project_mcp: bool | None = None
 
     def __post_init__(self) -> None:
-        """Normalize fields and validate invariants.
+        """필드를 정규화하고 불변성을 검증합니다.
 
-        Raises:
-            ValueError: If `shell_allow_list` is an empty list.
+Raises:
+            ValueError: `shell_allow_list`이 빈 목록인 경우.
+
         """
         if self.sandbox_type == "none":
             object.__setattr__(self, "sandbox_type", None)
@@ -146,19 +144,19 @@ class ServerConfig:
             raise ValueError(msg)
 
     # ------------------------------------------------------------------
-    # Serialization
+    # 직렬화
     # ------------------------------------------------------------------
 
     def to_env(self) -> dict[str, str | None]:
-        """Serialize this config to a `DEEPAGENTS_CLI_SERVER_*` env-var mapping.
+        """이 구성을 `DEEPAGENTS_CLI_SERVER_*` env-var 매핑으로 직렬화합니다.
 
-        `None` values signal that the variable should be *cleared* from the
-        environment (rather than set to an empty string), so callers can
-        iterate and set or clear each variable in `os.environ`.
+        `None` 값은 호출자가 `os.environ`의 각 변수를 반복하고 설정하거나 지울 수 있도록 환경에서 변수를 *지워야* 함을 나타냅니다(빈
+        문자열로 설정하지 않음).
 
-        Returns:
-            Dict mapping env-var suffixes (without the prefix) to their
-                string values or `None`.
+Returns:
+            env-var 접미사(접두사 제외)를 해당 항목에 매핑하는 Dict
+                문자열 값 또는 `None`.
+
         """
         return {
             "MODEL": self.model,
@@ -195,13 +193,13 @@ class ServerConfig:
 
     @classmethod
     def from_env(cls) -> ServerConfig:
-        """Reconstruct a `ServerConfig` from `DEEPAGENTS_CLI_SERVER_*` env vars.
+        """`DEEPAGENTS_CLI_SERVER_*` 환경 변수에서 `ServerConfig`을 재구성합니다.
 
-        This is the inverse of `to_env()` and is called inside the server
-        subprocess to recover the CLI's configuration.
+        이는 `to_env()`의 반대이며 CLI 구성을 복구하기 위해 서버 하위 프로세스 내부에서 호출됩니다.
 
-        Returns:
-            A `ServerConfig` populated from the environment.
+Returns:
+            환경에서 채워진 `ServerConfig`.
+
         """
         return cls(
             model=_read_env_str("MODEL"),
@@ -232,7 +230,7 @@ class ServerConfig:
         )
 
     # ------------------------------------------------------------------
-    # Factory
+    # 공장
     # ------------------------------------------------------------------
 
     @classmethod
@@ -256,34 +254,32 @@ class ServerConfig:
         trust_project_mcp: bool | None,
         interactive: bool,
     ) -> ServerConfig:
-        """Build a `ServerConfig` from parsed CLI arguments.
+        """구문 분석된 CLI 인수에서 `ServerConfig`을 빌드합니다.
 
-        Handles path normalization (e.g. resolving relative MCP config paths
-        against the user's working directory) so that the raw serialized values
-        are always absolute and unambiguous.
+        원시 직렬화된 값이 항상 절대적이고 모호하지 않도록 경로 정규화(예: 사용자의 작업 디렉터리에 대한 상대 MCP 구성 경로 확인)를 처리합니다.
 
-        Args:
-            project_context: Explicit user/project path context.
-            model_name: Model spec string.
-            model_params: Extra model kwargs.
-            assistant_id: Agent identifier.
-            auto_approve: Auto-approve all tools.
-            interrupt_shell_only: Validate shell commands via middleware instead
-                of HITL.
-            shell_allow_list: Restrictive shell allow-list to forward to the
-                server subprocess for `ShellAllowListMiddleware`.
-            sandbox_type: Sandbox type.
-            sandbox_id: Existing sandbox ID to reuse.
-            sandbox_setup: Path to setup script for the sandbox.
-            enable_shell: Enable shell execution tools.
-            enable_ask_user: Enable ask_user tool.
-            mcp_config_path: Path to MCP config.
-            no_mcp: Disable MCP.
-            trust_project_mcp: Trust project MCP servers.
-            interactive: Whether the agent is interactive.
+Args:
+            project_context: 명시적인 사용자/프로젝트 경로 컨텍스트.
+            model_name: 모델 사양 문자열.
+            model_params: 추가 모델 kwargs.
+            assistant_id: 에이전트 식별자.
+            auto_approve: 모든 도구를 자동 승인합니다.
+            interrupt_shell_only: HITL 대신 미들웨어를 통해 셸 명령의 유효성을 검사합니다.
+            shell_allow_list: `ShellAllowListMiddleware`에 대한 서버 하위 프로세스로 전달하기 위한 제한적인 셸
+                              허용 목록입니다.
+            sandbox_type: 샌드박스 유형.
+            sandbox_id: 재사용할 기존 샌드박스 ID입니다.
+            sandbox_setup: 샌드박스의 설정 스크립트 경로입니다.
+            enable_shell: 셸 실행 도구를 활성화합니다.
+            enable_ask_user: Ask_user 도구를 활성화합니다.
+            mcp_config_path: MCP 구성 경로입니다.
+            no_mcp: MCP를 비활성화합니다.
+            trust_project_mcp: 프로젝트 MCP 서버를 신뢰하십시오.
+            interactive: 에이전트가 대화형인지 여부입니다.
 
-        Returns:
-            A fully resolved `ServerConfig`.
+Returns:
+            완전히 해결된 `ServerConfig`.
+
         """
         normalized_mcp = _normalize_path(mcp_config_path, project_context, "MCP config")
 
@@ -322,21 +318,21 @@ def _normalize_path(
     project_context: ProjectContext | None,
     label: str,
 ) -> str | None:
-    """Resolve a possibly-relative path to absolute.
+    """절대 상대 경로를 해결합니다.
 
-    The server subprocess runs in a different working directory, so relative
-    paths must be resolved against the user's original cwd before serialization.
+    서버 하위 프로세스는 다른 작업 디렉터리에서 실행되므로 직렬화하기 전에 사용자의 원래 cwd에 대해 상대 경로를 확인해야 합니다.
 
-    Args:
-        raw_path: Path from CLI arguments (may be relative).
-        project_context: User/project context for path resolution.
-        label: Human-readable label for error messages (e.g. "MCP config").
+Args:
+        raw_path: CLI 인수의 경로(상대적일 수 있음)
+        project_context: 경로 확인을 위한 사용자/프로젝트 컨텍스트입니다.
+        label: 사람이 읽을 수 있는 오류 메시지 레이블(예: "MCP config")
 
-    Returns:
-        Absolute path string, or `None` when *raw_path* is `None` or empty.
+Returns:
+        절대 경로 문자열 또는 *raw_path*가 `None`이거나 비어 있는 경우 `None`입니다.
 
-    Raises:
-        ValueError: If the path cannot be resolved.
+Raises:
+        ValueError: 경로를 확인할 수 없는 경우.
+
     """
     if not raw_path:
         return None

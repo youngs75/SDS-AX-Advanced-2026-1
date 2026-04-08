@@ -1,11 +1,9 @@
-"""Update lifecycle for `deepagents-cli`.
+"""`deepagents-cli`의 수명 주기를 업데이트합니다.
 
-Handles version checking against PyPI (with caching), install-method detection,
-auto-upgrade execution, config-driven opt-in/out, and "what's new" tracking.
+PyPI에 대한 버전 확인(캐싱 포함), 설치 방법 감지, 자동 업그레이드 실행, 구성 기반 옵트인/아웃 및 "새로운 기능" 추적을 처리합니다.
 
-Most public entry points absorb errors and return sentinel values.
-`set_auto_update` raises on write failures so callers can surface
-actionable feedback.
+대부분의 공개 진입점은 오류를 흡수하고 감시 값을 반환합니다. `set_auto_update`은 쓰기 실패 시 발생하므로 호출자가 조치 가능한 피드백을 표시할
+수 있습니다.
 """
 
 from __future__ import annotations
@@ -42,25 +40,25 @@ _UPGRADE_COMMANDS: dict[InstallMethod, str] = {
     "brew": "brew upgrade deepagents-cli",
     "pip": "pip install --upgrade deepagents-cli",
 }
-"""Upgrade commands keyed by install method.
+"""설치 방법에 따른 업그레이드 명령입니다.
 
-`perform_upgrade` runs only the command matching the detected install method;
-no fallback chain.
+`perform_upgrade`은 감지된 설치 방법과 일치하는 명령만 실행합니다. 대체 체인이 없습니다.
 """
 
 _UPGRADE_TIMEOUT = 120  # seconds
 
 
 def _parse_version(v: str) -> Version:
-    """Parse a PEP 440 version string into a comparable `Version` object.
+    """PEP 440 버전 문자열을 비교 가능한 `Version` 객체로 구문 분석합니다.
 
-    Supports stable (`1.2.3`) and pre-release (`1.2.3a1`, `1.2.3rc2`) versions.
+    안정 버전(`1.2.3`) 및 시험판(`1.2.3a1`, `1.2.3rc2`) 버전을 지원합니다.
 
-    Args:
-        v: Version string like `'1.2.3'` or `'1.2.3a1'`.
+Args:
+        v: `'1.2.3'` 또는 `'1.2.3a1'`과 같은 버전 문자열입니다.
 
-    Returns:
-        A `packaging.version.Version` instance.
+Returns:
+        `packaging.version.Version` 인스턴스.
+
     """
     return Version(v.strip())  # raises InvalidVersion for non-PEP 440 strings
 
@@ -70,17 +68,17 @@ def _latest_from_releases(
     *,
     include_prereleases: bool,
 ) -> str | None:
-    """Pick the newest version from a PyPI `releases` mapping.
+    """PyPI `releases` 매핑에서 최신 버전을 선택하세요.
 
-    Skips versions with no uploaded files (empty entries) and, when
-    *include_prereleases* is `False`, skips pre-release versions.
+    업로드된 파일이 없는 버전(빈 항목)을 건너뛰고, *include_prereleases*가 `False`인 경우 시험판 버전을 건너뜁니다.
 
-    Args:
-        releases: The `releases` dict from the PyPI JSON API.
-        include_prereleases: Whether to consider pre-release versions.
+Args:
+        releases: PyPI JSON API의 `releases` dict.
+        include_prereleases: 시험판 버전을 고려할지 여부입니다.
 
-    Returns:
-        The highest matching version string, or `None` if none qualify.
+Returns:
+        가장 일치하는 버전 문자열이거나, 해당하는 문자열이 없으면 `None`입니다.
+
     """
     best: Version | None = None
     best_str: str | None = None
@@ -105,19 +103,19 @@ def get_latest_version(
     bypass_cache: bool = False,
     include_prereleases: bool = False,
 ) -> str | None:
-    """Fetch the latest deepagents-cli version from PyPI, with caching.
+    """캐싱을 사용하여 PyPI에서 최신 deepagents-cli 버전을 가져옵니다.
 
-    Results are cached to `CACHE_FILE` to avoid repeated network calls.
-    The cache stores both the latest stable and pre-release versions so a
-    single PyPI request serves both code paths.
+    반복적인 네트워크 호출을 피하기 위해 결과는 `CACHE_FILE`에 캐시됩니다. 캐시는 최신 안정 버전과 시험판 버전을 모두 저장하므로 단일 PyPI
+    요청이 두 코드 경로를 모두 제공합니다.
 
-    Args:
-        bypass_cache: Skip the cache and always hit PyPI.
-        include_prereleases: When `True`, consider pre-release versions
-            (alpha, beta, rc). Stable users should leave this `False`.
+Args:
+        bypass_cache: 캐시를 건너뛰고 항상 PyPI를 실행하세요.
+        include_prereleases: `True`인 경우 시험판 버전(알파, 베타, rc)을 고려하세요. 안정적인 사용자는 이 `False`을
+                             떠나야 합니다.
 
-    Returns:
-        The latest version string, or `None` on any failure.
+Returns:
+        최신 버전 문자열 또는 실패 시 `None`.
+
     """
     cache_key = "version_prerelease" if include_prereleases else "version"
 
@@ -175,22 +173,20 @@ def get_latest_version(
 
 
 def is_update_available(*, bypass_cache: bool = False) -> tuple[bool, str | None]:
-    """Check whether a newer version of deepagents-cli is available.
+    """deepagents-cli의 최신 버전을 사용할 수 있는지 확인하세요.
 
-    When the installed version is a pre-release (e.g. `0.0.35a1`),
-    pre-release versions on PyPI are included in the comparison so alpha
-    testers are notified of newer alphas and the eventual stable release.
-    Stable installs only compare against stable PyPI releases.
+    설치된 버전이 시험판(예: `0.0.35a1`)인 경우 PyPI의 시험판 버전이 비교에 포함되므로 알파 테스터에게 최신 알파와 최종 안정 릴리스에 대한
+    알림이 제공됩니다. 안정적인 설치는 안정적인 PyPI 릴리스와만 비교됩니다.
 
-    Args:
-        bypass_cache: Skip the cache and always hit PyPI.
+Args:
+        bypass_cache: 캐시를 건너뛰고 항상 PyPI를 실행하세요.
 
-    Returns:
-        A `(available, latest)` tuple.
+Returns:
+        `(available, latest)` 튜플.
 
-            `available` is `True` when the PyPI version is strictly newer than
-            the installed version; `latest` is the version string (or `None`
-            when the check fails).
+            PyPI 버전이 설치된 버전보다 엄격히 최신인 경우 `available`은 `True`입니다. `latest`는 버전 문자열입니다(또는
+            확인에 실패한 경우 `None`).
+
     """
     try:
         installed = _parse_version(__version__)
@@ -225,13 +221,14 @@ def is_update_available(*, bypass_cache: bool = False) -> tuple[bool, str | None
 
 
 def detect_install_method() -> InstallMethod:
-    """Detect how `deepagents-cli` was installed.
+    """`deepagents-cli`이 어떻게 설치되었는지 감지합니다.
 
-    Checks `sys.prefix` against known paths for uv and Homebrew.
+    uv 및 Homebrew의 알려진 경로와 비교하여 `sys.prefix`을 확인합니다.
 
-    Returns:
-        The detected install method: `'uv'`, `'brew'`, `'pip'`, or `'unknown'`
-            (editable/dev installs).
+Returns:
+        The detected install method: `'uv'`, `'brew'`, `'pip'` 또는 `'unknown'`(편집 가능/개발자
+                                     설치).
+
     """
     from deepagents_cli.config import _is_editable_install
 
@@ -252,14 +249,15 @@ def detect_install_method() -> InstallMethod:
 
 
 def upgrade_command(method: InstallMethod | None = None) -> str:
-    """Return the shell command to upgrade `deepagents-cli`.
+    """`deepagents-cli`을(를) 업그레이드하려면 쉘 명령을 반환하십시오.
 
-    Falls back to the pip command for unrecognized install methods.
+    인식할 수 없는 설치 방법에 대해서는 pip 명령으로 대체합니다.
 
-    Args:
-        method: Install method override.
+Args:
+        method: 설치 방법 재정의.
 
-            Auto-detected if `None`.
+            `None`인 경우 자동 감지됩니다.
+
     """
     if method is None:
         method = detect_install_method()
@@ -267,13 +265,13 @@ def upgrade_command(method: InstallMethod | None = None) -> str:
 
 
 async def perform_upgrade() -> tuple[bool, str]:
-    """Attempt to upgrade `deepagents-cli` using the detected install method.
+    """감지된 설치 방법을 사용하여 `deepagents-cli` 업그레이드를 시도합니다.
 
-    Only tries the detected method — does not fall back to other package
-    managers to avoid cross-environment contamination.
+    감지된 방법만 시도합니다. 환경 간 오염을 피하기 위해 다른 패키지 관리자에게 의존하지 않습니다.
 
-    Returns:
-        `(success, output)` — *output* is the combined stdout/stderr.
+Returns:
+        `(success, output)` — *출력*은 결합된 stdout/stderr입니다.
+
     """
     method = detect_install_method()
     if method == "unknown":
@@ -324,12 +322,12 @@ async def perform_upgrade() -> tuple[bool, str]:
 
 
 def is_update_check_enabled() -> bool:
-    """Return whether update checks are enabled.
+    """업데이트 확인이 활성화되어 있는지 여부를 반환합니다.
 
-    Checks `DEEPAGENTS_CLI_NO_UPDATE_CHECK` env var and the `[update].check` key
-    in `config.toml`.
+    `DEEPAGENTS_CLI_NO_UPDATE_CHECK` env var 및 `config.toml`의 `[update].check` 키를 확인합니다.
 
-    Defaults to enabled.
+    기본값은 활성화입니다.
+
     """
     from deepagents_cli._env_vars import NO_UPDATE_CHECK
 
@@ -339,14 +337,15 @@ def is_update_check_enabled() -> bool:
 
 
 def is_auto_update_enabled() -> bool:
-    """Return whether auto-update is enabled.
+    """자동 업데이트 활성화 여부를 반환합니다.
 
-    Opt-in via `DEEPAGENTS_CLI_AUTO_UPDATE=1` env var or
-    `[update].auto_update = true` in `config.toml`.
+    `DEEPAGENTS_CLI_AUTO_UPDATE=1` env var 또는 `config.toml`의 `[update].auto_update =
+    true`을 통해 선택하세요.
 
-    Defaults to `False`.
+    기본값은 `False`입니다.
 
-    Always disabled for editable installs.
+    편집 가능한 설치의 경우 항상 비활성화됩니다.
+
     """
     from deepagents_cli._env_vars import AUTO_UPDATE
     from deepagents_cli.config import _is_editable_install
@@ -359,12 +358,13 @@ def is_auto_update_enabled() -> bool:
 
 
 def set_auto_update(enabled: bool) -> None:
-    """Persist the auto-update preference to `config.toml`.
+    """`config.toml`에 대한 자동 업데이트 기본 설정을 유지합니다.
 
-    Writes `[update].auto_update` so the setting survives across sessions.
+    설정이 세션 전반에 걸쳐 유지되도록 `[update].auto_update`을 작성합니다.
 
-    Args:
-        enabled: Whether auto-update should be enabled.
+Args:
+        enabled: 자동 업데이트를 활성화해야 하는지 여부입니다.
+
     """
     import contextlib
     import tempfile
@@ -395,10 +395,11 @@ def set_auto_update(enabled: bool) -> None:
 
 
 def _read_update_config() -> dict[str, bool]:
-    """Read `[update]` section from `config.toml`.
+    """`config.toml`에서 `[update]` 섹션을 읽어보세요.
 
-    Returns:
-        A dict of boolean config values, empty on missing/unreadable file.
+Returns:
+        누락되거나 읽을 수 없는 파일에서는 비어 있는 부울 구성 값의 사전입니다.
+
     """
     try:
         if not DEFAULT_CONFIG_PATH.exists():
@@ -418,7 +419,7 @@ def _read_update_config() -> dict[str, bool]:
 
 
 def get_seen_version() -> str | None:
-    """Return the last version the user saw the "what's new" banner for."""
+    """사용자가 "새로운 기능" 배너를 본 마지막 버전을 반환합니다."""
     try:
         if SEEN_VERSION_FILE.exists():
             data = json.loads(SEEN_VERSION_FILE.read_text(encoding="utf-8"))
@@ -429,7 +430,7 @@ def get_seen_version() -> str | None:
 
 
 def mark_version_seen(version: str) -> None:
-    """Record that the user has seen the "what's new" banner for *version*."""
+    """사용자가 *버전*에 대한 "새로운 기능" 배너를 보았다고 기록합니다."""
     try:
         SEEN_VERSION_FILE.parent.mkdir(parents=True, exist_ok=True)
         SEEN_VERSION_FILE.write_text(
@@ -441,7 +442,7 @@ def mark_version_seen(version: str) -> None:
 
 
 def should_show_whats_new() -> bool:
-    """Return `True` if this is the first launch on a newer version."""
+    """최신 버전을 처음 실행하는 경우 `True`을 반환합니다."""
     seen = get_seen_version()
     if seen is None:
         # First run ever — mark current as seen, don't show banner.

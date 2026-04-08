@@ -1,5 +1,4 @@
-"""Optional integration points used by the `deepagents-cli` runtime.
+"""`deepagents-cli` 출전에서 사용되는 통합 지원입니다.
 
-These modules hide provider-specific setup behind a small internal interface so
-the rest of the CLI can reason about integrations at a higher level.
+이러한 모듈은 작은 내부 인터페이스 외부 공급자 별 설정을 숨기며 나머지 CLI는 더 높은 수준에서 통합을 가능하게 할 수 있습니다.
 """

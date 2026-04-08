@@ -1,8 +1,7 @@
-"""Read and format thread data from LangGraph checkpoint storage.
+"""LangGraph 체크포인트 저장소에서 스레드 데이터를 읽고 형식을 지정합니다.
 
-The session helpers query the SQLite-backed checkpointer, derive cached thread
-metadata, and provide the presentation-layer data used by `/threads` and the
-Textual thread picker.
+세션 도우미는 SQLite 지원 체크포인터를 쿼리하고, 캐시된 스레드 메타데이터를 파생하고, `/threads` 및 텍스트 스레드 선택기에서 사용하는
+프레젠테이션 계층 데이터를 제공합니다.
 """
 
 from __future__ import annotations
@@ -41,10 +40,11 @@ _MAX_RECENT_THREADS_CACHE_KEYS = 16
 # ---------------------------------------------------------------------------
 
 def _patch_aiosqlite() -> None:
-    """Patch aiosqlite.Connection with `is_alive()` if missing.
+    """누락된 경우 aiosqlite.Connection을 `is_alive()`로 패치하세요.
 
-    Required by langgraph-checkpoint>=2.1.0.
-    See: https://github.com/langchain-ai/langgraph/issues/6583
+    langgraph-checkpoint>=2.1.0에서 필요합니다. 참조:
+    https://github.com/langchain-ai/langgraph/issues/6583
+
     """
     global _aiosqlite_patched  # noqa: PLW0603  # Module-level flag requires global statement
     if _aiosqlite_patched:
@@ -55,10 +55,11 @@ def _patch_aiosqlite() -> None:
     if not hasattr(_aiosqlite.Connection, "is_alive"):
 
         def _is_alive(self: _aiosqlite.Connection) -> bool:
-            """Check if the connection is still alive.
+            """연결이 아직 살아 있는지 확인하십시오.
 
             Returns:
-                True if connection is alive, False otherwise.
+                연결이 살아 있으면 True이고, 그렇지 않으면 False입니다.
+
             """
             return bool(self._running and self._connection is not None)
 
@@ -72,13 +73,13 @@ def _patch_aiosqlite() -> None:
 
 @asynccontextmanager
 async def _connect() -> AsyncIterator[aiosqlite.Connection]:
-    """Import aiosqlite, apply the compatibility patch, and connect.
+    """aiosqlite를 가져와서 호환성 패치를 적용하고 연결합니다.
 
-    Centralizes the deferred import + patch + connect sequence used by every
-    database function in this module.
+    이 모듈의 모든 데이터베이스 기능에서 사용되는 지연된 가져오기 + 패치 + 연결 순서를 중앙 집중화합니다.
 
     Yields:
-        An open aiosqlite connection to the sessions database.
+        세션 데이터베이스에 대한 열린 aiosqlite 연결입니다.
+
     """
     import aiosqlite as _aiosqlite
 
@@ -89,44 +90,44 @@ async def _connect() -> AsyncIterator[aiosqlite.Connection]:
 
 
 class ThreadInfo(TypedDict):
-    """Thread metadata returned by `list_threads`."""
+    """`list_threads`에서 반환된 스레드 메타데이터입니다."""
 
     thread_id: str
-    """Unique identifier for the thread."""
+    """스레드의 고유 식별자입니다."""
 
     agent_name: str | None
-    """Name of the agent that owns the thread."""
+    """스레드를 소유한 에이전트의 이름입니다."""
 
     updated_at: str | None
-    """ISO timestamp of the last update."""
+    """마지막 업데이트의 ISO 타임스탬프입니다."""
 
     created_at: NotRequired[str | None]
-    """ISO timestamp of thread creation (earliest checkpoint)."""
+    """스레드 생성의 ISO 타임스탬프(가장 빠른 체크포인트)"""
 
     git_branch: NotRequired[str | None]
-    """Git branch active when the thread was created."""
+    """스레드가 생성될 때 Git 분기가 활성화됩니다."""
 
     initial_prompt: NotRequired[str | None]
-    """First human message in the thread."""
+    """스레드의 첫 번째 인간 메시지입니다."""
 
     message_count: NotRequired[int]
-    """Number of messages in the thread."""
+    """스레드의 메시지 수입니다."""
 
     latest_checkpoint_id: NotRequired[str | None]
-    """Most recent checkpoint ID for cache invalidation."""
+    """캐시 무효화에 대한 최신 체크포인트 ID입니다."""
 
     cwd: NotRequired[str | None]
-    """Working directory where the thread was last used."""
+    """스레드가 마지막으로 사용된 작업 디렉터리입니다."""
 
 
 class _CheckpointSummary(NamedTuple):
-    """Structured data extracted from a thread's latest checkpoint."""
+    """스레드의 최신 체크포인트에서 추출된 구조화된 데이터입니다."""
 
     message_count: int
-    """Number of messages in the latest checkpoint."""
+    """최신 체크포인트의 메시지 수입니다."""
 
     initial_prompt: str | None
-    """First human prompt recovered from the latest checkpoint."""
+    """최신 체크포인트에서 최초의 인간 메시지가 복구되었습니다."""
 
 
 # ---------------------------------------------------------------------------
@@ -134,13 +135,14 @@ class _CheckpointSummary(NamedTuple):
 # ---------------------------------------------------------------------------
 
 def format_timestamp(iso_timestamp: str | None) -> str:
-    """Format ISO timestamp for display (e.g., 'Dec 30, 6:10pm').
+    """표시할 ISO 타임스탬프 형식을 지정합니다(예: '12월 30일, 오후 6시 10분').
 
     Args:
-        iso_timestamp: ISO 8601 timestamp string, or `None`.
+        iso_timestamp: ISO 8601 타임스탬프 문자열 또는 `None`.
 
     Returns:
-        Formatted timestamp string or empty string if invalid.
+        형식이 지정된 타임스탬프 문자열이거나 유효하지 않은 경우 빈 문자열입니다.
+
     """
     if not iso_timestamp:
         return ""
@@ -162,13 +164,14 @@ def format_timestamp(iso_timestamp: str | None) -> str:
 
 
 def format_relative_timestamp(iso_timestamp: str | None) -> str:
-    """Format ISO timestamp as relative time (e.g., '5m ago', '2h ago').
+    """ISO 타임스탬프를 상대 시간(예: '5분 전', '2시간 전')으로 형식화합니다.
 
     Args:
-        iso_timestamp: ISO 8601 timestamp string, or `None`.
+        iso_timestamp: ISO 8601 타임스탬프 문자열 또는 `None`.
 
     Returns:
-        Relative time string or empty string if invalid.
+        유효하지 않은 경우 상대 시간 문자열이거나 빈 문자열입니다.
+
     """
     if not iso_timestamp:
         return ""
@@ -205,16 +208,16 @@ def format_relative_timestamp(iso_timestamp: str | None) -> str:
 
 
 def format_path(path: str | None) -> str:
-    """Format a filesystem path for display.
+    """표시할 파일 시스템 경로 형식을 지정합니다.
 
-    Paths under the user's home directory are shown relative to `~`.
-    All other paths are returned as-is.
+    사용자 홈 디렉토리 아래의 경로는 `~`을 기준으로 표시됩니다. 다른 모든 경로는 있는 그대로 반환됩니다.
 
     Args:
-        path: Absolute filesystem path, or `None`.
+        path: 절대 파일 시스템 경로 또는 `None`.
 
     Returns:
-        Formatted path string, or empty string if path is falsy.
+        형식화된 경로 문자열 또는 경로가 거짓인 경우 빈 문자열입니다.
+
     """
     if not path:
         return ""
@@ -238,13 +241,13 @@ _db_path: Path | None = None
 
 
 def get_db_path() -> Path:
-    """Get path to global database.
+    """글로벌 데이터베이스에 대한 경로를 가져옵니다.
 
-    The result is cached after the first successful call to avoid repeated
-    filesystem operations.
+    반복되는 파일 시스템 작업을 피하기 위해 첫 번째 성공적인 호출 후에 결과가 캐시됩니다.
 
     Returns:
-        Path to the SQLite database file.
+        SQLite 데이터베이스 파일의 경로입니다.
+
     """
     global _db_path  # noqa: PLW0603  # Module-level cache requires global statement
     if _db_path is not None:
@@ -256,10 +259,11 @@ def get_db_path() -> Path:
 
 
 def generate_thread_id() -> str:
-    """Generate a new thread ID as a full UUID7 string.
+    """전체 UUID7 문자열로 새 스레드 ID를 생성합니다.
 
     Returns:
-        UUID7 string (time-ordered for natural sort by creation time).
+        UUID7 문자열(생성 시간에 따른 자연 정렬을 위해 시간 순서).
+
     """
     from uuid_utils import uuid7
 
@@ -271,10 +275,11 @@ def generate_thread_id() -> str:
 # ---------------------------------------------------------------------------
 
 async def _table_exists(conn: aiosqlite.Connection, table: str) -> bool:
-    """Check if a table exists in the database.
+    """데이터베이스에 테이블이 있는지 확인하십시오.
 
     Returns:
-        True if table exists, False otherwise.
+        테이블이 존재하면 True, 그렇지 않으면 False입니다.
+
     """
     query = "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?"
     async with conn.execute(query, (table,)) as cursor:
@@ -288,22 +293,23 @@ async def list_threads(
     sort_by: str = "updated",
     branch: str | None = None,
 ) -> list[ThreadInfo]:
-    """List threads from checkpoints table.
+    """체크포인트 테이블의 스레드를 나열합니다.
 
     Args:
-        agent_name: Optional filter by agent name.
-        limit: Maximum number of threads to return.
-        include_message_count: Whether to include message counts.
-        sort_by: Sort field — `"updated"` or `"created"`.
-        branch: Optional filter by git branch name.
+        agent_name: 에이전트 이름으로 선택적으로 필터링합니다.
+        limit: 반환할 최대 스레드 수입니다.
+        include_message_count: 메시지 수를 포함할지 여부입니다.
+        sort_by: 정렬 필드 — `"updated"` 또는 `"created"`.
+        branch: Git 브랜치 이름으로 선택적 필터링.
 
     Returns:
-        List of `ThreadInfo` dicts with `thread_id`, `agent_name`,
-            `updated_at`, `created_at`, `latest_checkpoint_id`, `git_branch`,
-            `cwd`, and optionally `message_count`.
+        `thread_id`, `agent_name`이 포함된 `ThreadInfo` 사전 목록
+            `updated_at`, `created_at`, `latest_checkpoint_id`, `git_branch`, `cwd` 및
+            선택적으로 `message_count`.
 
     Raises:
-        ValueError: If `sort_by` is not `"updated"` or `"created"`.
+        ValueError: `sort_by`이(가) `"updated"` 또는 `"created"`이 아닌 경우.
+
     """
     async with _connect() as conn:
         if not await _table_exists(conn, "checkpoints"):
@@ -369,16 +375,17 @@ async def list_threads(
 
 
 async def populate_thread_message_counts(threads: list[ThreadInfo]) -> list[ThreadInfo]:
-    """Populate `message_count` for an existing thread list.
+    """기존 스레드 목록에 대해 `message_count`을(를) 채웁니다.
 
-    This is used by the `/threads` modal to render rows quickly, then backfill
-    counts in the background without issuing a second thread-list query.
+    이는 `/threads` 모달에서 행을 빠르게 렌더링한 다음 두 번째 스레드 목록 쿼리를 실행하지 않고 백그라운드에서 백필 계산을 수행하는 데
+    사용됩니다.
 
     Args:
-        threads: Thread rows to enrich in place.
+        threads: 제자리에 보강할 스레드 행입니다.
 
     Returns:
-        The same list object with `message_count` values populated.
+        `message_count` 값이 채워진 동일한 목록 개체입니다.
+
     """
     if not threads:
         return threads
@@ -394,18 +401,18 @@ async def populate_thread_checkpoint_details(
     include_message_count: bool = True,
     include_initial_prompt: bool = True,
 ) -> list[ThreadInfo]:
-    """Populate checkpoint-derived fields for an existing thread list.
+    """기존 스레드 목록에 대한 체크포인트 파생 필드를 채웁니다.
 
-    This is used by the `/threads` modal to enrich rows in one background pass,
-    so the latest checkpoint is fetched and deserialized at most once per row.
+    이는 `/threads` 모달에서 하나의 백그라운드 패스에서 행을 강화하는 데 사용되므로 최신 체크포인트는 행당 최대 한 번 가져오고 역직렬화됩니다.
 
     Args:
-        threads: Thread rows to enrich in place.
-        include_message_count: Whether to populate `message_count`.
-        include_initial_prompt: Whether to populate `initial_prompt`.
+        threads: 제자리에 보강할 스레드 행입니다.
+        include_message_count: `message_count`을 채울지 여부입니다.
+        include_initial_prompt: `initial_prompt`을 채울지 여부입니다.
 
     Returns:
-        The same list object with missing checkpoint-derived fields populated.
+        누락된 체크포인트 파생 필드가 채워진 동일한 목록 개체입니다.
+
     """
     if not threads or (not include_message_count and not include_initial_prompt):
         return threads
@@ -421,14 +428,14 @@ async def populate_thread_checkpoint_details(
 
 
 async def prewarm_thread_message_counts(limit: int | None = None) -> None:
-    """Prewarm thread selector cache for faster `/threads` open.
+    """더 빠른 `/threads` 열기를 위한 사전 준비 스레드 선택기 캐시입니다.
 
-    Fetches a bounded list of recent threads and populates checkpoint-derived
-    fields for currently visible columns into the in-memory cache. Intended to
-    run in a background worker during app startup.
+    최근 스레드의 제한된 목록을 가져오고 현재 표시되는 열에 대한 검사점 파생 필드를 메모리 내 캐시에 채웁니다. 앱 시작 중에 백그라운드 작업자에서
+    실행되도록 되어 있습니다.
 
     Args:
-        limit: Maximum threads to prewarm. Uses `get_thread_limit()` when `None`.
+        limit: 예열할 최대 스레드입니다. `None`인 경우 `get_thread_limit()`을 사용합니다.
+
     """
     thread_limit = limit if limit is not None else get_thread_limit()
     if thread_limit < 1:
@@ -459,14 +466,15 @@ def get_cached_threads(
     agent_name: str | None = None,
     limit: int | None = None,
 ) -> list[ThreadInfo] | None:
-    """Get cached recent threads, if available.
+    """가능한 경우 캐시된 최근 스레드를 가져옵니다.
 
     Args:
-        agent_name: Optional agent-name filter key.
-        limit: Maximum rows requested. Uses `get_thread_limit()` when `None`.
+        agent_name: 선택적 에이전트 이름 필터 키입니다.
+        limit: 요청된 최대 행입니다. `None`인 경우 `get_thread_limit()`을 사용합니다.
 
     Returns:
-        Copy of cached rows when available, otherwise `None`.
+        사용 가능한 경우 캐시된 행의 복사본, 그렇지 않은 경우 `None`.
+
     """
 
     def _copy_with_cached_counts(rows: list[ThreadInfo]) -> list[ThreadInfo]:
@@ -498,13 +506,14 @@ def get_cached_threads(
 
 
 def apply_cached_thread_message_counts(threads: list[ThreadInfo]) -> int:
-    """Apply cached message counts onto thread rows when freshness matches.
+    """최신 상태가 일치하면 캐시된 메시지 수를 스레드 행에 적용합니다.
 
     Args:
-        threads: Thread rows to mutate in place.
+        threads: 제자리에서 변경할 행을 스레드합니다.
 
     Returns:
-        Number of rows that were populated from cache.
+        캐시에서 채워진 행 수입니다.
+
     """
     populated = 0
     for thread in threads:
@@ -521,13 +530,14 @@ def apply_cached_thread_message_counts(threads: list[ThreadInfo]) -> int:
 
 
 def apply_cached_thread_initial_prompts(threads: list[ThreadInfo]) -> int:
-    """Apply cached initial prompts onto thread rows when freshness matches.
+    """최신 상태가 일치하면 캐시된 초기 프롬프트를 스레드 행에 적용합니다.
 
     Args:
-        threads: Thread rows to mutate in place.
+        threads: 제자리에서 변경할 행을 스레드합니다.
 
     Returns:
-        Number of rows that were populated from cache.
+        캐시에서 채워진 행 수입니다.
+
     """
     populated = 0
     for thread in threads:
@@ -547,7 +557,7 @@ async def _populate_message_counts(
     conn: aiosqlite.Connection,
     threads: list[ThreadInfo],
 ) -> None:
-    """Fill `message_count` on thread rows with cache-aware lookup."""
+    """캐시 인식 조회를 사용하여 스레드 행에 `message_count`을 채웁니다."""
     await _populate_checkpoint_fields(
         conn,
         threads,
@@ -557,7 +567,7 @@ async def _populate_message_counts(
 
 
 async def _get_jsonplus_serializer() -> JsonPlusSerializer:
-    """Return a cached JsonPlus serializer, loading it off the UI loop."""
+    """캐시된 JsonPlus 직렬 변환기를 반환하여 UI 루프에서 로드합니다."""
     global _jsonplus_serializer  # noqa: PLW0603  # Module-level cache requires global statement
     if _jsonplus_serializer is not None:
         return _jsonplus_serializer
@@ -568,10 +578,11 @@ async def _get_jsonplus_serializer() -> JsonPlusSerializer:
 
 
 def _create_jsonplus_serializer() -> JsonPlusSerializer:
-    """Import and create a JsonPlus serializer.
+    """JsonPlus 직렬 변환기를 가져오고 생성합니다.
 
     Returns:
-        A ready `JsonPlusSerializer` instance.
+        준비된 `JsonPlusSerializer` 인스턴스.
+
     """
     from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
@@ -579,7 +590,7 @@ def _create_jsonplus_serializer() -> JsonPlusSerializer:
 
 
 def _cache_message_count(thread_id: str, freshness: str | None, count: int) -> None:
-    """Cache a thread's message count with a freshness token."""
+    """신선도 토큰을 사용하여 스레드의 메시지 수를 캐시합니다."""
     if len(_message_count_cache) >= _MAX_MESSAGE_COUNT_CACHE and (
         thread_id not in _message_count_cache
     ):
@@ -593,7 +604,7 @@ def _cache_initial_prompt(
     freshness: str | None,
     initial_prompt: str | None,
 ) -> None:
-    """Cache a thread's initial prompt with a freshness token."""
+    """신선도 토큰을 사용하여 스레드의 초기 프롬프트를 캐시합니다."""
     if len(_initial_prompt_cache) >= _MAX_INITIAL_PROMPT_CACHE and (
         thread_id not in _initial_prompt_cache
     ):
@@ -603,7 +614,7 @@ def _cache_initial_prompt(
 
 
 def _thread_freshness(thread: ThreadInfo) -> str | None:
-    """Return a cache freshness token for a thread row."""
+    """스레드 행에 대한 캐시 신선도 토큰을 반환합니다."""
     return thread.get("latest_checkpoint_id") or thread.get("updated_at")
 
 
@@ -612,7 +623,7 @@ def _cache_recent_threads(
     limit: int,
     threads: list[ThreadInfo],
 ) -> None:
-    """Store a copy of recent thread rows for fast selector startup."""
+    """빠른 선택기 시작을 위해 최근 스레드 행의 복사본을 저장합니다."""
     key = (agent_name, max(1, limit))
     if len(_recent_threads_cache) >= _MAX_RECENT_THREADS_CACHE_KEYS and (
         key not in _recent_threads_cache
@@ -622,7 +633,7 @@ def _cache_recent_threads(
 
 
 def _copy_threads(threads: list[ThreadInfo]) -> list[ThreadInfo]:
-    """Return shallow-copied thread rows."""
+    """얕은 복사된 스레드 행을 반환합니다."""
     return [ThreadInfo(**thread) for thread in threads]
 
 
@@ -631,19 +642,19 @@ async def _count_messages_from_checkpoint(
     thread_id: str,
     serde: JsonPlusSerializer,
 ) -> int:
-    """Count messages from the most recent checkpoint blob.
+    """가장 최근의 체크포인트 Blob에서 메시지 수를 셉니다.
 
-    With `durability='exit'`, messages are stored in the checkpoint blob, not in
-    the writes table. This function deserializes the checkpoint and counts the
-    messages in channel_values.
+    `durability='exit'`을 사용하면 메시지가 쓰기 테이블이 아닌 체크포인트 Blob에 저장됩니다. 이 함수는 체크포인트를 역직렬화하고
+    채널_값의 메시지 수를 셉니다.
 
     Args:
-        conn: Database connection.
-        thread_id: The thread ID to count messages for.
-        serde: Serializer for decoding checkpoint data.
+        conn: 데이터베이스 연결.
+        thread_id: 메시지를 계산할 스레드 ID입니다.
+        serde: 체크포인트 데이터 디코딩을 위한 직렬 변환기입니다.
 
     Returns:
-        Number of messages in the checkpoint, or 0 if not found.
+        체크포인트의 메시지 수, 또는 찾을 수 없는 경우 0입니다.
+
     """
     return (await _load_latest_checkpoint_summary(conn, thread_id, serde)).message_count
 
@@ -653,25 +664,27 @@ async def _extract_initial_prompt(
     thread_id: str,
     serde: JsonPlusSerializer,
 ) -> str | None:
-    """Extract the first human message from the latest checkpoint.
+    """최신 체크포인트에서 첫 번째 사람 메시지를 추출합니다.
 
     Args:
-        conn: Database connection.
-        thread_id: The thread ID to extract from.
-        serde: Serializer for decoding checkpoint data.
+        conn: 데이터베이스 연결.
+        thread_id: 추출할 스레드 ID입니다.
+        serde: 체크포인트 데이터 디코딩을 위한 직렬 변환기입니다.
 
     Returns:
-        First human message content, or None if not found.
+        첫 번째 사람의 메시지 내용입니다. 찾을 수 없으면 없음입니다.
+
     """
     summary = await _load_latest_checkpoint_summary(conn, thread_id, serde)
     return summary.initial_prompt
 
 
 async def populate_thread_initial_prompts(threads: list[ThreadInfo]) -> None:
-    """Populate `initial_prompt` for thread rows in the background.
+    """백그라운드에서 스레드 행에 대해 `initial_prompt`을 채웁니다.
 
     Args:
-        threads: Thread rows to enrich in place.
+        threads: 제자리에 보강할 스레드 행입니다.
+
     """
     if not threads:
         return
@@ -692,7 +705,7 @@ async def _populate_checkpoint_fields(
     include_message_count: bool,
     include_initial_prompt: bool,
 ) -> None:
-    """Populate checkpoint-derived thread fields with a batched latest-row pass."""
+    """일괄 처리된 최신 행 패스로 체크포인트 파생 스레드 필드를 채웁니다."""
     serde = await _get_jsonplus_serializer()
 
     # Phase 1: apply cache hits, collect threads that need DB fetch.
@@ -744,12 +757,11 @@ async def _populate_checkpoint_fields(
 
 
 _SQLITE_MAX_VARIABLE_NUMBER = 500
-"""Max `?` placeholders per SQL query.
+"""SQL 쿼리당 최대 `?` 자리 표시자.
 
-SQLite limits how many `?` parameters a single query can have (default 999,
-lower on some builds). If a user accumulates hundreds of threads and the
-`/threads` modal fetches them all at once, the `IN (?, ?, ...)` clause could
-exceed that limit. We chunk to this size to stay safe.
+SQLite는 단일 쿼리가 가질 수 있는 `?` 매개변수 수를 제한합니다(기본값은 999, 일부 빌드에서는 더 낮음). 사용자가 수백 개의 스레드를 축적하고
+`/threads` 모달이 이를 모두 한 번에 가져오는 경우 `IN (?, ?, ...)` 절이 해당 제한을 초과할 수 있습니다. 안전을 유지하기 위해 이
+크기로 청크합니다.
 """
 
 
@@ -758,18 +770,18 @@ async def _load_latest_checkpoint_summaries_batch(
     thread_ids: list[str],
     serde: JsonPlusSerializer,
 ) -> dict[str, _CheckpointSummary]:
-    """Batch-load the latest checkpoint summary for multiple threads.
+    """여러 스레드에 대한 최신 체크포인트 요약을 일괄 로드합니다.
 
-    Uses a window function to fetch the latest checkpoint per thread, issuing
-    one query per chunk for SQLite variable-limit safety.
+    창 함수를 사용하여 스레드당 최신 체크포인트를 가져오고 SQLite 변수 제한 안전을 위해 청크당 하나의 쿼리를 실행합니다.
 
     Args:
-        conn: Database connection.
-        thread_ids: Thread IDs to look up.
-        serde: Serializer for decoding checkpoint blobs.
+        conn: 데이터베이스 연결.
+        thread_ids: 조회할 스레드 ID입니다.
+        serde: 체크포인트 Blob을 디코딩하기 위한 직렬 변환기입니다.
 
     Returns:
-        Dict mapping thread IDs to their checkpoint summaries.
+        스레드 ID를 체크포인트 요약에 매핑하는 Dict입니다.
+
     """
     if not thread_ids:
         return {}
@@ -820,10 +832,11 @@ async def _load_latest_checkpoint_summary(
     thread_id: str,
     serde: JsonPlusSerializer,
 ) -> _CheckpointSummary:
-    """Load checkpoint-derived summary data from the latest checkpoint row.
+    """최신 체크포인트 행에서 체크포인트 파생 요약 데이터를 로드합니다.
 
     Returns:
-        Message-count and prompt data extracted from the latest checkpoint row.
+        최신 체크포인트 행에서 추출된 메시지 수 및 프롬프트 데이터입니다.
+
     """
     query = """
         SELECT type, checkpoint
@@ -853,10 +866,11 @@ async def _load_latest_checkpoint_summary(
 
 
 def _summarize_checkpoint(data: object) -> _CheckpointSummary:
-    """Extract message count and initial human prompt from checkpoint data.
+    """체크포인트 데이터에서 메시지 수와 초기 인간 프롬프트를 추출합니다.
 
     Returns:
-        Structured summary for the decoded checkpoint payload.
+        디코딩된 체크포인트 페이로드에 대한 구조화된 요약입니다.
+
     """
     messages = _checkpoint_messages(data)
     return _CheckpointSummary(
@@ -866,7 +880,7 @@ def _summarize_checkpoint(data: object) -> _CheckpointSummary:
 
 
 def _checkpoint_messages(data: object) -> list[object]:
-    """Return checkpoint messages when the decoded payload has the expected shape."""
+    """디코딩된 페이로드가 예상한 모양이면 체크포인트 메시지를 반환합니다."""
     if not isinstance(data, dict):
         return []
 
@@ -884,7 +898,7 @@ def _checkpoint_messages(data: object) -> list[object]:
 
 
 def _initial_prompt_from_messages(messages: list[object]) -> str | None:
-    """Return the first human message content from a checkpoint message list."""
+    """체크포인트 메시지 목록에서 첫 번째 사람 메시지 내용을 반환합니다."""
     for msg in messages:
         if getattr(msg, "type", None) == "human":
             return _coerce_prompt_text(getattr(msg, "content", None))
@@ -892,10 +906,11 @@ def _initial_prompt_from_messages(messages: list[object]) -> str | None:
 
 
 def _coerce_prompt_text(content: object) -> str | None:
-    """Normalize checkpoint message content into displayable text.
+    """체크포인트 메시지 내용을 표시 가능한 텍스트로 정규화합니다.
 
     Returns:
-        Displayable prompt text, or `None` when the content is empty.
+        표시 가능한 프롬프트 텍스트 또는 내용이 비어 있는 경우 `None`.
+
     """
     if isinstance(content, str):
         return content
@@ -920,10 +935,11 @@ def _coerce_prompt_text(content: object) -> str | None:
 # ---------------------------------------------------------------------------
 
 async def get_most_recent(agent_name: str | None = None) -> str | None:
-    """Get most recent thread_id, optionally filtered by agent.
+    """선택적으로 에이전트별로 필터링된 최신 thread_id를 가져옵니다.
 
     Returns:
-        Most recent thread_id or None if no threads exist.
+        가장 최근의 thread_id 또는 스레드가 없는 경우 None입니다.
+
     """
     async with _connect() as conn:
         if not await _table_exists(conn, "checkpoints"):
@@ -949,10 +965,11 @@ async def get_most_recent(agent_name: str | None = None) -> str | None:
 
 
 async def get_thread_agent(thread_id: str) -> str | None:
-    """Get agent_name for a thread.
+    """스레드에 대한 Agent_name을 가져옵니다.
 
     Returns:
-        Agent name associated with the thread, or None if not found.
+        스레드와 연관된 에이전트 이름이거나, 찾을 수 없는 경우 없음입니다.
+
     """
     async with _connect() as conn:
         if not await _table_exists(conn, "checkpoints"):
@@ -970,10 +987,11 @@ async def get_thread_agent(thread_id: str) -> str | None:
 
 
 async def thread_exists(thread_id: str) -> bool:
-    """Check if a thread exists in checkpoints.
+    """체크포인트에 스레드가 있는지 확인합니다.
 
     Returns:
-        True if thread exists, False otherwise.
+        스레드가 존재하면 True이고, 그렇지 않으면 False입니다.
+
     """
     async with _connect() as conn:
         if not await _table_exists(conn, "checkpoints"):
@@ -986,14 +1004,15 @@ async def thread_exists(thread_id: str) -> bool:
 
 
 async def find_similar_threads(thread_id: str, limit: int = 3) -> list[str]:
-    """Find threads whose IDs start with the given prefix.
+    """주어진 접두어로 시작하는 ID를 가진 스레드를 찾습니다.
 
     Args:
-        thread_id: Prefix to match against thread IDs.
-        limit: Maximum number of matching threads to return.
+        thread_id: 스레드 ID와 일치하는 접두사입니다.
+        limit: 반환할 일치 스레드의 최대 수입니다.
 
     Returns:
-        List of thread IDs that begin with the given prefix.
+        지정된 접두사로 시작하는 스레드 ID 목록입니다.
+
     """
     async with _connect() as conn:
         if not await _table_exists(conn, "checkpoints"):
@@ -1013,10 +1032,11 @@ async def find_similar_threads(thread_id: str, limit: int = 3) -> list[str]:
 
 
 async def delete_thread(thread_id: str) -> bool:
-    """Delete thread checkpoints.
+    """스레드 체크포인트를 삭제합니다.
 
     Returns:
-        True if thread was deleted, False if not found.
+        스레드가 삭제된 경우 True이고, 스레드가 없으면 False입니다.
+
     """
     async with _connect() as conn:
         if not await _table_exists(conn, "checkpoints"):
@@ -1039,10 +1059,11 @@ async def delete_thread(thread_id: str) -> bool:
 
 @asynccontextmanager
 async def get_checkpointer() -> AsyncIterator[AsyncSqliteSaver]:
-    """Get AsyncSqliteSaver for the global database.
+    """글로벌 데이터베이스용 AsyncSqliteSaver를 가져옵니다.
 
     Yields:
-        AsyncSqliteSaver instance for checkpoint persistence.
+        체크포인트 지속성을 위한 AsyncSqliteSaver 인스턴스.
+
     """
     from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
@@ -1056,13 +1077,13 @@ _DEFAULT_THREAD_LIMIT = 20
 
 
 def get_thread_limit() -> int:
-    """Read the thread listing limit from `DA_CLI_RECENT_THREADS`.
+    """`DA_CLI_RECENT_THREADS`에서 스레드 목록 제한을 읽습니다.
 
-    Falls back to `_DEFAULT_THREAD_LIMIT` when the variable is unset or contains
-    a non-integer value. The result is clamped to a minimum of 1.
+    변수가 설정되지 않거나 정수가 아닌 값을 포함하는 경우 `_DEFAULT_THREAD_LIMIT`로 대체됩니다. 결과는 최소 1로 고정됩니다.
 
     Returns:
-        Number of threads to display.
+        표시할 스레드 수입니다.
+
     """
     import os
 
@@ -1090,28 +1111,27 @@ async def list_threads_command(
     *,
     output_format: OutputFormat = "text",
 ) -> None:
-    """CLI handler for `deepagents threads list`.
+    """`deepagents threads list`에 대한 CLI 처리기.
 
-    Fetches and displays a table of recent conversation threads, optionally
-    filtered by agent name or git branch.
+    최근 대화 스레드 테이블을 가져오고 표시하며 선택적으로 에이전트 이름 또는 git 분기로 필터링됩니다.
 
     Args:
-        agent_name: Only show threads belonging to this agent.
+        agent_name: 이 에이전트에 속한 스레드만 표시합니다.
 
-            When `None`, threads for all agents are shown.
-        limit: Maximum number of threads to display.
+            `None`인 경우 모든 에이전트에 대한 스레드가 표시됩니다.
+        limit: 표시할 최대 스레드 수입니다.
 
-            When `None`, reads from `DA_CLI_RECENT_THREADS` or falls back to
-            the default.
-        sort_by: Sort field — `"updated"` or `"created"`.
+            `None`인 경우 `DA_CLI_RECENT_THREADS`에서 읽거나 기본값으로 돌아갑니다.
+        sort_by: 정렬 필드 — `"updated"` 또는 `"created"`.
 
-            When `None`, reads from config (`~/.deepagents/config.toml`).
-        branch: Only show threads from this git branch.
-        verbose: When `True`, show all columns (branch, created, prompt).
-        relative: Show timestamps as relative time (e.g., '5m ago').
+            `None`인 경우 구성(`~/.deepagents/config.toml`)에서 읽습니다.
+        branch: 이 git 브랜치의 스레드만 표시합니다.
+        verbose: `True`인 경우 모든 열(분기, 생성됨, 프롬프트)을 표시합니다.
+        relative: 타임스탬프를 상대 시간으로 표시합니다(예: '5분 전').
 
-            When `None`, reads from config (`~/.deepagents/config.toml`).
-        output_format: Output format — `'text'` (Rich) or `'json'`.
+            `None`인 경우 구성(`~/.deepagents/config.toml`)에서 읽습니다.
+        output_format: 출력 형식 — `'text'`(Rich) 또는 `'json'`.
+
     """
     from deepagents_cli.model_config import (
         load_thread_relative_time,
@@ -1230,12 +1250,13 @@ async def delete_thread_command(
     dry_run: bool = False,
     output_format: OutputFormat = "text",
 ) -> None:
-    """CLI handler for: deepagents threads delete.
+    """CLI 처리기: deepagents 스레드 삭제.
 
     Args:
-        thread_id: ID of the thread to delete.
-        dry_run: If `True`, print what would happen without making changes.
-        output_format: Output format — `'text'` (Rich) or `'json'`.
+        thread_id: 삭제할 스레드의 ID입니다.
+        dry_run: `True`인 경우 변경하지 않고 어떤 일이 발생하는지 인쇄하세요.
+        output_format: 출력 형식 — `'text'`(Rich) 또는 `'json'`.
+
     """
     if dry_run:
         exists = await thread_exists(thread_id)

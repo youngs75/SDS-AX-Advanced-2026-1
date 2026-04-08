@@ -1,8 +1,7 @@
-"""Build and configure the agent graph used by the CLI.
+"""CLI에서 사용되는 에이전트 그래프를 빌드하고 구성합니다.
 
-This module assembles the model, middleware stack, tools, filesystem backends,
-and optional sandbox integrations into the runnable graph used by both the TUI
-and non-interactive entrypoints.
+이 모듈은 모델, 미들웨어 스택, 도구, 파일 시스템 백엔드 및 선택적 샌드박스 통합을 TUI 및 비대화형 진입점 모두에서 사용되는 실행 가능한 그래프로
+조합합니다.
 """
 
 from __future__ import annotations
@@ -74,35 +73,34 @@ from deepagents_cli.unicode_security import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_AGENT_NAME = "agent"
-"""The default agent name used when no `-a` flag is provided."""
+"""`-a` 플래그가 제공되지 않을 때 사용되는 기본 에이전트 이름입니다."""
 
 REQUIRE_COMPACT_TOOL_APPROVAL: bool = True
-"""When `True`, `compact_conversation` requires HITL approval like other gated tools."""
+"""`True`, `compact_conversation`에는 다른 제한 도구와 마찬가지로 HITL 승인이 필요합니다."""
 
 
 class ShellAllowListMiddleware(AgentMiddleware):
-    """Validate shell commands against an allow-list without HITL interrupts.
+    """HITL 인터럽트 없이 허용 목록에 대해 셸 명령의 유효성을 검사합니다.
 
-    When the agent invokes a shell tool (any tool in `SHELL_TOOL_NAMES`),
-    this middleware checks the command against the configured allow-list
-    **before execution**. Rejected commands are returned as error `ToolMessage`
-    objects — the graph never pauses, so LangSmith traces stay as a single
-    continuous run.
+    에이전트가 셸 도구(`SHELL_TOOL_NAMES`의 모든 도구)를 호출하면 이 미들웨어는 **실행 전에** 구성된 허용 목록과 비교하여 명령을
+    확인합니다. 거부된 명령은 오류 `ToolMessage` 개체로 반환됩니다. 그래프는 절대 일시 중지되지 않으므로 LangSmith 추적은 단일 연속
+    실행으로 유지됩니다.
 
-    Use this middleware in non-interactive mode to avoid the
-    interrupt/resume cycle that fragments traces.
+    추적을 조각화하는 인터럽트/재개 주기를 방지하려면 비대화형 모드에서 이 미들웨어를 사용하십시오.
+
     """
 
     def __init__(self, allow_list: list[str]) -> None:
-        """Initialize with the shell allow-list to validate commands against.
+        """명령의 유효성을 검사하기 위해 셸 허용 목록을 사용하여 초기화합니다.
 
-        Args:
-            allow_list: Allowed command names (e.g. `["ls", "cat", "grep"]`).
-                Must be a non-empty restrictive list — not `SHELL_ALLOW_ALL`.
+Args:
+            allow_list: 허용되는 명령 이름(예: `["ls", "cat", "grep"]`). `SHELL_ALLOW_ALL`이 아닌 비어
+                        있지 않은 제한 목록이어야 합니다.
 
-        Raises:
-            ValueError: If `allow_list` is empty.
-            TypeError: If `allow_list` is the `SHELL_ALLOW_ALL` sentinel.
+Raises:
+            ValueError: `allow_list`이 비어 있는 경우.
+            TypeError: `allow_list`이 `SHELL_ALLOW_ALL` 파수꾼인 경우.
+
         """
         from deepagents_cli.config import SHELL_ALLOW_ALL
 
@@ -119,14 +117,14 @@ class ShellAllowListMiddleware(AgentMiddleware):
         self._allow_list = list(allow_list)
 
     def _validate_tool_call(self, request: ToolCallRequest) -> ToolMessage | None:
-        """Return an error tool message when a shell command is not allowed.
+        """쉘 명령이 허용되지 않으면 오류 도구 메시지를 반환합니다.
 
-        Args:
-            request: The tool call request being processed.
+Args:
+            request: 도구 호출 요청이 처리되고 있습니다.
 
-        Returns:
-            An error `ToolMessage` when the shell command should be rejected,
-            otherwise `None`.
+Returns:
+            쉘 명령을 거부해야 할 경우 오류 `ToolMessage`, 그렇지 않으면 `None`.
+
         """
         from langchain_core.messages import ToolMessage as LCToolMessage
 
@@ -160,15 +158,15 @@ class ShellAllowListMiddleware(AgentMiddleware):
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], ToolMessage | Command[Any]],
     ) -> ToolMessage | Command[Any]:
-        """Reject disallowed shell commands; pass everything else through.
+        """허용되지 않는 쉘 명령을 거부합니다. 다른 모든 것을 통과하십시오.
 
-        Args:
-            request: The tool call request being processed.
-            handler: The next handler in the middleware chain.
+Args:
+            request: 도구 호출 요청이 처리되고 있습니다.
+            handler: 미들웨어 체인의 다음 핸들러입니다.
 
-        Returns:
-            The tool execution result, or an error `ToolMessage` for rejected
-            shell commands.
+Returns:
+            도구 실행 결과 또는 거부된 셸 명령에 대한 오류 `ToolMessage`입니다.
+
         """
         if (rejection := self._validate_tool_call(request)) is not None:
             return rejection
@@ -179,15 +177,15 @@ class ShellAllowListMiddleware(AgentMiddleware):
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command[Any]]],
     ) -> ToolMessage | Command[Any]:
-        """Reject disallowed shell commands; pass everything else through.
+        """허용되지 않는 쉘 명령을 거부합니다. 다른 모든 것을 통과하십시오.
 
-        Args:
-            request: The tool call request being processed.
-            handler: The next handler in the middleware chain.
+Args:
+            request: 도구 호출 요청이 처리되고 있습니다.
+            handler: 미들웨어 체인의 다음 핸들러입니다.
 
-        Returns:
-            The tool execution result, or an error `ToolMessage` for rejected
-            shell commands.
+Returns:
+            도구 실행 결과 또는 거부된 셸 명령에 대한 오류 `ToolMessage`입니다.
+
         """
         if (rejection := self._validate_tool_call(request)) is not None:
             return rejection
@@ -195,10 +193,9 @@ class ShellAllowListMiddleware(AgentMiddleware):
 
 
 def load_async_subagents(config_path: Path | None = None) -> list[AsyncSubAgent]:
-    """Load async subagent definitions from `config.toml`.
+    """`config.toml`에서 비동기 하위 에이전트 정의를 로드합니다.
 
-    Reads the `[async_subagents]` section where each sub-table defines a remote
-    LangGraph deployment:
+    각 하위 테이블이 원격 LangGraph 배포를 정의하는 `[async_subagents]` 섹션을 읽습니다.
 
     ```toml
     [async_subagents.researcher]
@@ -207,13 +204,14 @@ def load_async_subagents(config_path: Path | None = None) -> list[AsyncSubAgent]
     graph_id = "agent"
     ```
 
-    Args:
-        config_path: Path to config file.
+Args:
+        config_path: 구성 파일의 경로입니다.
 
-            Defaults to `~/.deepagents/config.toml`.
+            기본값은 `~/.deepagents/config.toml`입니다.
 
-    Returns:
-        List of `AsyncSubAgent` specs (empty if section is absent or invalid).
+Returns:
+        `AsyncSubAgent` 사양 목록(섹션이 없거나 잘못된 경우 비어 있음)
+
     """
     if config_path is None:
         config_path = Path.home() / ".deepagents" / "config.toml"
@@ -263,10 +261,11 @@ def load_async_subagents(config_path: Path | None = None) -> list[AsyncSubAgent]
 
 
 def list_agents(*, output_format: OutputFormat = "text") -> None:
-    """List all available agents.
+    """사용 가능한 모든 에이전트를 나열합니다.
 
-    Args:
-        output_format: Output format — `'text'` (Rich) or `'json'`.
+Args:
+        output_format: 출력 형식 — `'text'`(Rich) 또는 `'json'`.
+
     """
     agents_dir = settings.user_deepagents_dir
 
@@ -344,16 +343,17 @@ def reset_agent(
     dry_run: bool = False,
     output_format: OutputFormat = "text",
 ) -> None:
-    """Reset an agent to default or copy from another agent.
+    """에이전트를 기본값으로 재설정하거나 다른 에이전트에서 복사합니다.
 
-    Args:
-        agent_name: Name of the agent to reset.
-        source_agent: Copy AGENTS.md from this agent instead of default.
-        dry_run: If `True`, print what would happen without making changes.
-        output_format: Output format — `'text'` (Rich) or `'json'`.
+Args:
+        agent_name: 재설정할 에이전트의 이름입니다.
+        source_agent: 기본값 대신 이 에이전트에서 AGENTS.md를 복사합니다.
+        dry_run: `True`인 경우 변경하지 않고 어떤 일이 발생하는지 인쇄하세요.
+        output_format: 출력 형식 — `'text'`(Rich) 또는 `'json'`.
 
-    Raises:
-        SystemExit: If the source agent is not found.
+Raises:
+        SystemExit: 소스 에이전트를 찾을 수 없는 경우.
+
     """
     agents_dir = settings.user_deepagents_dir
     agent_dir = agents_dir / agent_name
@@ -427,8 +427,7 @@ def reset_agent(
 
 
 MODEL_IDENTITY_RE = re.compile(r"### Model Identity\n\n.*?(?=###|\Z)", re.DOTALL)
-"""Matches the `### Model Identity` section in the system prompt, up to the
-next heading or end of string."""
+"""시스템 프롬프트의 `### Model Identity` 섹션을 다음 제목 또는 문자열 끝까지 일치시킵니다."""
 
 
 def build_model_identity_section(
@@ -437,18 +436,17 @@ def build_model_identity_section(
     context_limit: int | None = None,
     unsupported_modalities: frozenset[str] = frozenset(),
 ) -> str:
-    """Build the `### Model Identity` section for the system prompt.
+    """시스템 프롬프트에 대한 `### Model Identity` 섹션을 빌드합니다.
 
-    Args:
-        name: Model identifier (e.g. `claude-opus-4-6`).
-        provider: Provider identifier (e.g. `anthropic`).
-        context_limit: Max input tokens from the model profile.
-        unsupported_modalities: Input modalities not indicated as supported by
-            the model profile (e.g. `{"audio", "video"}`).
+Args:
+        name: 모델 식별자(예: `claude-opus-4-6`).
+        provider: 공급자 식별자(예: `anthropic`).
+        context_limit: 모델 프로필의 최대 입력 토큰입니다.
+        unsupported_modalities: 모델 프로필에서 지원되는 것으로 표시되지 않은 입력 양식(예: `{"audio", "video"}`)
 
-    Returns:
-        The section text including the heading and trailing newline,
-        or an empty string if `name` is falsy.
+Returns:
+        제목과 후행 줄 바꿈을 포함하는 섹션 텍스트 또는 `name`이 거짓인 경우 빈 문자열입니다.
+
     """
     if not name:
         return ""
@@ -481,26 +479,24 @@ def get_system_prompt(
     interactive: bool = True,
     cwd: str | Path | None = None,
 ) -> str:
-    """Get the base system prompt for the agent.
+    """에이전트에 대한 기본 시스템 프롬프트를 가져옵니다.
 
-    Loads the base system prompt template from `system_prompt.md` and
-    interpolates dynamic sections (model identity, working directory,
-    skills path, execution mode).
+    `system_prompt.md`에서 기본 시스템 프롬프트 템플릿을 로드하고 동적 섹션(모델 ID, 작업 디렉터리, 기술 경로, 실행 모드)을
+    삽입합니다.
 
-    Args:
-        assistant_id: The agent identifier for path references
-        sandbox_type: Type of sandbox provider
-            (`'agentcore'`, `'daytona'`, `'langsmith'`, `'modal'`, `'runloop'`).
+Args:
+        assistant_id: 경로 참조에 대한 에이전트 식별자
+        sandbox_type: 샌드박스 공급자 유형(`'agentcore'`, `'daytona'`, `'langsmith'`, `'modal'`,
+                      `'runloop'`).
 
-            If `None`, agent is operating in local mode.
-        interactive: When `False`, the prompt is tailored for headless
-            non-interactive execution (no human in the loop).
-        cwd: Override the working directory shown in the prompt.
+            `None`인 경우 에이전트가 로컬 모드에서 작동 중입니다.
+        interactive: `False`인 경우 프롬프트는 헤드리스 비대화형 실행(루프에 사람이 없음)에 맞춰 조정됩니다.
+        cwd: 프롬프트에 표시된 작업 디렉터리를 재정의합니다.
 
-    Returns:
-        The system prompt string
+Returns:
+        시스템 프롬프트 문자열
 
-    Example:
+Example:
         ```txt
         You are running as model {MODEL} (provider: {PROVIDER}).
 
@@ -508,6 +504,7 @@ def get_system_prompt(
 
         ... {CONDITIONAL SECTIONS} ...
         ```
+
     """
     template = (Path(__file__).parent / "system_prompt.md").read_text()
 
@@ -555,7 +552,7 @@ def get_system_prompt(
         unsupported_modalities=settings.model_unsupported_modalities,
     )
 
-    # Build working directory section (local vs sandbox)
+    # 작업 디렉터리 섹션 빌드(로컬 및 샌드박스)
     if sandbox_type:
         working_dir = get_default_working_dir(sandbox_type)
         working_dir_section = (
@@ -608,7 +605,7 @@ def get_system_prompt(
         .replace("{skills_path}", skills_path)
     )
 
-    # Detect unreplaced placeholders (defense-in-depth for template typos)
+    # 대체되지 않은 자리 표시자 감지(템플릿 오타에 대한 심층 방어)
     unreplaced = re.findall(r"\{[a-z_]+\}", result)
     if unreplaced:
         logger.warning("System prompt contains unreplaced placeholders: %s", unreplaced)
@@ -619,10 +616,11 @@ def get_system_prompt(
 def _format_write_file_description(
     tool_call: ToolCall, _state: AgentState[Any], _runtime: Runtime[Any]
 ) -> str:
-    """Format write_file tool call for approval prompt.
+    """승인 메시지를 위한 write_file 도구 호출 형식을 지정합니다.
 
-    Returns:
-        Formatted description string for the write_file tool call.
+Returns:
+        write_file 도구 호출에 대한 형식화된 설명 문자열입니다.
+
     """
     args = tool_call["args"]
     file_path = args.get("file_path", "unknown")
@@ -635,10 +633,11 @@ def _format_write_file_description(
 def _format_edit_file_description(
     tool_call: ToolCall, _state: AgentState[Any], _runtime: Runtime[Any]
 ) -> str:
-    """Format edit_file tool call for approval prompt.
+    """승인 메시지에 대한 edit_file 도구 호출 형식을 지정합니다.
 
-    Returns:
-        Formatted description string for the edit_file tool call.
+Returns:
+        edit_file 도구 호출에 대한 형식화된 설명 문자열입니다.
+
     """
     args = tool_call["args"]
     replace_all = bool(args.get("replace_all", False))
@@ -650,10 +649,11 @@ def _format_edit_file_description(
 def _format_web_search_description(
     tool_call: ToolCall, _state: AgentState[Any], _runtime: Runtime[Any]
 ) -> str:
-    """Format web_search tool call for approval prompt.
+    """승인 메시지에 대한 web_search 도구 호출 형식을 지정합니다.
 
-    Returns:
-        Formatted description string for the web_search tool call.
+Returns:
+        web_search 도구 호출에 대한 형식화된 설명 문자열입니다.
+
     """
     args = tool_call["args"]
     query = args.get("query", "unknown")
@@ -668,10 +668,11 @@ def _format_web_search_description(
 def _format_fetch_url_description(
     tool_call: ToolCall, _state: AgentState[Any], _runtime: Runtime[Any]
 ) -> str:
-    """Format fetch_url tool call for approval prompt.
+    """승인 메시지를 위한 fetch_url 도구 호출 형식을 지정합니다.
 
-    Returns:
-        Formatted description string for the fetch_url tool call.
+Returns:
+        fetch_url 도구 호출에 대한 형식화된 설명 문자열입니다.
+
     """
     args = tool_call["args"]
     url = str(args.get("url", "unknown"))
@@ -702,19 +703,20 @@ def _format_fetch_url_description(
 def _format_task_description(
     tool_call: ToolCall, _state: AgentState[Any], _runtime: Runtime[Any]
 ) -> str:
-    """Format task (subagent) tool call for approval prompt.
+    """승인 프롬프트에 대한 작업(하위 에이전트) 도구 호출 형식을 지정합니다.
 
-    The task tool signature is: task(description: str, subagent_type: str)
-    The description contains all instructions that will be sent to the subagent.
+    작업 도구 서명은 다음과 같습니다. task(description: str, subagent_type: str) 설명에는 하위 에이전트로 전송될 모든
+    지침이 포함되어 있습니다.
 
-    Returns:
-        Formatted description string for the task tool call.
+Returns:
+        작업 도구 호출에 대한 형식화된 설명 문자열입니다.
+
     """
     args = tool_call["args"]
     description = args.get("description", "unknown")
     subagent_type = args.get("subagent_type", "unknown")
 
-    # Truncate description if too long for display
+    # 표시하기에 너무 길면 설명을 자릅니다.
     description_preview = description
     if len(description) > 500:  # noqa: PLR2004  # Subagent description length threshold
         description_preview = description[:500] + "..."
@@ -734,10 +736,11 @@ def _format_task_description(
 def _format_execute_description(
     tool_call: ToolCall, _state: AgentState[Any], _runtime: Runtime[Any]
 ) -> str:
-    """Format execute tool call for approval prompt.
+    """승인 프롬프트를 위한 실행 도구 호출 형식을 지정합니다.
 
-    Returns:
-        Formatted description string for the execute tool call.
+Returns:
+        실행 도구 호출에 대한 형식화된 설명 문자열입니다.
+
     """
     args = tool_call["args"]
     command_raw = str(args.get("command", "N/A"))
@@ -763,15 +766,14 @@ def _format_execute_description(
 
 
 def _add_interrupt_on() -> dict[str, InterruptOnConfig]:
-    """Configure human-in-the-loop interrupt settings for all gated tools.
+    """모든 게이트 도구에 대해 인간 개입(Human-In-The-Loop) 인터럽트 설정을 구성합니다.
 
-    Every tool that can have side effects or access external resources
-    (shell execution, file writes/edits, web search, URL fetch, task
-    delegation) is gated behind an approval prompt unless auto-approve
-    is enabled.
+    부작용이 있거나 외부 리소스(셸 실행, 파일 쓰기/편집, 웹 검색, URL 가져오기, 작업 위임)에 액세스할 수 있는 모든 도구는 자동 승인이
+    활성화되지 않는 한 승인 프롬프트 뒤에 표시됩니다.
 
-    Returns:
-        Dictionary mapping tool names to their interrupt configuration.
+Returns:
+        인터럽트 구성에 대한 사전 매핑 도구 이름입니다.
+
     """
     execute_interrupt_config: InterruptOnConfig = {
         "allowed_decisions": ["approve", "reject"],
@@ -856,74 +858,62 @@ def create_cli_agent(
     project_context: ProjectContext | None = None,
     async_subagents: list[AsyncSubAgent] | None = None,
 ) -> tuple[Pregel, CompositeBackend]:
-    """Create a CLI-configured agent with flexible options.
+    """유연한 옵션으로 CLI 구성 에이전트를 생성하세요.
 
-    This is the main entry point for creating a deepagents CLI agent, usable
-    both internally and from external code (e.g., benchmarking frameworks).
+    이는 내부 및 외부 코드(예: 벤치마킹 프레임워크)에서 모두 사용할 수 있는 deepagents CLI 에이전트를 생성하기 위한 주요 진입점입니다.
 
-    Args:
-        model: LLM model to use (e.g., `'anthropic:claude-sonnet-4-6'`)
-        assistant_id: Agent identifier for memory/state storage
-        tools: Additional tools to provide to agent
-        sandbox: Optional sandbox backend for remote execution
-            (e.g., `ModalSandbox`).
+Args:
+        model: 사용할 LLM 모델(예: `'anthropic:claude-sonnet-4-6'`)
+        assistant_id: 메모리/상태 저장을 위한 에이전트 식별자
+        tools: 에이전트에게 제공할 추가 도구
+        sandbox: 원격 실행을 위한 선택적 샌드박스 백엔드(예: `ModalSandbox`).
 
-            If `None`, uses local filesystem + shell.
-        sandbox_type: Type of sandbox provider
-            (`'agentcore'`, `'daytona'`, `'langsmith'`, `'modal'`, `'runloop'`).
-            Used for system prompt generation.
-        system_prompt: Override the default system prompt.
+            `None`인 경우 로컬 파일 시스템 + 셸을 사용합니다.
+        sandbox_type: 샌드박스 공급자 유형(`'agentcore'`, `'daytona'`, `'langsmith'`, `'modal'`,
+                      `'runloop'`). 시스템 프롬프트 생성에 사용됩니다.
+        system_prompt: 기본 시스템 프롬프트를 재정의합니다.
 
-            If `None`, generates one based on `sandbox_type`, `assistant_id`,
-            and `interactive`.
-        interactive: When `False`, the auto-generated system prompt is
-            tailored for headless non-interactive execution. Ignored when
-            `system_prompt` is provided explicitly.
-        auto_approve: If `True`, no tools trigger human-in-the-loop
-            interrupts — all calls (shell execution, file writes/edits,
-            web search, URL fetch) run automatically.
+            `None`인 경우 `sandbox_type`, `assistant_id` 및 `interactive`을 기반으로 생성합니다.
+        interactive: `False`인 경우 자동 생성된 시스템 프롬프트는 헤드리스 비대화형 실행에 맞게 조정됩니다.
+                     `system_prompt`이 명시적으로 제공되면 무시됩니다.
+        auto_approve: `True`인 경우 인간 개입(Human-In-The-Loop) 인터럽트를 트리거하는 도구가 없습니다. 모든 호출(셸
+                      실행, 파일 쓰기/편집, 웹 검색, URL 가져오기)이 자동으로 실행됩니다.
 
-            If `False`, tools pause for user confirmation via the approval menu.
-            See `_add_interrupt_on` for the full list of gated tools.
-        interrupt_shell_only: If `True`, all HITL interrupts are disabled;
-            shell commands are validated inline by `ShellAllowListMiddleware`
-            against the configured allow-list instead.
+            `False`인 경우 승인 메뉴를 통한 사용자 확인을 위해 도구가 일시 중지됩니다. 게이트 도구의 전체 목록은
+            `_add_interrupt_on`을 참조하세요.
+        interrupt_shell_only: `True`인 경우 모든 HITL 인터럽트가 비활성화됩니다. 대신 쉘 명령은 구성된 허용 목록에 대해
+                              `ShellAllowListMiddleware`에 의해 인라인으로 검증됩니다.
 
-            Used in non-interactive mode with a restrictive shell allow-list
-            to avoid splitting traces into multiple LangSmith runs.
+            추적이 여러 LangSmith 실행으로 분할되는 것을 방지하기 위해 제한적인 셸 허용 목록과 함께 비대화형 모드에서 사용됩니다.
 
-            Has no effect when `auto_approve` is `True` (interrupts are already
-            disabled) or when `shell_allow_list` is `SHELL_ALLOW_ALL`.
-        shell_allow_list: Explicit restrictive shell allow-list forwarded from
-            the CLI process. When provided (and `interrupt_shell_only` is
-            `True`), used directly instead of reading `settings.shell_allow_list`
-            (which may not be set in the server subprocess environment).
-        enable_ask_user: Enable `AskUserMiddleware` so the agent can ask
-            clarifying questions.
+            `auto_approve`이 `True`인 경우(인터럽트는 이미 비활성화되어 있음) 또는 `shell_allow_list`이
+            `SHELL_ALLOW_ALL`인 경우에는 효과가 없습니다.
+        shell_allow_list: CLI 프로세스에서 전달된 명시적 제한적 셸 허용 목록입니다. 제공되면(그리고
+                          `interrupt_shell_only`은 `True`임)
+                          `settings.shell_allow_list`(서버 하위 프로세스 환경에서 설정되지 않을 수 있음)을 읽는
+                          대신 직접 사용됩니다.
+        enable_ask_user: 에이전트이 명확한 질문을 할 수 있도록 `AskUserMiddleware`을(를) 활성화하세요.
 
-            Disabled in non-interactive mode.
-        enable_memory: Enable `MemoryMiddleware` for persistent memory
-        enable_skills: Enable `SkillsMiddleware` for custom agent skills
-        enable_shell: Enable shell execution via `LocalShellBackend`
-            (only in local mode). When enabled, the `execute` tool is available.
-        checkpointer: Optional checkpointer for session persistence.
-            When `None`, the graph is compiled without a checkpointer.
-        mcp_server_info: MCP server metadata to surface in the system prompt.
-        cwd: Override the working directory for the agent's filesystem backend
-            and system prompt.
-        project_context: Explicit project path context for project-sensitive
-            behavior such as project `AGENTS.md` files, skills, subagents, and
-            MCP trust.
-        async_subagents: Remote LangGraph deployments to expose as async subagent tools.
+            비대화형 모드에서는 비활성화됩니다.
+        enable_memory: 영구 메모리에 대해 `MemoryMiddleware` 활성화
+        enable_skills: 사용자 정의 에이전트 기술에 대해 `SkillsMiddleware` 활성화
+        enable_shell: `LocalShellBackend`을(를) 통해 쉘 실행을 활성화합니다(로컬 모드에서만). 활성화되면 `execute`
+                      도구를 사용할 수 있습니다.
+        checkpointer: 세션 지속성을 위한 선택적 체크포인터입니다. `None`인 경우 그래프는 체크포인터 없이 컴파일됩니다.
+        mcp_server_info: 시스템 프롬프트에 표시되는 MCP 서버 메타데이터입니다.
+        cwd: 에이전트의 파일 시스템 백엔드 및 시스템 프롬프트에 대한 작업 디렉터리를 재정의합니다.
+        project_context: 프로젝트 `AGENTS.md` 파일, 기술, 하위 에이전트 및 MCP 신뢰와 같은 프로젝트에 민감한 동작에 대한
+                         명시적 프로젝트 경로 컨텍스트입니다.
+        async_subagents: 비동기 하위 에이전트 도구로 노출되는 원격 LangGraph 배포입니다.
 
-            Loaded from `[async_subagents]` in `config.toml` or passed directly.
+            `config.toml`의 `[async_subagents]`에서 로드되거나 직접 전달됩니다.
 
-    Returns:
-        2-tuple of `(agent_graph, backend)`
+Returns:
+        `(agent_graph, backend)`의 2튜플
 
-            - `agent_graph`: Configured LangGraph Pregel instance ready
-                for execution
-            - `composite_backend`: `CompositeBackend` for file operations
+            - `agent_graph`: 실행 준비가 완료된 LangGraph Pregel 인스턴스 구성
+            - `composite_backend`: 파일 작업용 `CompositeBackend`
+
     """
     tools = tools or []
     effective_cwd = (
@@ -932,16 +922,16 @@ def create_cli_agent(
         else (project_context.user_cwd if project_context is not None else None)
     )
 
-    # Setup agent directory for persistent memory (if enabled)
+    # 영구 메모리용 에이전트 디렉터리 설정(활성화된 경우)
     if enable_memory or enable_skills:
         agent_dir = settings.ensure_agent_dir(assistant_id)
         agent_md = agent_dir / "AGENTS.md"
         if not agent_md.exists():
-            # Create empty file for user customizations
-            # Base instructions are loaded fresh from get_system_prompt()
+            # 사용자 정의를 위한 빈 파일 생성
+            # 기본 명령어는 get_system_prompt()에서 새로 로드됩니다.
             agent_md.touch()
 
-    # Skills directories (if enabled)
+    # 기술 디렉토리(활성화된 경우)
     skills_dir = None
     user_agent_skills_dir = None
     project_skills_dir = None
@@ -960,14 +950,14 @@ def create_cli_agent(
             else settings.get_project_agent_skills_dir()
         )
 
-    # Load custom subagents from filesystem
+    # 파일 시스템에서 사용자 정의 하위 에이전트 로드
     custom_subagents: list[SubAgent | CompiledSubAgent] = []
     restrictive_shell_allow_list: list[str] | None = None
     if interrupt_shell_only and not auto_approve:
-        # Prefer the explicitly forwarded allow-list (set by the CLI process
-        # and passed through ServerConfig).  Fall back to settings only for
-        # direct callers (e.g. benchmarking frameworks) that don't go through
-        # the server subprocess path.
+        # 명시적으로 전달된 허용 목록을 선호합니다(CLI 프로세스에 의해 설정됨).
+        # ServerConfig를 통해 전달됨)  다음에 대해서만 설정으로 돌아갑니다.
+        # 통과하지 않는 직접 호출자(예: 벤치마킹 프레임워크)
+        # 서버 하위 프로세스 경로.
         if shell_allow_list:
             restrictive_shell_allow_list = list(shell_allow_list)
         elif settings.shell_allow_list and not isinstance(
@@ -1022,24 +1012,24 @@ def create_cli_agent(
             }
             custom_subagents.append(general_purpose_subagent)
 
-    # Build middleware stack based on enabled features
+    # 활성화된 기능을 기반으로 미들웨어 스택 구축
     agent_middleware = []
     agent_middleware.append(ConfigurableModelMiddleware())
 
-    # Token state: adds _context_tokens to graph state (checkpointed, not
-    # passed to model).  Must be registered before any middleware that might
-    # read the channel.
+    # 토큰 상태: 그래프 상태에 _context_tokens를 추가합니다(체크포인트됨, 아님
+    # 모델에게 전달됨)  미들웨어보다 먼저 등록되어야 합니다.
+    # 채널을 읽어보세요.
     from deepagents_cli.token_state import TokenStateMiddleware
 
     agent_middleware.append(TokenStateMiddleware())
 
-    # Add ask_user middleware (must be early so its tool is available)
+    # Ask_user 미들웨어 추가(도구를 사용할 수 있도록 일찍 출시되어야 함)
     if enable_ask_user:
         from deepagents_cli.ask_user import AskUserMiddleware
 
         agent_middleware.append(AskUserMiddleware())
 
-    # Add memory middleware
+    # 메모리 미들웨어 추가
     if enable_memory:
         memory_sources = [str(settings.get_user_agent_md_path(assistant_id))]
         project_agent_md_paths = (
@@ -1056,12 +1046,12 @@ def create_cli_agent(
             )
         )
 
-    # Add skills middleware
+    # 기술 미들웨어 추가
     if enable_skills:
-        # Lowest to highest precedence:
-        # built-in -> user .deepagents -> user .agents
-        # -> project .deepagents -> project .agents
-        # -> user .claude (experimental) -> project .claude (experimental)
+        # 가장 낮은 우선순위부터 가장 높은 우선순위까지:
+        # 내장 -> 사용자 .deepagents -> 사용자 .agents
+        # -> 프로젝트 .deepagents -> 프로젝트 .agents
+        # -> 사용자 .claude(실험적) -> 프로젝트 .claude(실험적)
         sources = [str(settings.get_built_in_skills_dir())]
         sources.extend([str(skills_dir), str(user_agent_skills_dir)])
         if project_skills_dir:
@@ -1069,7 +1059,7 @@ def create_cli_agent(
         if project_agent_skills_dir:
             sources.append(str(project_agent_skills_dir))
 
-        # Experimental: Claude Code skill directories
+        # 실험적: Claude Code 스킬 디렉토리
         user_claude_skills_dir = settings.get_user_claude_skills_dir()
         if user_claude_skills_dir.exists():
             sources.append(str(user_claude_skills_dir))
@@ -1084,47 +1074,47 @@ def create_cli_agent(
             )
         )
 
-    # CONDITIONAL SETUP: Local vs Remote Sandbox
+    # 조건부 설정: 로컬 및 원격 샌드박스
     if sandbox is None:
-        # ========== LOCAL MODE ==========
+        # ========== 로컬 모드 ==========
         root_dir = effective_cwd if effective_cwd is not None else Path.cwd()
         if enable_shell:
-            # Create environment for shell commands
-            # Restore user's original LANGSMITH_PROJECT so their code traces separately
+            # 셸 명령을 위한 환경 만들기
+            # 사용자의 원래 LANGSMITH_PROJECT를 복원하여 코드가 별도로 추적되도록 합니다.
             shell_env = os.environ.copy()
             if settings.user_langchain_project:
                 shell_env["LANGSMITH_PROJECT"] = settings.user_langchain_project
 
-            # Use LocalShellBackend for filesystem + shell execution.
-            # The SDK's FilesystemMiddleware exposes per-command timeout
-            # on the execute tool natively.
+            # 파일 시스템 + 셸 실행에는 LocalShellBackend를 사용하세요.
+            # SDK의 FilesystemMiddleware는 명령별 시간 초과를 노출합니다.
+            # 실행 도구에서 기본적으로.
             backend = LocalShellBackend(
                 root_dir=root_dir,
                 inherit_env=True,
                 env=shell_env,
             )
         else:
-            # No shell access - use plain FilesystemBackend
+            # 셸 액세스 없음 - 일반 FilesystemBackend 사용
             backend = FilesystemBackend(root_dir=root_dir)
     else:
-        # ========== REMOTE SANDBOX MODE ==========
-        backend = sandbox  # Remote sandbox (ModalSandbox, etc.)
-        # Note: Shell middleware not used in sandbox mode
-        # File operations and execute tool are provided by the sandbox backend
+        # ========== 원격 샌드박스 모드 ==========
+        backend = sandbox  # 원격 샌드박스(ModalSandbox 등)
+        # 참고: 샌드박스 모드에서는 쉘 미들웨어가 사용되지 않습니다.
+        # 파일 작업 및 실행 도구는 샌드박스 백엔드에서 제공됩니다.
 
-    # Local context middleware (git info, directory tree, etc.).
+    # 로컬 컨텍스트 미들웨어(git 정보, 디렉토리 트리 등)
     if isinstance(backend, (_ExecutableBackend, _AsyncExecutableBackend)):
         agent_middleware.append(
             LocalContextMiddleware(backend=backend, mcp_server_info=mcp_server_info)
         )
 
-    # Add shell allow-list middleware when interrupt_shell_only is active.
+    # Interrupt_shell_only가 활성화된 경우 셸 허용 목록 미들웨어를 추가합니다.
     shell_middleware_added = False
     if restrictive_shell_allow_list is not None:
         agent_middleware.append(ShellAllowListMiddleware(restrictive_shell_allow_list))
         shell_middleware_added = True
 
-    # Get or use custom system prompt
+    # 사용자 정의 시스템 프롬프트 가져오기 또는 사용
     if system_prompt is None:
         system_prompt = get_system_prompt(
             assistant_id=assistant_id,
@@ -1133,24 +1123,24 @@ def create_cli_agent(
             cwd=effective_cwd,
         )
 
-    # Configure interrupt_on based on auto_approve / shell_middleware_added
+    # auto_approve / shell_middleware_add를 기반으로 Interrupt_on을 구성합니다.
     interrupt_on: dict[str, bool | InterruptOnConfig] | None = None
     if auto_approve or shell_middleware_added:  # noqa: SIM108  # if-else clearer than ternary for dual-path config
-        # No HITL interrupts — tools run automatically.
-        # When shell_middleware_added is True, shell validation is handled by
-        # ShellAllowListMiddleware (added above) which rejects disallowed
-        # commands inline as error ToolMessages, keeping the entire run in
-        # a single LangSmith trace.
+        # HITL 중단 없음 - 도구가 자동으로 실행됩니다.
+        # shell_middleware_add가 True이면 쉘 유효성 검사는 다음에 의해 처리됩니다.
+        # 허용되지 않는 것을 거부하는 ShellAllowListMiddleware(위에 추가됨)
+        # 명령은 오류 ToolMessage로 인라인되어 전체 실행을 유지합니다.
+        # 단일 LangSmith 추적.
         interrupt_on = {}
     else:
-        # Full HITL for destructive operations
+        # 파괴적인 작업을 위한 전체 HITL
         interrupt_on = _add_interrupt_on()  # type: ignore[assignment]  # InterruptOnConfig is compatible at runtime
 
-    # Set up composite backend with routing
-    # For local FilesystemBackend, route large tool results to /tmp to avoid polluting
-    # the working directory. For sandbox backends, no special routing is needed.
+    # 라우팅을 사용하여 복합 백엔드 설정
+    # 로컬 FilesystemBackend의 경우 오염을 방지하기 위해 대규모 도구 결과를 /tmp로 라우팅합니다.
+    # 작업 디렉토리. 샌드박스 백엔드의 경우 특별한 라우팅이 필요하지 않습니다.
     if sandbox is None:
-        # Local mode: Route large results to a unique temp directory
+        # 로컬 모드: 대규모 결과를 고유한 임시 디렉터리로 라우팅
         large_results_backend = FilesystemBackend(
             root_dir=tempfile.mkdtemp(prefix="deepagents_large_results_"),
             virtual_mode=True,
@@ -1167,7 +1157,7 @@ def create_cli_agent(
             },
         )
     else:
-        # Sandbox mode: No special routing needed
+        # 샌드박스 모드: 특별한 라우팅이 필요하지 않습니다.
         composite_backend = CompositeBackend(
             default=backend,
             routes={},
@@ -1179,7 +1169,7 @@ def create_cli_agent(
         create_summarization_tool_middleware(model, composite_backend)
     )
 
-    # Create the agent
+    # 에이전트 만들기
     all_subagents: list[SubAgent | CompiledSubAgent | AsyncSubAgent] = [
         *custom_subagents,
         *(async_subagents or []),

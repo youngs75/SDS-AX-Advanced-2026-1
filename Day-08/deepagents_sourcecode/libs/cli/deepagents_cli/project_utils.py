@@ -1,7 +1,6 @@
-"""Resolve project context for project-sensitive CLI behavior.
+"""프로젝트에 민감한 CLI 동작에 대한 프로젝트 컨텍스트를 해결합니다.
 
-This module derives stable user and project paths so features such as MCP
-discovery, trust decisions, and server subprocesses can agree on scope.
+이 모듈은 MCP 검색, 신뢰 결정 및 서버 하위 프로세스와 같은 기능이 범위에 동의할 수 있도록 안정적인 사용자 및 프로젝트 경로를 도출합니다.
 """
 
 from __future__ import annotations
@@ -23,21 +22,23 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ProjectContext:
-    """Explicit user/project path context for project-sensitive behavior.
+    """프로젝트에 민감한 동작을 위한 명시적인 사용자/프로젝트 경로 컨텍스트입니다.
 
-    Attributes:
-        user_cwd: Authoritative working directory from the CLI invocation.
-        project_root: Resolved project root for `user_cwd`, if one exists.
+Attributes:
+        user_cwd: CLI 호출의 신뢰할 수 있는 작업 디렉터리입니다.
+        project_root: `user_cwd`에 대한 프로젝트 루트가 확인되었습니다(있는 경우).
+
     """
 
     user_cwd: Path
     project_root: Path | None = None
 
     def __post_init__(self) -> None:
-        """Validate that path fields are absolute.
+        """경로 필드가 절대적인지 확인하십시오.
 
-        Raises:
-            ValueError: If `user_cwd` or `project_root` is not absolute.
+Raises:
+            ValueError: `user_cwd` 또는 `project_root`이 절대적이지 않은 경우.
+
         """
         if not self.user_cwd.is_absolute():
             msg = f"user_cwd must be absolute, got {self.user_cwd!r}"
@@ -48,13 +49,14 @@ class ProjectContext:
 
     @classmethod
     def from_user_cwd(cls, user_cwd: str | Path) -> ProjectContext:
-        """Build a project context from an explicit user working directory.
+        """명시적인 사용자 작업 디렉터리에서 프로젝트 컨텍스트를 빌드합니다.
 
-        Args:
-            user_cwd: User invocation directory.
+Args:
+            user_cwd: 사용자 호출 디렉터리.
 
-        Returns:
-            Resolved project context.
+Returns:
+            프로젝트 컨텍스트가 해결되었습니다.
+
         """
         resolved_cwd = Path(user_cwd).expanduser().resolve()
         return cls(
@@ -63,13 +65,14 @@ class ProjectContext:
         )
 
     def resolve_user_path(self, path: str | Path) -> Path:
-        """Resolve a path relative to the explicit user working directory.
+        """명시적인 사용자 작업 디렉터리에 상대적인 경로를 확인합니다.
 
-        Args:
-            path: Absolute or relative user-facing path.
+Args:
+            path: 절대 또는 상대 사용자 대상 경로입니다.
 
-        Returns:
-            Absolute resolved path.
+Returns:
+            절대 해결 경로.
+
         """
         candidate = Path(path).expanduser()
         if candidate.is_absolute():
@@ -77,25 +80,25 @@ class ProjectContext:
         return (self.user_cwd / candidate).resolve()
 
     def project_agent_md_paths(self) -> list[Path]:
-        """Return project-level `AGENTS.md` files for this context."""
+        """이 컨텍스트에 대한 프로젝트 수준 `AGENTS.md` 파일을 반환합니다."""
         if self.project_root is None:
             return []
         return find_project_agent_md(self.project_root)
 
     def project_skills_dir(self) -> Path | None:
-        """Return the project `.deepagents/skills` directory, if any."""
+        """프로젝트 `.deepagents/skills` 디렉터리가 있으면 반환합니다."""
         if self.project_root is None:
             return None
         return self.project_root / ".deepagents" / "skills"
 
     def project_agents_dir(self) -> Path | None:
-        """Return the project `.deepagents/agents` directory, if any."""
+        """프로젝트 `.deepagents/agents` 디렉터리가 있으면 반환합니다."""
         if self.project_root is None:
             return None
         return self.project_root / ".deepagents" / "agents"
 
     def project_agent_skills_dir(self) -> Path | None:
-        """Return the project `.agents/skills` directory, if any."""
+        """프로젝트 `.agents/skills` 디렉터리가 있으면 반환합니다."""
         if self.project_root is None:
             return None
         return self.project_root / ".agents" / "skills"
@@ -104,13 +107,14 @@ class ProjectContext:
 def get_server_project_context(
     env: Mapping[str, str] | None = None,
 ) -> ProjectContext | None:
-    """Read the server project context from environment transport data.
+    """환경 전송 데이터에서 서버 프로젝트 컨텍스트를 읽습니다.
 
-    Args:
-        env: Environment mapping to read from.
+Args:
+        env: 읽을 환경 매핑입니다.
 
-    Returns:
-        Reconstructed project context, or `None` if no server context exists.
+Returns:
+        재구성된 프로젝트 컨텍스트 또는 서버 컨텍스트가 없는 경우 `None`입니다.
+
     """
     environment = os.environ if env is None else env
     raw_cwd = environment.get(f"{SERVER_ENV_PREFIX}CWD")
@@ -137,17 +141,16 @@ def get_server_project_context(
 
 
 def find_project_root(start_path: str | Path | None = None) -> Path | None:
-    """Find the project root by looking for .git directory.
+    """.git 디렉토리를 찾아 프로젝트 루트를 찾으세요.
 
-    Walks up the directory tree from start_path (or cwd) looking for a .git
-    directory, which indicates the project root.
+    프로젝트 루트를 나타내는 .git 디렉터리를 찾기 위해 start_path(또는 cwd)에서 디렉터리 트리를 탐색합니다.
 
-    Args:
-        start_path: Directory to start searching from.
-            Defaults to current working directory.
+Args:
+        start_path: 검색을 시작할 디렉터리입니다. 기본값은 현재 작업 디렉터리입니다.
 
-    Returns:
-        Path to the project root if found, None otherwise.
+Returns:
+        발견되면 프로젝트 루트에 대한 경로이고, 그렇지 않으면 없음입니다.
+
     """
     current = Path(start_path or Path.cwd()).expanduser().resolve()
 
@@ -161,22 +164,21 @@ def find_project_root(start_path: str | Path | None = None) -> Path | None:
 
 
 def find_project_agent_md(project_root: Path) -> list[Path]:
-    """Find project-specific AGENTS.md file(s).
+    """프로젝트별 AGENTS.md 파일을 찾으세요.
 
-    Checks two locations and returns ALL that exist:
-    1. project_root/.deepagents/AGENTS.md
-    2. project_root/AGENTS.md
+    두 위치를 확인하고 존재하는 모든 항목을 반환합니다. 1. project_root/.deepagents/AGENTS.md 2.
+    project_root/AGENTS.md
 
-    Both files will be loaded and combined if both exist.
+    두 파일이 모두 존재하는 경우 두 파일이 모두 로드되어 결합됩니다.
 
-    Args:
-        project_root: Path to the project root directory.
+Args:
+        project_root: 프로젝트 루트 디렉터리의 경로입니다.
 
-    Returns:
-        Existing AGENTS.md paths.
+Returns:
+        기존 AGENTS.md 경로.
 
-            Empty if neither file exists, one entry if only one is present, or
-            two entries if both locations have the file.
+            파일이 둘 다 없으면 비어 있고, 하나만 있으면 항목이 하나이고, 두 위치에 모두 파일이 있으면 항목이 두 개입니다.
+
     """
     candidates = [
         project_root / ".deepagents" / "AGENTS.md",

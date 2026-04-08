@@ -1,7 +1,6 @@
-"""Modal model picker used by the `/model` command.
+"""`/model` 명령에서 사용되는 모달 모델 선택기입니다.
 
-The screen presents searchable provider/model options, current selections, and
-actions that update saved defaults or the active session model.
+화면에는 검색 가능한 공급자/모델 옵션, 현재 선택 사항, 저장된 기본값이나 활성 세션 모델을 업데이트하는 작업이 표시됩니다.
 """
 
 from __future__ import annotations
@@ -42,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 class ModelOption(Static):
-    """A clickable model option in the selector."""
+    """선택기에서 클릭 가능한 모델 옵션입니다."""
 
     def __init__(
         self,
@@ -54,17 +53,17 @@ class ModelOption(Static):
         has_creds: bool | None = True,
         classes: str = "",
     ) -> None:
-        """Initialize a model option.
+        """모델 옵션을 초기화합니다.
 
         Args:
-            label: Display content — a `Content` object (preferred) or a
-                plain string that `Static` will parse as markup.
-            model_spec: The model specification (provider:model format).
-            provider: The provider name.
-            index: The index of this option in the filtered list.
-            has_creds: Whether the provider has valid credentials. True if
-                confirmed, False if missing, None if unknown.
-            classes: CSS classes for styling.
+            label: 표시 콘텐츠 — `Content` 개체(선호) 또는 `Static`이 마크업으로 구문 분석할 일반 문자열입니다.
+            model_spec: 모델 사양(공급자:모델 형식)입니다.
+            provider: 공급자 이름입니다.
+            index: 필터링된 목록에 있는 이 옵션의 인덱스입니다.
+            has_creds: 공급자가 유효한 자격 증명을 가지고 있는지 여부. 확인된 경우 True, 누락된 경우 False, 알 수 없는 경우
+                       None입니다.
+            classes: 스타일링을 위한 CSS 클래스.
+
         """
         super().__init__(label, classes=classes)
         self.model_spec = model_spec
@@ -73,15 +72,16 @@ class ModelOption(Static):
         self.has_creds = has_creds
 
     class Clicked(Message):
-        """Message sent when a model option is clicked."""
+        """모델 옵션을 클릭하면 전송되는 메시지입니다."""
 
         def __init__(self, model_spec: str, provider: str, index: int) -> None:
-            """Initialize the Clicked message.
+            """Clicked 메시지를 초기화합니다.
 
             Args:
-                model_spec: The model specification.
-                provider: The provider name.
-                index: The index of the clicked option.
+                model_spec: 모델 사양입니다.
+                provider: 공급자 이름입니다.
+                index: 클릭한 옵션의 인덱스입니다.
+
             """
             super().__init__()
             self.model_spec = model_spec
@@ -89,22 +89,23 @@ class ModelOption(Static):
             self.index = index
 
     def on_click(self, event: Click) -> None:
-        """Handle click on this option.
+        """이 옵션을 클릭하세요.
 
         Args:
-            event: The click event.
+            event: 클릭 이벤트입니다.
+
         """
         event.stop()
         self.post_message(self.Clicked(self.model_spec, self.provider, self.index))
 
 
 class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
-    """Full-screen modal for model selection.
+    """모델 선택을 위한 전체 화면 모달입니다.
 
-    Displays available models grouped by provider with keyboard navigation
-    and search filtering. Current model is highlighted.
+    키보드 탐색 및 검색 필터링을 통해 제공업체별로 그룹화된 사용 가능한 모델을 표시합니다. 현재 모델이 강조 표시됩니다.
 
-    Returns (model_spec, provider) tuple on selection, or None on cancel.
+    선택 시 (model_spec, 제공자) 튜플을 반환하거나 취소 시 None을 반환합니다.
+
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -214,18 +215,17 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         current_provider: str | None = None,
         cli_profile_override: dict[str, Any] | None = None,
     ) -> None:
-        """Initialize the ModelSelectorScreen.
+        """ModelSelectorScreen을 초기화합니다.
 
-        Data loading (model discovery, profiles) is deferred to `on_mount`
-        so the screen pushes instantly and populates asynchronously.
+        데이터 로드(모델 검색, 프로필)는 `on_mount`로 연기되므로 화면이 즉시 푸시되고 비동기식으로 채워집니다.
 
         Args:
-            current_model: The currently active model name (to highlight).
-            current_provider: The provider of the current model.
-            cli_profile_override: Extra profile fields from `--profile-override`.
+            current_model: 현재 활성 모델 이름(강조 표시)
+            current_provider: 현재 모델의 공급자입니다.
+            cli_profile_override: `--profile-override`의 추가 프로필 필드입니다.
 
-                Merged on top of upstream + config.toml profiles so that CLI
-                overrides appear with `*` markers in the detail footer.
+                CLI 재정의가 세부 바닥글에 `*` 마커와 함께 표시되도록 업스트림 + config.toml 프로필 위에 병합됩니다.
+
         """
         super().__init__()
         self._current_model = current_model
@@ -247,10 +247,11 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         self._loaded = False
 
     def _find_current_model_index(self) -> int:
-        """Find the index of the current model in the filtered list.
+        """필터링된 목록에서 현재 모델의 인덱스를 찾습니다.
 
         Returns:
-            Index of the current model, or 0 if not found.
+            현재 모델의 인덱스이거나, 찾을 수 없으면 0입니다.
+
         """
         if not self._current_model or not self._current_provider:
             return 0
@@ -262,10 +263,11 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         return 0
 
     def compose(self) -> ComposeResult:
-        """Compose the screen layout.
+        """화면 레이아웃을 구성합니다.
 
         Yields:
-            Widgets for the model selector UI.
+            모델 선택기 UI용 위젯입니다.
+
         """
         glyphs = get_glyphs()
 
@@ -311,16 +313,17 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         str | None,
         Mapping[str, ModelProfileEntry],
     ]:
-        """Gather model discovery data synchronously.
+        """모델 검색 데이터를 동기식으로 수집합니다.
 
-        Intended to be called via `asyncio.to_thread` so filesystem I/O in
-        `get_available_models` does not block the event loop.
+        `asyncio.to_thread`을 통해 호출되도록 의도되었으므로 `get_available_models`의 파일 시스템 I/O가 이벤트
+        루프를 차단하지 않습니다.
 
         Returns:
-            Tuple of (all_models, default_spec, profiles) where
-                `all_models` is a list of `(provider:model spec, provider)`
-                pairs, `default_spec` is the configured default model or
-                `None`, and `profiles` maps spec strings to profile entries.
+            (all_models, default_spec, 프로필)의 튜플
+                `all_models` is a list of `(provider: 모델 사양, 공급자)`
+                쌍에서 `default_spec`은 구성된 기본 모델 또는 `None`이고 `profiles`는 사양 문자열을 프로필 항목에
+                매핑합니다.
+
         """
         all_models: list[tuple[str, str]] = [
             (f"{provider}:{model}", provider)
@@ -333,10 +336,10 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         return all_models, config.default_model, profiles
 
     async def on_mount(self) -> None:
-        """Set up the screen on mount.
+        """마운트 시 화면을 설정합니다.
 
-        Loads model data in a background thread so the screen frame renders
-        immediately, then populates the model list.
+        화면 프레임이 즉시 렌더링되도록 배경 스레드에 모델 데이터를 로드한 다음 모델 목록을 채웁니다.
+
         """
         if is_ascii_mode():
             colors = theme.get_theme_colors(self)
@@ -387,10 +390,11 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         self._update_footer()
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        """Filter models as user types.
+        """모델을 사용자 유형으로 필터링합니다.
 
         Args:
-            event: The input changed event.
+            event: 입력이 변경된 이벤트입니다.
+
         """
         self._filter_text = event.value
         if not self._loaded:
@@ -399,27 +403,30 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         self.call_after_refresh(self._update_display)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Handle Enter key when filter input is focused.
+        """필터 입력이 포커스되면 Enter 키를 처리합니다.
 
         Args:
-            event: The input submitted event.
+            event: 입력이 제출된 이벤트입니다.
+
         """
         event.stop()
         self.action_select()
 
     def on_model_option_clicked(self, event: ModelOption.Clicked) -> None:
-        """Handle click on a model option.
+        """모델 옵션을 클릭하세요.
 
         Args:
-            event: The click event with model info.
+            event: 모델 정보가 포함된 클릭 이벤트입니다.
+
         """
         self._selected_index = event.index
         self.dismiss((event.model_spec, event.provider))
 
     def _update_filtered_list(self) -> None:
-        """Update the filtered models based on search text using fuzzy matching.
+        """퍼지 일치를 사용하여 검색 텍스트를 기반으로 필터링된 모델을 업데이트합니다.
 
-        Results are sorted by match score (best first).
+        결과는 일치 점수에 따라 정렬됩니다(가장 좋은 것부터).
+
         """
         query = self._filter_text.strip()
         if not query:
@@ -453,11 +460,11 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         self._selected_index = 0
 
     async def _update_display(self) -> None:
-        """Render the model list grouped by provider.
+        """공급자별로 그룹화된 모델 목록을 렌더링합니다.
 
-        Performs a full DOM rebuild (removes all children, re-mounts).
-        Arrow-key navigation uses `_move_selection` instead to avoid
-        the cost of a full rebuild.
+        전체 DOM 재구축을 수행합니다(모든 하위 요소 제거, 다시 마운트). 화살표 키 탐색에서는 전체 재구축 비용을 피하기 위해 대신
+        `_move_selection`을 사용합니다.
+
         """
         if not self._options_container:
             return
@@ -589,20 +596,20 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         is_default: bool = False,
         status: str | None = None,
     ) -> Content:
-        """Build the display label for a model option.
+        """모델 옵션에 대한 표시 라벨을 작성합니다.
 
         Args:
-            model_spec: The `provider:model` string.
-            selected: Whether this option is currently highlighted.
-            current: Whether this is the active model.
-            has_creds: Credential status (True/False/None).
-            is_default: Whether this is the configured default model.
-            status: Model status from profile (e.g., `'deprecated'`,
-                `'beta'`, `'alpha'`). `'deprecated'` renders in red;
-                other non-None values render in yellow.
+            model_spec: `provider:model` 문자열.
+            selected: 이 옵션이 현재 강조 표시되어 있는지 여부입니다.
+            current: 활성 모델인지 여부입니다.
+            has_creds: 자격 증명 상태(True/False/None).
+            is_default: 구성된 기본 모델인지 여부입니다.
+            status: 프로필의 모델 상태(예: `'deprecated'`, `'beta'`, `'alpha'`) `'deprecated'`은
+                    빨간색으로 렌더링됩니다. None이 아닌 다른 값은 노란색으로 렌더링됩니다.
 
         Returns:
-            Styled Content label.
+            스타일이 지정된 콘텐츠 라벨.
+
         """
         colors = theme.get_theme_colors()
         glyphs = get_glyphs()
@@ -630,14 +637,15 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         profile_entry: ModelProfileEntry | None,
         glyphs: Glyphs,
     ) -> Content:
-        """Build the detail footer text for the highlighted model.
+        """강조 표시된 모델에 대한 세부 바닥글 텍스트를 작성합니다.
 
         Args:
-            profile_entry: Profile data with override tracking, or None.
-            glyphs: Glyph set for display characters.
+            profile_entry: 재정의 추적이 포함된 프로필 데이터 또는 없음.
+            glyphs: 표시 문자에 대한 문자 집합입니다.
 
         Returns:
-            Styled `Content` for the 4-line footer.
+            4줄 바닥글의 경우 `Content` 스타일이 지정되었습니다.
+
         """
         from deepagents_cli.textual_adapter import format_token_count
 
@@ -655,10 +663,11 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
             return Content(text)
 
         def _format_token(key: str, suffix: str) -> Content | None:
-            """Format a token-count profile key, falling back to the raw value.
+            """토큰 수 프로필 키의 형식을 지정하고 원시 값으로 돌아갑니다.
 
             Returns:
-                Styled `Content` with override marker, or None if key absent.
+                재정의 마커가 있는 `Content` 스타일 또는 키가 없는 경우 None입니다.
+
             """
             val = profile.get(key)
             if val is None:
@@ -670,10 +679,11 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
             return _mark(key, text)
 
         def _format_flags(keys: list[tuple[str, str]]) -> list[Content]:
-            """Render boolean profile keys as green (on) or dim (off) labels.
+            """부울 프로필 키를 녹색(켜짐) 또는 희미한(꺼짐) 레이블로 렌더링합니다.
 
             Returns:
-                List of styled `Content` objects for present keys.
+                현재 키에 대한 스타일이 지정된 `Content` 개체 목록입니다.
+
             """
             parts: list[Content] = []
             for key, label in keys:
@@ -741,14 +751,14 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         return Content.assemble(line1, "\n", line2, "\n", line3, "\n", line4)
 
     def _get_model_status(self, model_spec: str) -> str | None:
-        """Look up the status field for a model from its profile.
+        """프로필에서 모델의 상태 필드를 찾아보세요.
 
         Args:
-            model_spec: The `provider:model` string.
+            model_spec: `provider:model` 문자열.
 
         Returns:
-            Status string (e.g., `'deprecated'`) if the model has a profile
-            with a `status` key, otherwise None.
+            모델에 `status` 키가 있는 프로필이 있는 경우 상태 문자열(예: `'deprecated'`), 그렇지 않으면 없음입니다.
+
         """
         entry = self._profiles.get(model_spec)
         if entry is None:
@@ -759,7 +769,7 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         return profile.get("status")
 
     def _update_footer(self) -> None:
-        """Update the detail footer for the currently highlighted model."""
+        """현재 강조 표시된 모델의 세부 바닥글을 업데이트합니다."""
         footer = self.query_one("#model-detail-footer", Static)
         if not self._filtered_models:
             footer.update(Content.styled("No model selected", "dim"))
@@ -775,10 +785,11 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         footer.update(text)
 
     def _move_selection(self, delta: int) -> None:
-        """Move selection by delta, updating only the affected widgets.
+        """선택 항목을 델타별로 이동하여 영향을 받은 위젯만 업데이트합니다.
 
         Args:
-            delta: Number of positions to move (-1 for up, +1 for down).
+            delta: 이동할 위치 수(위로 -1, 아래로 +1)
+
         """
         if not self._filtered_models or not self._option_widgets:
             return
@@ -826,15 +837,15 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         self._update_footer()
 
     def action_move_up(self) -> None:
-        """Move selection up."""
+        """선택 항목을 위로 이동합니다."""
         self._move_selection(-1)
 
     def action_move_down(self) -> None:
-        """Move selection down."""
+        """선택 항목을 아래로 이동합니다."""
         self._move_selection(1)
 
     def action_tab_complete(self) -> None:
-        """Replace search text with the currently selected model spec."""
+        """검색 텍스트를 현재 선택한 모델 사양으로 바꿉니다."""
         if not self._filtered_models:
             return
         model_spec, _ = self._filtered_models[self._selected_index]
@@ -843,10 +854,11 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         filter_input.cursor_position = len(model_spec)
 
     def _visible_page_size(self) -> int:
-        """Return the number of model options that fit in one visual page.
+        """하나의 시각적 페이지에 맞는 모델 옵션 수를 반환합니다.
 
         Returns:
-            Number of model options per page, at least 1.
+            페이지당 모델 옵션 수는 1개 이상입니다.
+
         """
         default_page_size = 10
         try:
@@ -868,7 +880,7 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         return max(1, int(height * total_models / total_rows))
 
     def action_page_up(self) -> None:
-        """Move selection up by one visible page."""
+        """선택 항목을 표시되는 한 페이지 위로 이동합니다."""
         if not self._filtered_models:
             return
         page = self._visible_page_size()
@@ -878,7 +890,7 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
             self._move_selection(delta)
 
     def action_page_down(self) -> None:
-        """Move selection down by one visible page."""
+        """선택 항목을 표시되는 한 페이지 아래로 이동합니다."""
         if not self._filtered_models:
             return
         count = len(self._filtered_models)
@@ -889,7 +901,7 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
             self._move_selection(delta)
 
     def action_select(self) -> None:
-        """Select the current model."""
+        """현재 모델을 선택하세요."""
         # If there are filtered results, always select the highlighted model
         if self._filtered_models:
             model_spec, provider = self._filtered_models[self._selected_index]
@@ -907,10 +919,10 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
             self.dismiss((custom_input, ""))
 
     async def action_set_default(self) -> None:
-        """Toggle the highlighted model as the default.
+        """강조 표시된 모델을 기본값으로 전환합니다.
 
-        If the highlighted model is already the default, clears it.
-        Otherwise sets it as the new default.
+        강조 표시된 모델이 이미 기본값인 경우 해당 모델을 지웁니다. 그렇지 않으면 새 기본값으로 설정됩니다.
+
         """
         if not self._filtered_models or not self._option_widgets:
             return
@@ -952,7 +964,7 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
             self.set_timer(3.0, self._restore_help_text)
 
     def _restore_help_text(self) -> None:
-        """Restore the default help text after a temporary message."""
+        """임시 메시지 뒤에 기본 도움말 텍스트를 복원합니다."""
         glyphs = get_glyphs()
         help_text = (
             f"{glyphs.arrow_up}/{glyphs.arrow_down} navigate"
@@ -964,5 +976,5 @@ class ModelSelectorScreen(ModalScreen[tuple[str, str] | None]):
         help_widget.update(help_text)
 
     def action_cancel(self) -> None:
-        """Cancel the selection."""
+        """선택을 취소합니다."""
         self.dismiss(None)

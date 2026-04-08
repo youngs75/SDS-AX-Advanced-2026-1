@@ -1,7 +1,6 @@
-"""Render unified diffs as theme-aware Textual widgets.
+"""통합 diff를 테마 인식 텍스트 위젯으로 렌더링합니다.
 
-The helpers here break raw diff text into styled line widgets so approval and
-message views can reuse the same presentation logic.
+여기서 도우미는 원시 diff 텍스트를 스타일이 지정된 라인 위젯으로 분할하여 승인 및 메시지 보기가 동일한 프리젠테이션 논리를 재사용할 수 있도록 합니다.
 """
 
 from __future__ import annotations
@@ -24,18 +23,18 @@ def compose_diff_lines(
     diff: str,
     max_lines: int | None = 100,
 ) -> ComposeResult:
-    """Yield per-line Static widgets for a unified diff.
+    """통합 diff를 위한 라인당 정적 위젯을 생성합니다.
 
-    Each added/removed line gets a CSS class (`.diff-line-added`,
-    `.diff-line-removed`) so background colors are driven by CSS variables
-    and update automatically on theme change.
+    추가/제거된 각 줄은 CSS 클래스(`.diff-line-added`, `.diff-line-removed`)를 가져오므로 배경색은 CSS 변수에 의해
+    결정되고 테마 변경 시 자동으로 업데이트됩니다.
 
-    Args:
-        diff: Unified diff string.
-        max_lines: Maximum number of diff lines to show (None for unlimited).
+Args:
+        diff: 통합된 diff 문자열.
+        max_lines: 표시할 최대 차이점 라인 수(무제한인 경우 없음).
 
-    Yields:
-        Static widgets — one per diff line — with appropriate CSS classes.
+Yields:
+        적절한 CSS 클래스가 포함된 정적 위젯(diff 라인당 하나).
+
     """
     if not diff:
         yield Static(Content.styled("No changes detected", "dim"))
@@ -47,14 +46,15 @@ def _compose_diff_content(
     diff: str,
     max_lines: int | None,
 ) -> ComposeResult:
-    """Yield styled diff line widgets for non-empty diff content.
+    """비어 있지 않은 diff 콘텐츠에 대한 스타일 diff 라인 위젯을 생성합니다.
 
-    Args:
-        diff: Non-empty unified diff string.
-        max_lines: Maximum number of diff lines to show (None for unlimited).
+Args:
+        diff: 비어 있지 않은 통합 diff 문자열입니다.
+        max_lines: 표시할 최대 차이점 라인 수(무제한인 경우 없음).
 
-    Yields:
-        Static widgets for stats header and individual diff lines.
+Yields:
+        통계 헤더 및 개별 차이점 줄을 위한 정적 위젯입니다.
+
     """
     colors = theme.get_theme_colors()
     glyphs = get_glyphs()
@@ -154,7 +154,7 @@ def _compose_diff_content(
 
 
 class EnhancedDiff(Vertical):
-    """Widget for displaying a unified diff with syntax highlighting."""
+    """구문 강조가 포함된 통합 diff를 표시하기 위한 위젯입니다."""
 
     DEFAULT_CSS = """
     EnhancedDiff {
@@ -187,13 +187,14 @@ class EnhancedDiff(Vertical):
         max_lines: int | None = 100,
         **kwargs: Any,
     ) -> None:
-        """Initialize the diff widget.
+        """diff 위젯을 초기화합니다.
 
-        Args:
-            diff: Unified diff string
-            title: Title to display above the diff
-            max_lines: Maximum number of diff lines to show
-            **kwargs: Additional arguments passed to parent
+Args:
+            diff: 통합 diff 문자열
+            title: 차이점 위에 표시할 제목
+            max_lines: 표시할 최대 차이점 선 수
+            **kwargs: 부모에게 전달된 추가 인수
+
         """
         super().__init__(**kwargs)
         self._diff = diff
@@ -202,10 +203,11 @@ class EnhancedDiff(Vertical):
         self._stats = self._compute_stats()
 
     def _compute_stats(self) -> tuple[int, int]:
-        """Compute additions and deletions count.
+        """추가 및 삭제 횟수를 계산합니다.
 
-        Returns:
-            Tuple of (additions count, deletions count).
+Returns:
+            (추가 개수, 삭제 개수)의 튜플입니다.
+
         """
         additions = 0
         deletions = 0
@@ -217,16 +219,17 @@ class EnhancedDiff(Vertical):
         return additions, deletions
 
     def on_mount(self) -> None:
-        """Set border style based on charset mode."""
+        """문자셋 모드에 따라 테두리 스타일을 설정합니다."""
         if is_ascii_mode():
             colors = theme.get_theme_colors(self)
             self.styles.border = ("ascii", colors.primary)
 
     def compose(self) -> ComposeResult:
-        """Compose the diff widget layout.
+        """diff 위젯 레이아웃을 구성합니다.
 
-        Yields:
-            Widgets for title, formatted diff content, and stats.
+Yields:
+            제목, 형식화된 차이점 콘텐츠, 통계용 위젯입니다.
+
         """
         colors = theme.get_theme_colors(self)
         glyphs = get_glyphs()

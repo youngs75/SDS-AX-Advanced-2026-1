@@ -1,9 +1,7 @@
-"""Remote agent client — thin wrapper around LangGraph's `RemoteGraph`.
+"""원격 에이전트 클라이언트 — LangGraph의 `RemoteGraph`을 둘러싼 씬 래퍼입니다.
 
-Delegates streaming, state management, and SSE handling to
-`langgraph.pregel.remote.RemoteGraph`. The only added logic is converting raw
-message dicts from the server into LangChain message objects that the CLI's
-Textual adapter expects.
+스트리밍, 상태 관리 및 SSE 처리를 `langgraph.pregel.remote.RemoteGraph`에 위임합니다. 추가된 유일한 논리는 서버의 원시
+메시지 구문을 CLI의 텍스트 어댑터가 예상하는 LangChain 메시지 개체로 변환하는 것입니다.
 """
 
 from __future__ import annotations
@@ -21,16 +19,17 @@ configure_debug_logging(logger)
 
 
 def _require_thread_id(config: dict[str, Any] | None) -> str:
-    """Extract and validate that `thread_id` is present in config.
+    """`thread_id`이 구성에 있는지 추출하고 검증합니다.
 
-    Args:
-        config: Config dict with `configurable.thread_id`.
+Args:
+        config: `configurable.thread_id`을(를) 사용하여 사전을 구성합니다.
 
-    Returns:
-        The thread ID string.
+Returns:
+        스레드 ID 문자열입니다.
 
-    Raises:
-        ValueError: If `thread_id` is missing.
+Raises:
+        ValueError: `thread_id`이 누락된 경우.
+
     """
     thread_id = (config or {}).get("configurable", {}).get("thread_id")
     if not thread_id:
@@ -40,12 +39,12 @@ def _require_thread_id(config: dict[str, Any] | None) -> str:
 
 
 class RemoteAgent:
-    """Client that talks to a LangGraph server over HTTP+SSE.
+    """HTTP+SSE를 통해 LangGraph 서버와 통신하는 클라이언트입니다.
 
-    Wraps `langgraph.pregel.remote.RemoteGraph` which handles SSE parsing,
-    stream-mode negotiation (`messages-tuple`), namespace extraction, and
-    interrupt detection. This class adds only message-object conversion for the
-    Textual adapter and thread-ID normalization.
+    SSE 구문 분석, 스트림 모드 협상(`messages-tuple`), 네임스페이스 추출 및 인터럽트 감지를 처리하는
+    `langgraph.pregel.remote.RemoteGraph`을 래핑합니다. 이 클래스는 텍스트 어댑터 및 스레드 ID 정규화를 위한 메시지-객체
+    변환만 추가합니다.
+
     """
 
     def __init__(
@@ -56,18 +55,17 @@ class RemoteAgent:
         api_key: str | None = None,
         headers: dict[str, str] | None = None,
     ) -> None:
-        """Initialize the remote agent client.
+        """원격 에이전트 클라이언트를 초기화합니다.
 
-        Args:
-            url: Base URL of the LangGraph server.
-            graph_name: Name of the graph on the server.
-            api_key: API key for authenticated deployments.
+Args:
+            url: LangGraph 서버의 기본 URL입니다.
+            graph_name: 서버의 그래프 이름입니다.
+            api_key: 인증된 배포를 위한 API 키입니다.
 
-                When `None`, `RemoteGraph` auto-reads `LANGGRAPH_API_KEY`,
-                `LANGSMITH_API_KEY`, or `LANGCHAIN_API_KEY` from
-                the environment.
-            headers: Extra HTTP headers to include in every request
-                (e.g. bearer tokens, proxy headers).
+                `None`, `RemoteGraph`이(가) 환경에서 `LANGGRAPH_API_KEY`, `LANGSMITH_API_KEY`
+                또는 `LANGCHAIN_API_KEY`을 자동으로 읽는 경우.
+            headers: 모든 요청에 ​​포함할 추가 HTTP 헤더(예: 전달자 토큰, 프록시 헤더)
+
         """
         self._url = url
         self._graph_name = graph_name
@@ -76,10 +74,11 @@ class RemoteAgent:
         self._graph: Any = None
 
     def _get_graph(self) -> Any:  # noqa: ANN401
-        """Lazily create the `RemoteGraph` instance.
+        """`RemoteGraph` 인스턴스를 느리게 생성합니다.
 
-        Returns:
-            A `RemoteGraph` connected to the server.
+Returns:
+            `RemoteGraph`이 서버에 연결되었습니다.
+
         """
         if self._graph is None:
             from langgraph.pregel.remote import RemoteGraph
@@ -102,26 +101,25 @@ class RemoteAgent:
         context: Any | None = None,  # noqa: ANN401
         durability: str | None = None,  # noqa: ARG002
     ) -> AsyncIterator[tuple[tuple[str, ...], str, Any]]:
-        """Stream agent execution, yielding tuples matching Pregel's format.
+        """스트림 에이전트 실행으로 Pregel 형식과 일치하는 튜플을 생성합니다.
 
-        Delegates to `RemoteGraph.astream` (which handles `messages-tuple`
-        negotiation, SSE routing, and namespace parsing) and converts the raw
-        message dicts into LangChain message objects for the adapter.
+        `RemoteGraph.astream`(`messages-tuple` 협상, SSE 라우팅 및 네임스페이스 구문 분석을 처리)에 위임하고 원시
+        메시지 사전을 어댑터의 LangChain 메시지 개체로 변환합니다.
 
-        Args:
-            input: The input to send (messages dict or Command).
-            stream_mode: Stream modes to request.
-            subgraphs: Whether to stream subgraph events.
-            config: LangGraph config with `configurable.thread_id`, etc.
-            context: Runtime context (e.g. `CLIContext`) forwarded to the
-                server via the SDK's `context=` parameter.
-            durability: Ignored (server manages durability).
+Args:
+            input: 보낼 입력(메시지 dict 또는 Command)입니다.
+            stream_mode: 요청할 스트림 모드.
+            subgraphs: 하위 그래프 이벤트를 스트리밍할지 여부입니다.
+            config: `configurable.thread_id` 등을 사용한 LangGraph 구성
+            context: SDK의 `context=` 매개변수를 통해 서버로 전달되는 런타임 컨텍스트(예: `CLIContext`).
+            durability: 무시됩니다(서버가 내구성을 관리함).
 
-        Yields:
-            3-tuples of `(namespace, stream_mode, data)`.
+Yields:
+            `(namespace, stream_mode, data)`의 3튜플.
 
-        Raises:
-            ValueError: If `thread_id` is not present in `config`.
+Raises:
+            ValueError: `thread_id`이(가) `config`에 없는 경우.
+
         """  # noqa: DOC502 — raised by _require_thread_id
         from langchain_core.messages import BaseMessage
 
@@ -180,21 +178,21 @@ class RemoteAgent:
         self,
         config: dict[str, Any],
     ) -> Any:  # noqa: ANN401
-        """Get the current state of a thread.
+        """스레드의 현재 상태를 가져옵니다.
 
-        Returns `None` when the thread does not exist on the server (404).
-        All other errors (network, auth, 500) are logged at WARNING and
-        re-raised so callers can handle them.
+        서버에 스레드가 없으면 `None`을 반환합니다(404). 다른 모든 오류(네트워크, 인증, 500)는 WARNING에 기록되고 호출자가 처리할
+        수 있도록 다시 발생합니다.
 
-        Args:
-            config: Config with `configurable.thread_id`.
+Args:
+            config: `configurable.thread_id`로 구성하세요.
 
-        Returns:
-            Thread state object with `values` and `next` attributes, or `None`
-                if the thread is not found.
+Returns:
+            `values` 및 `next` 속성 ​​또는 `None`이 있는 스레드 상태 객체
+                스레드를 찾을 수 없는 경우.
 
-        Raises:
-            ValueError: If `thread_id` is not present in `config`.
+Raises:
+            ValueError: `thread_id`이(가) `config`에 없는 경우.
+
         """  # noqa: DOC502 — raised by _require_thread_id
         from langgraph_sdk.errors import NotFoundError
 
@@ -217,17 +215,17 @@ class RemoteAgent:
         config: dict[str, Any],
         values: dict[str, Any],
     ) -> None:
-        """Update the state of a thread.
+        """스레드 상태를 업데이트합니다.
 
-        Exceptions from the underlying graph (server/network errors) are logged
-        at WARNING level and then re-raised so callers can handle them.
+        기본 그래프의 예외(서버/네트워크 오류)는 WARNING 수준에서 기록된 다음 다시 발생하여 호출자가 이를 처리할 수 있습니다.
 
-        Args:
-            config: Config with `configurable.thread_id`.
-            values: State values to update.
+Args:
+            config: `configurable.thread_id`로 구성하세요.
+            values: 업데이트할 상태 값입니다.
 
-        Raises:
-            ValueError: If `thread_id` is not present in `config`.
+Raises:
+            ValueError: `thread_id`이(가) `config`에 없는 경우.
+
         """  # noqa: DOC502 — raised by _require_thread_id
         thread_id = _require_thread_id(config)
 
@@ -241,23 +239,21 @@ class RemoteAgent:
             raise
 
     async def aensure_thread(self, config: dict[str, Any]) -> None:
-        """Ensure the remote thread record exists before mutating state.
+        """상태를 변경하기 전에 원격 스레드 레코드가 존재하는지 확인하세요.
 
-        In the LangGraph dev server, checkpoint persistence and HTTP thread
-        registration are separate. After a server restart, a thread may still
-        have checkpointed state on disk while `POST /threads/{id}/state`
-        returns 404 because the server has not yet materialized that thread in
-        its live store.
+        LangGraph 개발 서버에서는 체크포인트 지속성과 HTTP 스레드 등록이 별개입니다. 서버를 다시 시작한 후에도 스레드는 여전히 디스크에
+        체크포인트 상태를 가질 수 있지만 서버가 해당 스레드를 라이브 저장소에 아직 구체화하지 않았기 때문에 `POST
+        /threads/{id}/state`은 404를 반환합니다.
 
-        This method performs the idempotent HTTP-side registration with
-        `if_exists='do_nothing'` so callers that recovered state from
-        persistence can safely follow up with `aupdate_state`.
+        이 방법은 `if_exists='do_nothing'`을 사용하여 멱등성 HTTP 측 등록을 수행하므로 지속성에서 상태를 복구한 호출자가
+        `aupdate_state`을(를) 안전하게 후속 조치할 수 있습니다.
 
-        Args:
-            config: Config with `configurable.thread_id` and optional metadata.
+Args:
+            config: `configurable.thread_id` 및 선택적 메타데이터로 구성합니다.
 
-        Raises:
-            ValueError: If `thread_id` is not present in `config`.
+Raises:
+            ValueError: `thread_id`이(가) `config`에 없는 경우.
+
         """  # noqa: DOC502 — raised by _require_thread_id
         _require_thread_id(config)
 
@@ -284,13 +280,14 @@ class RemoteAgent:
             raise
 
     def with_config(self, config: dict[str, Any]) -> RemoteAgent:  # noqa: ARG002
-        """Return self (config is passed per-call, not stored).
+        """자체를 반환합니다(구성은 저장되지 않고 호출별로 전달됩니다).
 
-        Args:
-            config: Ignored.
+Args:
+            config: 무시되었습니다.
 
-        Returns:
-            Self.
+Returns:
+            본인.
+
         """
         return self
 
@@ -301,13 +298,14 @@ class RemoteAgent:
 
 
 def _prepare_config(config: dict[str, Any] | None) -> dict[str, Any]:
-    """Shallow-copy config so callers' dicts are not mutated.
+    """호출자의 dicts가 변경되지 않도록 얕은 복사 구성입니다.
 
-    Args:
-        config: Raw config dict.
+Args:
+        config: 원시 구성 사전
 
-    Returns:
-        A shallow copy of the config.
+Returns:
+        구성의 얕은 복사본입니다.
+
     """
     config = dict(config or {})
     configurable = dict(config.get("configurable", {}))
@@ -316,13 +314,14 @@ def _prepare_config(config: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def _convert_interrupts(raw: Any) -> list[Any]:  # noqa: ANN401
-    """Convert interrupt dicts from the server into Interrupt objects.
+    """서버의 인터럽트 dict를 Interrupt 객체로 변환합니다.
 
-    Args:
-        raw: List of interrupt dicts or Interrupt objects from the server.
+Args:
+        raw: 서버의 인터럽트 dict 또는 인터럽트 개체 목록입니다.
 
-    Returns:
-        List of Interrupt objects.
+Returns:
+        인터럽트 개체 목록입니다.
+
     """
     from langgraph.types import Interrupt
 
@@ -355,20 +354,21 @@ def _convert_interrupts(raw: Any) -> list[Any]:  # noqa: ANN401
 
 
 def _convert_ai_message(data: dict[str, Any]) -> Any:  # noqa: ANN401
-    """Convert a server AI message dict to an `AIMessageChunk`.
+    """서버 AI 메시지 사전을 `AIMessageChunk`로 변환합니다.
 
-    Handles the three tool-call representations the server may emit:
+    서버가 내보낼 수 있는 세 가지 도구 호출 표현을 처리합니다.
 
-    - `tool_call_chunks`: streaming partial args (string `args`).
-    - `tool_calls` with string `args`: legacy streaming format,
-        normalized to `tool_call_chunks`.
-    - `tool_calls` with dict `args`: fully parsed calls.
+    - `tool_call_chunks`: 부분 인수 스트리밍(문자열 `args`). - `tool_calls`(문자열 `args` 포함): 레거시
+    스트리밍 형식,
+        `tool_call_chunks`로 정규화되었습니다.
+    - `tool_calls`(딕셔너리 `args` 포함): 완전히 구문 분석된 호출.
 
-    Args:
-        data: Raw message dict from the server.
+Args:
+        data: 서버의 원시 메시지 dict입니다.
 
-    Returns:
-        An `AIMessageChunk`, or `None` on construction failure.
+Returns:
+        건설 실패 시 `AIMessageChunk` 또는 `None`.
+
     """
     from langchain_core.messages import AIMessageChunk
 
@@ -425,13 +425,14 @@ def _convert_ai_message(data: dict[str, Any]) -> Any:  # noqa: ANN401
 
 
 def _convert_human_message(data: dict[str, Any]) -> Any:  # noqa: ANN401
-    """Convert a server human message dict to a `HumanMessage`.
+    """서버 사람 메시지 사전을 `HumanMessage`로 변환합니다.
 
-    Args:
-        data: Raw message dict from the server.
+Args:
+        data: 서버의 원시 메시지 dict입니다.
 
-    Returns:
-        A `HumanMessage`, or `None` on construction failure.
+Returns:
+        건설 실패 시 `HumanMessage` 또는 `None`.
+
     """
     from langchain_core.messages import HumanMessage
 
@@ -450,13 +451,14 @@ def _convert_human_message(data: dict[str, Any]) -> Any:  # noqa: ANN401
 
 
 def _convert_tool_message(data: dict[str, Any]) -> Any:  # noqa: ANN401
-    """Convert a server tool message dict to a `ToolMessage`.
+    """서버 도구 메시지 사전을 `ToolMessage`로 변환합니다.
 
-    Args:
-        data: Raw message dict from the server.
+Args:
+        data: 서버의 원시 메시지 dict입니다.
 
-    Returns:
-        A `ToolMessage`, or `None` on construction failure.
+Returns:
+        건설 실패 시 `ToolMessage` 또는 `None`.
+
     """
     from langchain_core.messages import ToolMessage
 
@@ -486,26 +488,25 @@ _MESSAGE_CONVERTERS: dict[str, Callable[[dict[str, Any]], Any]] = {
     "tool": _convert_tool_message,
     "ToolMessage": _convert_tool_message,
 }
-"""Maps server message `type` strings to their converter functions.
+"""서버 메시지 `type` 문자열을 해당 변환기 기능에 매핑합니다.
 
-Both short forms (`'ai'`, `'human'`, `'tool'`) and class-name forms
-(`'AIMessage'`, `'HumanMessage'`, `'ToolMessage'`) are supported so
-the converter works regardless of how the server serializes the type field.
+짧은 형식(`'ai'`, `'human'`, `'tool'`)과 클래스 이름 형식(`'AIMessage'`, `'HumanMessage'`,
+`'ToolMessage'`)이 모두 지원되므로 서버가 유형 필드를 직렬화하는 방법에 관계없이 변환기가 작동합니다.
 """
 
 
 def _convert_message_data(data: dict[str, Any]) -> Any:  # noqa: ANN401
-    """Convert a server message dict into a LangChain message object.
+    """서버 메시지 사전을 LangChain 메시지 개체로 변환합니다.
 
-    Dispatches to a per-type converter via `_MESSAGE_CONVERTERS`. New message
-    types can be supported by adding a converter function and a table entry —
-    no changes to this dispatcher are needed.
+    `_MESSAGE_CONVERTERS`을 통해 유형별 변환기로 전달됩니다. 변환기 기능과 테이블 항목을 추가하여 새로운 메시지 유형을 지원할 수
+    있습니다. 이 디스패처를 변경할 필요가 없습니다.
 
-    Args:
-        data: Message dict from the server.
+Args:
+        data: 서버에서 보낸 메시지입니다.
 
-    Returns:
-        A LangChain message object, or `None` if conversion fails.
+Returns:
+        LangChain 메시지 개체 또는 변환이 실패한 경우 `None`.
+
     """
     msg_type = data.get("type", "")
     converter = _MESSAGE_CONVERTERS.get(msg_type)

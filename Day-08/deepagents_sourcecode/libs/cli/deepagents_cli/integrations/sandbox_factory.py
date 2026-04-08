@@ -1,8 +1,8 @@
-"""Create, configure, and tear down optional sandbox backends.
+"""선택적 샌드박스 백엔드를 생성, 구성 및 해체합니다.
 
-This module discovers installed sandbox providers, applies shared CLI setup,
-and presents a uniform lifecycle API to the rest of the package.
+이 모듈은 설치된 샌드박스 공급자를 검색하고 공유 CLI 설정을 적용하며 패키지의 나머지 부분에 균일한 수명 주기 API를 제공합니다.
 """
+
 
 from __future__ import annotations
 
@@ -37,16 +37,18 @@ if TYPE_CHECKING:
 
 
 def _run_sandbox_setup(backend: SandboxBackendProtocol, setup_script_path: str) -> None:
-    """Run users setup script in sandbox with env var expansion.
+    """env var 확장을 사용하여 샌드박스에서 사용자 설정 스크립트를 실행합니다.
 
     Args:
-        backend: Sandbox backend instance
-        setup_script_path: Path to setup script file
+        backend: 샌드박스 백엔드 인스턴스
+        setup_script_path: 설정 스크립트 파일 경로
 
     Raises:
-        FileNotFoundError: If the setup script does not exist.
-        RuntimeError: If the setup script fails to execute.
+        FileNotFoundError: 설정 스크립트가 존재하지 않는 경우.
+        RuntimeError: 설정 스크립트가 실행되지 않는 경우.
+
     """
+
     script_path = Path(setup_script_path)
     if not script_path.exists():
         msg = f"Setup script not found: {setup_script_path}"
@@ -82,7 +84,8 @@ _PROVIDER_TO_WORKING_DIR = {
     "modal": "/workspace",
     "runloop": "/home/user",
 }
-"""Map of sandbox provider names to their default working directories."""
+"""샌드박스 공급자 이름을 기본 작업 디렉터리에 매핑합니다."""
+
 
 
 @contextmanager
@@ -92,20 +95,21 @@ def create_sandbox(
     sandbox_id: str | None = None,
     setup_script_path: str | None = None,
 ) -> Generator[SandboxBackendProtocol, None, None]:
-    """Create or connect to a sandbox of the specified provider.
+    """지정된 공급자의 샌드박스를 생성하거나 연결합니다.
 
-    This is the unified interface for sandbox creation using the
-    provider abstraction.
+    이는 공급자 추상화를 사용하여 샌드박스 생성을 위한 통합 인터페이스입니다.
 
     Args:
-        provider: Sandbox provider (`'agentcore'`, `'daytona'`, `'langsmith'`,
-            `'modal'`, `'runloop'`)
-        sandbox_id: Optional existing sandbox ID to reuse
-        setup_script_path: Optional path to setup script to run after sandbox starts
+        provider: 샌드박스 제공업체(`'agentcore'`, `'daytona'`, `'langsmith'`, `'modal'`,
+                  `'runloop'`)
+        sandbox_id: 재사용할 선택적 기존 샌드박스 ID
+        setup_script_path: 샌드박스가 시작된 후 실행할 설정 스크립트의 선택적 경로
 
     Yields:
-        `SandboxBackendProtocol` instance
+        `SandboxBackendProtocol` 인스턴스
+
     """
+
     # Get provider instance
     provider_obj = _get_provider(provider)
 
@@ -148,27 +152,31 @@ def create_sandbox(
 
 
 def _get_available_sandbox_types() -> list[str]:
-    """Get list of available sandbox provider types (internal).
+    """사용 가능한 샌드박스 공급자 유형 목록을 가져옵니다(내부).
 
     Returns:
-        List of available sandbox provider type names
+        사용 가능한 샌드박스 공급자 유형 이름 목록
+
     """
+
     return sorted(_PROVIDER_TO_WORKING_DIR.keys())
 
 
 def get_default_working_dir(provider: str) -> str:
-    """Get the default working directory for a given sandbox provider.
+    """특정 샌드박스 공급자의 기본 작업 디렉터리를 가져옵니다.
 
     Args:
-        provider: Sandbox provider name (`'agentcore'`, `'daytona'`, `'langsmith'`,
-            `'modal'`, `'runloop'`)
+        provider: 샌드박스 공급자 이름(`'agentcore'`, `'daytona'`, `'langsmith'`, `'modal'`,
+                  `'runloop'`)
 
     Returns:
-        Default working directory path as string
+        기본 작업 디렉터리 경로(문자열)
 
     Raises:
-        ValueError: If provider is unknown
+        ValueError: 공급자를 알 수 없는 경우
+
     """
+
     if provider in _PROVIDER_TO_WORKING_DIR:
         return _PROVIDER_TO_WORKING_DIR[provider]
     msg = f"Unknown sandbox provider: {provider}"
@@ -186,19 +194,21 @@ def _import_provider_module(
     provider: str,
     package: str,
 ) -> ModuleType:
-    """Import an optional provider module with a provider-specific error message.
+    """공급자별 오류 메시지와 함께 선택적 공급자 모듈을 가져옵니다.
 
     Args:
-        module_name: Python module name to import.
-        provider: Sandbox provider name (e.g. `'daytona'`).
-        package: PyPI package name exposed by the CLI extra.
+        module_name: 가져올 Python 모듈 이름입니다.
+        provider: 샌드박스 제공자 이름(예: `'daytona'`).
+        package: CLI 추가 항목에 의해 노출되는 PyPI 패키지 이름입니다.
 
     Returns:
-        The imported module object.
+        가져온 모듈 개체입니다.
 
     Raises:
-        ImportError: If the optional dependency is not installed.
+        ImportError: 선택적 종속성이 설치되지 않은 경우.
+
     """
+
     try:
         return importlib.import_module(module_name)
     except ImportError as exc:
@@ -210,28 +220,34 @@ def _import_provider_module(
 
 
 _LANGSMITH_DEFAULT_TEMPLATE = "deepagents-cli"
-"""Default LangSmith sandbox template name used when no template is specified."""
+"""템플릿이 지정되지 않은 경우 사용되는 기본 LangSmith 샌드박스 템플릿 이름입니다."""
+
 
 _LANGSMITH_DEFAULT_IMAGE = "python:3"
-"""Default Docker image for LangSmith sandboxes when no image is provided."""
+"""이미지가 제공되지 않은 경우 LangSmith 샌드박스의 기본 Docker 이미지입니다."""
+
 
 
 class _LangSmithProvider(SandboxProvider):
-    """LangSmith sandbox provider implementation.
+    """LangSmith 샌드박스 공급자 구현.
 
-    Manages LangSmith sandbox lifecycle using the LangSmith SDK.
+    LangSmith SDK를 사용하여 LangSmith 샌드박스 수명주기를 관리합니다.
+
     """
 
+
     def __init__(self, api_key: str | None = None) -> None:
-        """Initialize LangSmith provider.
+        """LangSmith 공급자를 초기화합니다.
 
         Args:
-            api_key: LangSmith API key (defaults to `LANGSMITH_SANDBOX_API_KEY`,
-                then `LANGSMITH_API_KEY` env var).
+            api_key: LangSmith API 키(기본값은 `LANGSMITH_SANDBOX_API_KEY`, 그 다음은
+                     `LANGSMITH_API_KEY` env var).
 
         Raises:
-            ValueError: If no LangSmith API key is found.
+            ValueError: LangSmith API 키가 발견되지 않은 경우.
+
         """
+
         from langsmith.sandbox import SandboxClient
 
         from deepagents_cli.model_config import resolve_env_var
@@ -259,22 +275,24 @@ class _LangSmithProvider(SandboxProvider):
         template_image: str | None = None,
         **kwargs: Any,
     ) -> SandboxBackendProtocol:
-        """Get existing or create new LangSmith sandbox.
+        """기존 제품을 가져오거나 새로운 LangSmith 샌드박스를 만드세요.
 
         Args:
-            sandbox_id: Optional existing sandbox name to reuse
-            timeout: Timeout in seconds for sandbox startup
-            template: Template name for the sandbox
-            template_image: Docker image for the template
-            **kwargs: Additional LangSmith-specific parameters
+            sandbox_id: 재사용할 선택적 기존 샌드박스 이름
+            timeout: 샌드박스 시작 시간 초과(초)
+            template: 샌드박스의 템플릿 이름
+            template_image: 템플릿의 Docker 이미지
+            **kwargs: 추가 LangSmith 관련 매개변수
 
         Returns:
-            `LangSmithSandbox` instance
+            `LangSmithSandbox` 인스턴스
 
         Raises:
-            RuntimeError: If sandbox connection or startup fails
-            TypeError: If unsupported keyword arguments are provided
+            RuntimeError: 샌드박스 연결 또는 시작이 실패하는 경우
+            TypeError: 지원되지 않는 키워드 인수가 제공된 경우
+
         """
+
         from deepagents.backends.langsmith import LangSmithSandbox
 
         if kwargs:
@@ -326,12 +344,14 @@ class _LangSmithProvider(SandboxProvider):
         return LangSmithSandbox(sandbox)
 
     def delete(self, *, sandbox_id: str, **kwargs: Any) -> None:  # noqa: ARG002  # Required by SandboxFactory interface
-        """Delete a LangSmith sandbox.
+        """LangSmith 샌드박스를 삭제합니다.
 
         Args:
-            sandbox_id: Sandbox name to delete
-            **kwargs: Additional parameters
+            sandbox_id: 삭제할 샌드박스 이름
+            **kwargs: 추가 매개변수
+
         """
+
         self._client.delete_sandbox(sandbox_id)
 
     @staticmethod
@@ -339,13 +359,15 @@ class _LangSmithProvider(SandboxProvider):
         template: SandboxTemplate | str | None,
         template_image: str | None = None,
     ) -> tuple[str, str]:
-        """Resolve template name and image from kwargs.
+        """kwargs에서 템플릿 이름과 이미지를 확인합니다.
 
         Returns:
-            Tuple of `(template_name, template_image)`.
+            `(template_name, template_image)`의 튜플입니다.
 
-                Always returns values, using defaults if not provided.
+                제공되지 않은 경우 기본값을 사용하여 항상 값을 반환합니다.
+
         """
+
         resolved_image = template_image or _LANGSMITH_DEFAULT_IMAGE
         if template is None:
             return _LANGSMITH_DEFAULT_TEMPLATE, resolved_image
@@ -361,11 +383,13 @@ class _LangSmithProvider(SandboxProvider):
         template_name: str,
         template_image: str,
     ) -> None:
-        """Ensure template exists, creating it if needed.
+        """템플릿이 있는지 확인하고 필요한 경우 템플릿을 만듭니다.
 
         Raises:
-            RuntimeError: If template check or creation fails
+            RuntimeError: 템플릿 확인 또는 생성에 실패한 경우
+
         """
+
         from langsmith.sandbox import ResourceNotFoundError
 
         try:
@@ -386,8 +410,7 @@ class _LangSmithProvider(SandboxProvider):
 
 
 class _DaytonaProvider(SandboxProvider):
-    """Daytona sandbox provider — lifecycle management for Daytona sandboxes."""
-
+    """Daytona 샌드박스 공급자 — Daytona 샌드박스의 수명 주기 관리."""
     def __init__(self) -> None:
         daytona_module = _import_provider_module(
             "daytona",
@@ -418,20 +441,22 @@ class _DaytonaProvider(SandboxProvider):
         timeout: int = 180,
         **kwargs: Any,  # noqa: ARG002
     ) -> SandboxBackendProtocol:
-        """Get or create a Daytona sandbox.
+        """Daytona 샌드박스를 얻거나 만듭니다.
 
         Args:
-            sandbox_id: Not supported yet — must be None.
-            timeout: Seconds to wait for startup.
-            **kwargs: Unused.
+            sandbox_id: 아직 지원되지 않습니다. 없음이어야 합니다.
+            timeout: 시작을 기다리는 데 몇 초가 소요됩니다.
+            **kwargs: 미사용.
 
         Returns:
-            `DaytonaSandbox` instance.
+            `DaytonaSandbox` 인스턴스.
 
         Raises:
-            NotImplementedError: If `sandbox_id` is provided.
-            RuntimeError: If the sandbox fails to start.
+            NotImplementedError: `sandbox_id`이 제공된 경우.
+            RuntimeError: 샌드박스가 시작되지 않는 경우.
+
         """
+
         daytona_backend = _import_provider_module(
             "langchain_daytona",
             provider="daytona",
@@ -465,14 +490,14 @@ class _DaytonaProvider(SandboxProvider):
         return daytona_backend.DaytonaSandbox(sandbox=sandbox)
 
     def delete(self, *, sandbox_id: str, **kwargs: Any) -> None:  # noqa: ARG002
-        """Delete a Daytona sandbox by id."""
+        """ID별로 Daytona 샌드박스를 삭제합니다."""
+
         sandbox = self._client.get(sandbox_id)
         self._client.delete(sandbox)
 
 
 class _ModalProvider(SandboxProvider):
-    """Modal sandbox provider — lifecycle management for Modal sandboxes."""
-
+    """모달 샌드박스 공급자 — 모달 샌드박스의 수명 주기 관리."""
     def __init__(self) -> None:
         self._modal = _import_provider_module(
             "modal",
@@ -522,19 +547,21 @@ class _ModalProvider(SandboxProvider):
         timeout: int = 180,
         **kwargs: Any,  # noqa: ARG002
     ) -> SandboxBackendProtocol:
-        """Get or create a Modal sandbox.
+        """Modal 샌드박스를 가져오거나 만듭니다.
 
         Args:
-            sandbox_id: Existing sandbox ID, or None to create.
-            timeout: Seconds to wait for startup.
-            **kwargs: Unused.
+            sandbox_id: 기존 샌드박스 ID 또는 생성할 없음입니다.
+            timeout: 시작을 기다리는 데 몇 초가 소요됩니다.
+            **kwargs: 미사용.
 
         Returns:
-            `ModalSandbox` instance.
+            `ModalSandbox` 인스턴스.
 
         Raises:
-            RuntimeError: If the sandbox fails to start.
+            RuntimeError: 샌드박스가 시작되지 않는 경우.
+
         """
+
         modal_backend = _import_provider_module(
             "langchain_modal",
             provider="modal",
@@ -577,7 +604,8 @@ class _ModalProvider(SandboxProvider):
         return modal_backend.ModalSandbox(sandbox=sandbox)
 
     def delete(self, *, sandbox_id: str, **kwargs: Any) -> None:  # noqa: ARG002
-        """Terminate a Modal sandbox by id."""
+        """ID로 모달 샌드박스를 종료합니다."""
+
         del_kwargs: dict[str, Any] = {"sandbox_id": sandbox_id, "app": self._app}
         if self._client is not None:
             del_kwargs["client"] = self._client
@@ -586,8 +614,7 @@ class _ModalProvider(SandboxProvider):
 
 
 class _RunloopProvider(SandboxProvider):
-    """Runloop sandbox provider — lifecycle management for Runloop devboxes."""
-
+    """Runloop 샌드박스 공급자 — Runloop devbox의 수명 주기 관리."""
     def __init__(self) -> None:
         runloop_module = _import_provider_module(
             "runloop_api_client",
@@ -613,20 +640,22 @@ class _RunloopProvider(SandboxProvider):
         timeout: int = 180,
         **kwargs: Any,  # noqa: ARG002
     ) -> SandboxBackendProtocol:
-        """Get or create a Runloop devbox.
+        """Runloop devbox를 얻거나 만드십시오.
 
         Args:
-            sandbox_id: Existing devbox ID, or None to create.
-            timeout: Seconds to wait for startup.
-            **kwargs: Unused.
+            sandbox_id: 기존 devbox ID, 또는 생성할 없음.
+            timeout: 시작을 기다리는 데 몇 초가 소요됩니다.
+            **kwargs: 미사용.
 
         Returns:
-            `RunloopSandbox` instance.
+            `RunloopSandbox` 인스턴스.
 
         Raises:
-            RuntimeError: If the devbox fails to start.
-            SandboxNotFoundError: If `sandbox_id` does not exist.
+            RuntimeError: devbox가 시작되지 않는 경우.
+            SandboxNotFoundError: `sandbox_id`이 존재하지 않는 경우.
+
         """
+
         runloop_backend = _import_provider_module(
             "langchain_runloop",
             provider="runloop",
@@ -660,28 +689,30 @@ class _RunloopProvider(SandboxProvider):
         return runloop_backend.RunloopSandbox(devbox=devbox)
 
     def delete(self, *, sandbox_id: str, **kwargs: Any) -> None:  # noqa: ARG002
-        """Shut down a Runloop devbox by id."""
+        """ID로 Runloop devbox를 종료합니다."""
+
         self._client.devboxes.shutdown(id=sandbox_id)
 
 
 class _AgentCoreProvider(SandboxProvider):
-    """AgentCore Code Interpreter sandbox provider.
+    """AgentCore 코드 해석기 샌드박스 제공자.
 
-    Manages AgentCore session lifecycle. Sessions cannot be reconnected after
-    the CLI exits — the `sandbox_id` parameter is not supported.
+    AgentCore 세션 수명주기를 관리합니다. CLI 종료 후 세션을 다시 연결할 수 없습니다. `sandbox_id` 매개변수는 지원되지 않습니다.
+
     """
 
+
     def __init__(self, region: str | None = None) -> None:
-        """Initialize AgentCore provider.
+        """AgentCore 공급자를 초기화합니다.
 
         Args:
-            region: AWS region (defaults to `AWS_REGION` /
-                `AWS_DEFAULT_REGION` / `us-west-2`).
+            region: AWS 리전(기본값: `AWS_REGION` / `AWS_DEFAULT_REGION` / `us-west-2`)
 
         Raises:
-            ValueError: If boto3 is installed and AWS credentials cannot
-                be resolved.
+            ValueError: boto3가 설치되어 있고 AWS 자격 증명을 확인할 수 없는 경우.
+
         """
+
         self._region = region or os.environ.get(
             "AWS_REGION", os.environ.get("AWS_DEFAULT_REGION", "us-west-2")
         )
@@ -718,19 +749,20 @@ class _AgentCoreProvider(SandboxProvider):
         sandbox_id: str | None = None,
         **kwargs: Any,  # noqa: ARG002  # required by SandboxProvider interface
     ) -> SandboxBackendProtocol:
-        """Create a new AgentCore Code Interpreter session.
+        """새 AgentCore 코드 해석기 세션을 생성합니다.
 
         Args:
-            sandbox_id: Not supported — raises `NotImplementedError`
-                if provided.
-            **kwargs: Additional parameters (unused).
+            sandbox_id: 지원되지 않음 - 제공된 경우 `NotImplementedError`을 발생시킵니다.
+            **kwargs: 추가 매개변수(사용되지 않음)
 
         Returns:
-            `AgentCoreSandbox` instance wrapping the started interpreter.
+            `AgentCoreSandbox` 시작된 인터프리터를 래핑하는 인스턴스입니다.
 
         Raises:
-            NotImplementedError: If `sandbox_id` is provided.
+            NotImplementedError: `sandbox_id`이 제공된 경우.
+
         """
+
         if sandbox_id:
             msg = (
                 "AgentCore does not support reconnecting to existing sessions. "
@@ -765,12 +797,14 @@ class _AgentCoreProvider(SandboxProvider):
         return backend
 
     def delete(self, *, sandbox_id: str, **kwargs: Any) -> None:  # noqa: ARG002  # required by SandboxProvider interface
-        """Stop an AgentCore session.
+        """AgentCore 세션을 중지합니다.
 
         Args:
-            sandbox_id: Session ID to stop.
-            **kwargs: Additional parameters (unused).
+            sandbox_id: 중지할 세션 ID입니다.
+            **kwargs: 추가 매개변수(사용되지 않음)
+
         """
+
         interpreter = self._active_interpreters.pop(sandbox_id, None)
         if interpreter:
             try:
@@ -792,18 +826,20 @@ class _AgentCoreProvider(SandboxProvider):
 
 
 def _get_provider(provider_name: str) -> SandboxProvider:
-    """Get a `SandboxProvider` instance for the specified provider (internal).
+    """지정된 공급자에 대한 `SandboxProvider` 인스턴스를 가져옵니다(내부).
 
     Args:
-        provider_name: Name of the provider (`'agentcore'`, `'daytona'`, `'langsmith'`,
-            `'modal'`, `'runloop'`)
+        provider_name: 제공자 이름(`'agentcore'`, `'daytona'`, `'langsmith'`, `'modal'`,
+                       `'runloop'`)
 
     Returns:
-        `SandboxProvider` instance
+        `SandboxProvider` 인스턴스
 
     Raises:
-        ValueError: If `provider_name` is unknown.
+        ValueError: `provider_name`을(를) 알 수 없는 경우입니다.
+
     """
+
     if provider_name == "agentcore":
         return _AgentCoreProvider()
     if provider_name == "daytona":
@@ -822,19 +858,19 @@ def _get_provider(provider_name: str) -> SandboxProvider:
 
 
 def verify_sandbox_deps(provider: str) -> None:
-    """Check that the required packages for a sandbox provider are installed.
+    """샌드박스 공급자에 필요한 패키지가 설치되어 있는지 확인하세요.
 
-    Uses `importlib.util.find_spec` for a lightweight check with no actual
-    imports. Call this in the CLI process *before* spawning the server
-    subprocess so users get a clear, actionable error instead of an opaque
-    server crash.
+    실제 가져오기 없이 간단한 검사를 위해 `importlib.util.find_spec`을 사용합니다. 서버 하위 프로세스를 생성하기 *전에* CLI
+    프로세스에서 이를 호출하면 사용자가 불투명한 서버 충돌 대신 명확하고 실행 가능한 오류를 얻을 수 있습니다.
 
     Args:
-        provider: Sandbox provider name (e.g. `'daytona'`).
+        provider: 샌드박스 제공자 이름(예: `'daytona'`).
 
     Raises:
-        ImportError: If the provider's backend package is not installed.
+        ImportError: 공급자의 백엔드 패키지가 설치되지 않은 경우.
+
     """
+
     if not provider or provider in {"none", "langsmith"}:
         return
 

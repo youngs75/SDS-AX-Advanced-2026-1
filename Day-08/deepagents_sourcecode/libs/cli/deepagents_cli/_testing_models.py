@@ -1,7 +1,6 @@
-"""Deterministic fake chat models used by CLI integration tests.
+"""CLI 통합 테스트에서 사용되는 결정적 가짜 채팅 모델입니다.
 
-The helpers in this module provide restart-safe model behavior for tests that
-exercise the real CLI/server stack without relying on external providers.
+이 모듈의 도우미는 외부 공급자에 의존하지 않고 실제 CLI/서버 스택을 실행하는 테스트를 위해 다시 시작으로부터 안전한 모델 동작을 제공합니다.
 """
 
 from __future__ import annotations
@@ -23,41 +22,34 @@ if TYPE_CHECKING:
 
 
 class DeterministicIntegrationChatModel(GenericFakeChatModel):
-    """Deterministic chat model for CLI integration tests.
+    """CLI 통합 테스트를 위한 결정적 채팅 모델입니다.
 
-    This subclasses LangChain's `GenericFakeChatModel` so the implementation
-    stays aligned with the core fake-chat-model test surface, while overriding
-    generation to remain prompt-driven and restart-safe for real CLI server
-    integration tests.
+    이는 LangChain의 `GenericFakeChatModel`을 하위 클래스로 지정하여 구현이 핵심 가짜 채팅 모델 테스트 표면과 일치하도록
+    유지하는 동시에 실제 CLI 서버 통합 테스트를 위해 프롬프트 기반 및 재시작 안전성을 유지하도록 생성을 재정의합니다.
 
-    Why the existing `langchain_core` fakes cannot be reused here:
+    기존 `langchain_core` 가짜를 여기에서 재사용할 수 없는 이유:
 
-    1. Every core fake (`GenericFakeChatModel`, `FakeListChatModel`,
-        `FakeMessagesListChatModel`) pops from an iterator or cycles an index —
-        the actual prompt is ignored. CLI integration tests start and stop the
-        server process, which resets in-memory state. An iterator-based model
-        either raises `StopIteration` or replays from the beginning after a
-        restart, producing wrong or missing responses. This model derives output
-        solely from the prompt text, so identical input always produces
-        identical output regardless of process lifecycle.
+    1. 모든 코어 페이크(`GenericFakeChatModel`, `FakeListChatModel`,
+        `FakeMessagesListChatModel`)은 반복자에서 팝되거나 인덱스를 순환합니다. 실제 프롬프트는 무시됩니다. CLI 통합 테스트는
+        서버 프로세스를 시작 및 중지하여 메모리 내 상태를 재설정합니다. 반복자 기반 모델은 `StopIteration`을 발생시키거나 다시 시작한 후
+        처음부터 재생하여 잘못되거나 누락된 응답을 생성합니다. 이 모델은 프롬프트 텍스트에서만 출력을 파생하므로 동일한 입력은 프로세스 수명주기에
+        관계없이 항상 동일한 출력을 생성합니다.
 
-    2. The agent runtime calls `model.bind_tools(schemas)` during
-        initialization. None of the core fakes implement `bind_tools`, so they
-        raise `AttributeError` in any agent-loop context. This model provides a
-        no-op passthrough.
+    2. 에이전트 런타임은 도중에 `model.bind_tools(schemas)`을 호출합니다.
+        초기화. 핵심 가짜는 `bind_tools`을 구현하지 않으므로 모든 에이전트 루프 컨텍스트에서 `AttributeError`을 발생시킵니다.
+        이 모델은 무작동 패스스루를 제공합니다.
 
-    3. The CLI server reads `model.profile` for capability negotiation (e.g.
-        `tool_calling`, `max_input_tokens`). Core fakes have no such attribute,
-        causing `AttributeError` or silent misconfiguration at runtime.
+    3. CLI 서버는 기능 협상을 위해 `model.profile`을 읽습니다(예:
+        `tool_calling`, `max_input_tokens`). 핵심 가짜에는 그러한 속성이 없으므로 런타임 시 `AttributeError`
+        또는 자동 구성 오류가 발생합니다.
 
-    Additionally, the compact middleware issues summarization prompts mid-
-    conversation. A list-based model cannot distinguish these from normal user
-    turns without pre-knowledge of exact call ordering, whereas this model
-    detects summary requests by inspecting the prompt content.
+    또한 컴팩트 미들웨어는 문제 요약을 통해 중간 대화를 유도합니다. 목록 기반 모델은 정확한 통화 순서에 대한 사전 지식 없이 이를 일반 사용자 차례와
+    구별할 수 없는 반면, 이 모델은 프롬프트 내용을 검사하여 요약 요청을 감지합니다.
+
     """
 
     model: str = "fake"
-    # Required by `GenericFakeChatModel`, but our override does not consume it.
+    # `GenericFakeChatModel`에 필요하지만 재정의에서는 이를 사용하지 않습니다.
     messages: object = Field(default_factory=lambda: iter(()))
     profile: dict[str, Any] | None = Field(
         default_factory=lambda: {
@@ -73,7 +65,7 @@ class DeterministicIntegrationChatModel(GenericFakeChatModel):
         tool_choice: str | None = None,  # noqa: ARG002
         **kwargs: Any,  # noqa: ARG002
     ) -> Runnable[LanguageModelInput, AIMessage]:
-        """Return self so the agent can bind tool schemas during tests."""
+        """테스트 중에 에이전트가 도구 스키마를 바인딩할 수 있도록 self를 반환합니다."""
         return self
 
     def _generate(
@@ -83,10 +75,11 @@ class DeterministicIntegrationChatModel(GenericFakeChatModel):
         run_manager: CallbackManagerForLLMRun | None = None,  # noqa: ARG002
         **kwargs: Any,  # noqa: ARG002
     ) -> ChatResult:
-        """Produce a deterministic reply derived from the prompt text.
+        """프롬프트 텍스트에서 파생된 결정론적 응답을 생성합니다.
 
-        Returns:
-            A single-message `ChatResult` with deterministic content.
+Returns:
+            결정론적 콘텐츠가 포함된 단일 메시지 `ChatResult`.
+
         """
         prompt = "\n".join(
             text
@@ -108,15 +101,16 @@ class DeterministicIntegrationChatModel(GenericFakeChatModel):
 
     @property
     def _llm_type(self) -> str:
-        """Return the LangChain model type identifier."""
+        """LangChain 모델 유형 식별자를 반환합니다."""
         return "deterministic-integration"
 
     @staticmethod
     def _stringify_message(message: BaseMessage) -> str:
-        """Flatten message content into plain text for deterministic responses.
+        """결정적 응답을 위해 메시지 콘텐츠를 일반 텍스트로 평면화합니다.
 
-        Returns:
-            Plain-text content extracted from the message.
+Returns:
+            메시지에서 추출된 일반 텍스트 콘텐츠입니다.
+
         """
         content = message.content
         if isinstance(content, str):
@@ -135,10 +129,11 @@ class DeterministicIntegrationChatModel(GenericFakeChatModel):
 
     @staticmethod
     def _looks_like_summary_request(prompt: str) -> bool:
-        """Detect the middleware's summary-generation prompt.
+        """미들웨어의 요약 생성 프롬프트를 감지합니다.
 
-        Returns:
-            `True` when the prompt appears to be a summarization request.
+Returns:
+            `True` 프롬프트가 요약 요청으로 나타날 때.
+
         """
         lowered = prompt.lower()
         return (

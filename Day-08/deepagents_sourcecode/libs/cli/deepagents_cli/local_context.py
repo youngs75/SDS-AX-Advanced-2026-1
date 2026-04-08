@@ -1,9 +1,7 @@
-"""Middleware for injecting local context into system prompt.
+"""시스템 프롬프트에 로컬 컨텍스트를 삽입하기 위한 미들웨어입니다.
 
-Detects git state, project structure, package managers, runtimes, and
-directory layout by running a bash script via the backend. Because the
-script executes inside the backend (local shell or remote sandbox), the
-same detection logic works regardless of where the agent runs.
+백엔드를 통해 bash 스크립트를 실행하여 git 상태, 프로젝트 구조, 패키지 관리자, 런타임 및 디렉터리 레이아웃을 감지합니다. 스크립트는 백엔드(로컬 셸
+또는 원격 샌드박스) 내부에서 실행되므로 에이전트가 실행되는 위치에 관계없이 동일한 감지 논리가 작동합니다.
 """
 
 from __future__ import annotations
@@ -39,20 +37,21 @@ if TYPE_CHECKING:
 
 
 _TOOL_NAME_DISPLAY_LIMIT = 10
-"""Maximum number of tool names shown per MCP server in the system prompt."""
+"""시스템 프롬프트에서 MCP 서버당 표시되는 최대 도구 이름 수입니다."""
 
 _DETECT_SCRIPT_TIMEOUT = 30
-"""Timeout in seconds for the environment detection script."""
+"""환경 감지 스크립트의 시간 초과(초)입니다."""
 
 
 def _build_mcp_context(servers: list[MCPServerInfo]) -> str:
-    """Format MCP server/tool inventory for the system prompt.
+    """시스템 프롬프트에 대한 MCP 서버/도구 인벤토리 형식을 지정합니다.
 
-    Args:
-        servers: List of connected MCP server metadata.
+Args:
+        servers: 연결된 MCP 서버 메타데이터 목록입니다.
 
-    Returns:
-        Formatted markdown string, or `""` if no servers.
+Returns:
+        형식화된 마크다운 문자열 또는 서버가 없는 경우 `""`입니다.
+
     """
     if not servers:
         return ""
@@ -83,7 +82,7 @@ def _build_mcp_context(servers: list[MCPServerInfo]) -> str:
 
 @runtime_checkable
 class _ExecutableBackend(Protocol):
-    """Any backend that supports `execute(command) -> ExecuteResponse`."""
+    """`execute(command) -> ExecuteResponse`을 지원하는 모든 백엔드."""
 
     def execute(
         self, command: str, *, timeout: int | None = None
@@ -92,7 +91,7 @@ class _ExecutableBackend(Protocol):
 
 @runtime_checkable
 class _AsyncExecutableBackend(Protocol):
-    """Any backend that provides an async `aexecute` method."""
+    """비동기 `aexecute` 메서드를 제공하는 모든 백엔드."""
 
     async def aexecute(
         self,
@@ -119,10 +118,11 @@ logger = logging.getLogger(__name__)
 
 
 def _section_header() -> str:
-    """CWD line and IN_GIT flag (used by other sections).
+    """CWD 라인 및 IN_GIT 플래그(다른 섹션에서 사용됨)
 
-    Returns:
-        Bash snippet that prints the header and sets `CWD` / `IN_GIT`.
+Returns:
+        헤더를 인쇄하고 `CWD` / `IN_GIT`을 설정하는 Bash 스니펫입니다.
+
     """
     return r"""CWD="$(pwd)"
 echo "## Local Context"
@@ -139,10 +139,11 @@ fi"""
 
 
 def _section_project() -> str:
-    """Language, monorepo, git root, virtual-env detection.
+    """언어, 모노레포, git 루트, 가상 환경 감지.
 
-    Returns:
-        Bash snippet (requires `CWD` / `IN_GIT` from header).
+Returns:
+        Bash 스니펫(헤더에서 `CWD` / `IN_GIT` 필요)
+
     """
     return r"""# --- Project ---
 PROJ_LANG=""
@@ -179,10 +180,11 @@ fi"""
 
 
 def _section_package_managers() -> str:
-    """Python and Node package manager detection.
+    """Python 및 Node 패키지 관리자 감지.
 
-    Returns:
-        Bash snippet (standalone).
+Returns:
+        Bash 스니펫(독립형).
+
     """
     return r"""# --- Package managers ---
 PKG=""
@@ -209,10 +211,11 @@ fi
 
 
 def _section_runtimes() -> str:
-    """Python and Node runtime version detection.
+    """Python 및 Node 런타임 버전 감지.
 
-    Returns:
-        Bash snippet (standalone).
+Returns:
+        Bash 스니펫(독립형).
+
     """
     return r"""# --- Runtimes ---
 RT=""
@@ -229,10 +232,11 @@ fi
 
 
 def _section_git() -> str:
-    """Git branch, main branches, uncommitted changes.
+    """Git 브랜치, 메인 브랜치, 커밋되지 않은 변경 사항.
 
-    Returns:
-        Bash snippet (requires `IN_GIT` from header).
+Returns:
+        Bash 스니펫(헤더에서 `IN_GIT` 필요)
+
     """
     return r"""# --- Git ---
 if $IN_GIT; then
@@ -261,10 +265,11 @@ fi"""
 
 
 def _section_test_command() -> str:
-    """Test command detection (make test / pytest / npm test).
+    """테스트 명령 감지(make test / pytest / npm test).
 
-    Returns:
-        Bash snippet (standalone).
+Returns:
+        Bash 스니펫(독립형).
+
     """
     return r"""# --- Test command ---
 TC=""
@@ -283,10 +288,11 @@ fi
 
 
 def _section_files() -> str:
-    """Directory listing (filtered, capped at 20).
+    """디렉토리 목록(필터링됨, 최대 20개)
 
-    Returns:
-        Bash snippet (standalone).
+Returns:
+        Bash 스니펫(독립형).
+
     """
     return r"""# --- Files ---
 EXCL='node_modules|__pycache__|\.pytest_cache'
@@ -313,10 +319,11 @@ fi"""
 
 
 def _section_tree() -> str:
-    """`tree -L 3` output.
+    """`tree -L 3` 출력.
 
-    Returns:
-        Bash snippet (standalone).
+Returns:
+        Bash 스니펫(독립형).
+
     """
     return r"""# --- Tree ---
 if command -v tree >/dev/null 2>&1; then
@@ -336,10 +343,11 @@ fi"""
 
 
 def _section_makefile() -> str:
-    """First 20 lines of Makefile (falls back to git root in monorepos).
+    """Makefile의 처음 20줄(모노레포의 git 루트로 대체)
 
-    Returns:
-        Bash snippet (requires `ROOT` from `_section_project` and `CWD` from header).
+Returns:
+        Bash 스니펫(`_section_project`에서 `ROOT` 필요, 헤더에서 `CWD` 필요)
+
     """
     return r"""# --- Makefile ---
 MK=""
@@ -359,15 +367,14 @@ fi"""
 
 
 def build_detect_script() -> str:
-    """Concatenate all section functions into the full detection script.
+    """모든 섹션 기능을 전체 감지 스크립트에 연결합니다.
 
-    Independent sections run as parallel background jobs writing to temp
-    files, then results are concatenated in the original display order.
-    The header (CWD / IN_GIT) and project section (sets ROOT) run first
-    because later sections depend on their variables.
+    독립 섹션은 임시 파일에 기록하는 병렬 백그라운드 작업으로 실행되며 결과는 원래 표시 순서로 연결됩니다. 헤더(CWD/IN_GIT) 및 프로젝트
+    섹션(ROOT 설정)이 먼저 실행됩니다. 이후 섹션은 해당 변수에 따라 달라지기 때문입니다.
 
-    Returns:
-        Complete bash heredoc ready for `backend.execute()`.
+Returns:
+        `backend.execute()`에 대한 bash heredoc를 완료하세요.
+
     """
     # Header + project run synchronously (set CWD, IN_GIT, ROOT for others)
     serial_prefix = f"{_section_header()}\n{_section_project()}"
@@ -407,19 +414,20 @@ DETECT_CONTEXT_SCRIPT = build_detect_script()
 
 
 class LocalContextState(AgentState):
-    """State for local context middleware."""
+    """로컬 컨텍스트 미들웨어의 상태입니다."""
 
     local_context: NotRequired[str]
-    """Formatted local context: cwd, project, package managers,
-    runtimes, git, test command, files, tree, Makefile.
+    """형식화된 로컬 컨텍스트: cwd, 프로젝트, 패키지 관리자,
+    런타임, git, 테스트 명령, 파일, 트리, Makefile.
+
     """
 
     _local_context_refreshed_at_cutoff: NotRequired[Annotated[int, PrivateStateAttr]]
-    """Cutoff index of the summarization event we last refreshed for.
+    """마지막으로 새로 고친 요약 이벤트의 컷오프 인덱스입니다.
 
-    Stored in LangGraph checkpointed state (isolated per thread) and private
-    (not exposed to subagents via `PrivateStateAttr`). Used to avoid redundant
-    re-runs of the detection script for the same summarization event.
+    LangGraph 체크포인트 상태(스레드별로 격리됨) 및 비공개(`PrivateStateAttr`를 통해 하위 에이전트에 노출되지 않음)로 저장됩니다.
+    동일한 요약 이벤트에 대한 탐지 스크립트의 중복 재실행을 방지하는 데 사용됩니다.
+
     """
 
 
@@ -429,14 +437,13 @@ class LocalContextState(AgentState):
 
 
 class LocalContextMiddleware(AgentMiddleware):
-    """Inject local context (git state, project structure, etc.) into the system prompt.
+    """로컬 컨텍스트(git 상태, 프로젝트 구조 등)를 시스템 프롬프트에 삽입합니다.
 
-    Runs a bash detection script via `backend.execute()` on first interaction
-    and again after each summarization event, stores the result in state, and
-    appends it to the system prompt on every model call.
+    첫 번째 상호작용 시와 각 요약 이벤트 후에 다시 `backend.execute()`을 통해 bash 감지 스크립트를 실행하고 결과를 상태로 저장하며
+    모든 모델 호출 시 시스템 프롬프트에 추가합니다.
 
-    Because the script runs inside the backend, it works for both local shells
-    and remote sandboxes.
+    스크립트는 백엔드 내부에서 실행되므로 로컬 셸과 원격 샌드박스 모두에서 작동합니다.
+
     """
 
     state_schema = LocalContextState
@@ -447,24 +454,26 @@ class LocalContextMiddleware(AgentMiddleware):
         *,
         mcp_server_info: list[MCPServerInfo] | None = None,
     ) -> None:
-        """Initialize with a backend that supports shell execution.
+        """셸 실행을 지원하는 백엔드로 초기화합니다.
 
-        Args:
-            backend: Backend instance that provides shell command execution.
-            mcp_server_info: MCP server metadata to include in the system prompt.
+Args:
+            backend: 셸 명령 실행을 제공하는 백엔드 인스턴스입니다.
+            mcp_server_info: 시스템 프롬프트에 포함할 MCP 서버 메타데이터입니다.
+
         """
         self.backend = backend
         self._mcp_context = _build_mcp_context(mcp_server_info or [])
 
     @staticmethod
     def _handle_detect_result(result: ExecuteResponse) -> str | None:
-        """Validate detection script output and normalize it for state storage.
+        """탐지 스크립트 출력을 검증하고 상태 저장을 위해 정규화합니다.
 
-        Args:
-            result: Execution result from the backend.
+Args:
+            result: 백엔드의 실행 결과입니다.
 
-        Returns:
-            Stripped script output, or `None` on failure/empty output.
+Returns:
+            스트립된 스크립트 출력 또는 실패/빈 출력의 경우 `None`.
+
         """
         output = result.output.strip() if result.output else ""
         if result.exit_code is None or result.exit_code != 0:
@@ -484,10 +493,11 @@ class LocalContextMiddleware(AgentMiddleware):
         return output or None
 
     def _run_detect_script(self) -> str | None:
-        """Run the environment detection script.
+        """환경 감지 스크립트를 실행합니다.
 
-        Returns:
-            Stripped script output, or `None` on failure/empty output.
+Returns:
+            스트립된 스크립트 출력 또는 실패/빈 출력의 경우 `None`.
+
         """
         backend = self.backend
         if not isinstance(backend, _ExecutableBackend):
@@ -528,25 +538,22 @@ class LocalContextMiddleware(AgentMiddleware):
         state: LocalContextState,
         runtime: Runtime,  # noqa: ARG002  # Required by interface but not used in local context
     ) -> dict[str, Any] | None:
-        """Run context detection on first interaction and refresh after summarization.
+        """첫 번째 상호 작용에서 컨텍스트 감지를 실행하고 요약 후 새로 고칩니다.
 
-        On the first invocation, runs the detection script and stores the result.
-        After a summarization event (indicated by a new `_summarization_event`
-        in state), re-runs the script to capture any environment changes that
-        occurred during the session.
+        첫 번째 호출에서 탐지 스크립트를 실행하고 결과를 저장합니다. 요약 이벤트(상태에서 새 `_summarization_event`로 표시됨) 후에
+        스크립트를 다시 실행하여 세션 중에 발생한 환경 변경 사항을 캡처합니다.
 
-        Args:
-            state: Current agent state.
-            runtime: Runtime context.
+Args:
+            state: 현재 에이전트 상태.
+            runtime: 런타임 컨텍스트.
 
-        Returns:
-            State update with `local_context` populated on success. On a
-                post-summarization refresh failure, returns a state update
-                recording the cutoff (without `local_context`) to prevent
-                retry loops.
+Returns:
+            성공 시 `local_context`이 채워진 상태 업데이트입니다. 에
+                요약 후 새로 고침이 실패하면 재시도 루프를 방지하기 위해 컷오프(`local_context` 없이)를 기록하는 상태 업데이트를
+                반환합니다.
 
-                Returns `None` if context is already set and no refresh is
-                needed, or if initial detection fails.
+                컨텍스트가 이미 설정되어 있고 새로 고침이 필요하지 않거나 초기 감지에 실패한 경우 `None`을 반환합니다.
+
         """
         # --- Post-summarization refresh ---
         # _summarization_event is a private field from SummarizationState.
@@ -579,14 +586,14 @@ class LocalContextMiddleware(AgentMiddleware):
         return None
 
     async def _arun_detect_script(self) -> str | None:
-        """Run the environment detection script asynchronously.
+        """환경 감지 스크립트를 비동기적으로 실행합니다.
 
-        Prefers `aexecute` when the backend implements `_AsyncExecutableBackend`.
-        Falls back to running the sync detection script in a thread pool
-        for sync-only backends.
+        백엔드가 `_AsyncExecutableBackend`을 구현할 때 `aexecute`을 선호합니다. 동기화 전용 백엔드에 대한 스레드 풀에서
+        동기화 감지 스크립트 실행으로 대체됩니다.
 
-        Returns:
-            Stripped script output, or `None` on failure/empty output.
+Returns:
+            스트립된 스크립트 출력 또는 실패/빈 출력의 경우 `None`.
+
         """
         backend = self.backend
         if not (
@@ -623,20 +630,19 @@ class LocalContextMiddleware(AgentMiddleware):
         state: LocalContextState,
         runtime: Runtime,  # noqa: ARG002  # Required by interface but not used in local context
     ) -> dict[str, Any] | None:
-        """Async variant of `before_agent` for use in async execution contexts.
+        """비동기 실행 컨텍스트에서 사용하기 위한 `before_agent`의 비동기 변형입니다.
 
-        Args:
-            state: Current agent state.
-            runtime: Runtime context.
+Args:
+            state: 현재 에이전트 상태.
+            runtime: 런타임 컨텍스트.
 
-        Returns:
-            State update with `local_context` populated on success. On a
-                post-summarization refresh failure, returns a state update
-                recording the cutoff (without `local_context`) to prevent
-                retry loops.
+Returns:
+            성공 시 `local_context`이 채워진 상태 업데이트입니다. 에
+                요약 후 새로 고침이 실패하면 재시도 루프를 방지하기 위해 컷오프(`local_context` 없이)를 기록하는 상태 업데이트를
+                반환합니다.
 
-                Returns `None` if context is already set and no refresh is
-                needed, or if initial detection fails.
+                컨텍스트가 이미 설정되어 있고 새로 고침이 필요하지 않거나 초기 감지에 실패한 경우 `None`을 반환합니다.
+
         """
         raw_event = state.get("_summarization_event")
         if raw_event is not None:
@@ -661,13 +667,14 @@ class LocalContextMiddleware(AgentMiddleware):
         return None
 
     def _get_modified_request(self, request: ModelRequest) -> ModelRequest | None:
-        """Append local context and MCP info to the system prompt if available.
+        """가능한 경우 시스템 프롬프트에 로컬 컨텍스트 및 MCP 정보를 추가합니다.
 
-        Args:
-            request: The model request to potentially modify.
+Args:
+            request: 잠재적으로 수정하려는 모델 요청입니다.
 
-        Returns:
-            Modified request with context appended, or `None`.
+Returns:
+            컨텍스트가 추가된 수정된 요청 또는 `None`.
+
         """
         state = cast("LocalContextState", request.state)
         local_context = state.get("local_context", "")
@@ -685,14 +692,15 @@ class LocalContextMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], ModelResponse],
     ) -> ModelResponse:
-        """Inject local context into system prompt.
+        """시스템 프롬프트에 로컬 컨텍스트를 삽입합니다.
 
-        Args:
-            request: The model request being processed.
-            handler: The handler function to call with the modified request.
+Args:
+            request: 처리 중인 모델 요청입니다.
+            handler: 수정된 요청으로 호출할 핸들러 함수입니다.
 
-        Returns:
-            The model response from the handler.
+Returns:
+            핸들러의 모델 응답입니다.
+
         """
         modified_request = self._get_modified_request(request)
         return handler(modified_request or request)
@@ -702,14 +710,15 @@ class LocalContextMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        """Inject local context into system prompt (async).
+        """시스템 프롬프트(비동기)에 로컬 컨텍스트를 삽입합니다.
 
-        Args:
-            request: The model request being processed.
-            handler: The async handler function to call with the modified request.
+Args:
+            request: 처리 중인 모델 요청입니다.
+            handler: 수정된 요청으로 호출할 비동기 처리기 함수입니다.
 
-        Returns:
-            The model response from the handler.
+Returns:
+            핸들러의 모델 응답입니다.
+
         """
         modified_request = self._get_modified_request(request)
         return await handler(modified_request or request)

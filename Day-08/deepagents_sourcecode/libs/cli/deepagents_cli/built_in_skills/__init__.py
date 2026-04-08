@@ -1,5 +1,4 @@
-"""Built-in skills that ship with the Deep Agents CLI.
+"""Deep Agents CLI와 함께 제공되는 내장 기술입니다.
 
-These skills are always available at the lowest precedence level. User and
-project skills with the same name will override them.
+이러한 기술은 항상 가장 낮은 우선 순위 수준에서 사용할 수 있습니다. 동일한 이름을 가진 사용자 및 프로젝트 기술이 이를 재정의합니다.
 """

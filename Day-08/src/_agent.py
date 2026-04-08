@@ -1,3 +1,7 @@
+import multiprocessing as mp
+from concurrent.futures import Future, ProcessPoolExecutor, as_completed
+from typing import Any
+
 from deepagents import create_deep_agent
 from deepagents.backends import (
     CompositeBackend,
@@ -66,8 +70,125 @@ agent = create_deep_agent(
     name="general_task_specialist",
 )
 
-# TODO: SubAgent 가 우리 PC 에서, 다른 프로세스로 떠야한다면?
-# 관리할 수 있어야하고, 최종적으로 그 결과를 취합할 수 있어야한다면?
+PROCESS_SUBAGENTS = {
+    subagent_glm["name"]: subagent_glm,
+    subagent_qwen["name"]: subagent_qwen,
+}
+
+
+def _build_backend(runtime: Any) -> CompositeBackend:
+    return CompositeBackend(
+        default=StateBackend(runtime=runtime),
+        routes={
+            "/": FilesystemBackend(
+                root_dir="/Users/jhj/Desktop/2026_1_sds_ax_advanced/Day-08/agent_files",
+                virtual_mode=True,
+                max_file_size_mb=10,
+            ),
+        },
+    )
+
+
+def _build_single_subagent(spec_name: str):
+    spec = PROCESS_SUBAGENTS[spec_name]
+    return create_deep_agent(
+        model=spec["model"],
+        tools=list(spec.get("tools", [])),
+        system_prompt=spec["system_prompt"],
+        backend=_build_backend,
+        debug=True,
+        name=spec["name"],
+    )
+
+
+def _normalize_agent_output(response: Any) -> str:
+    if isinstance(response, str):
+        return response
+    if isinstance(response, dict):
+        messages = response.get("messages")
+        if isinstance(messages, list) and messages:
+            last_message = messages[-1]
+            content = getattr(last_message, "content", None)
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                return "\n".join(
+                    block.get("text", str(block))
+                    if isinstance(block, dict)
+                    else str(block)
+                    for block in content
+                )
+        return str(response)
+    content = getattr(response, "content", None)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(
+            block.get("text", str(block)) if isinstance(block, dict) else str(block)
+            for block in content
+        )
+    return str(response)
+
+
+def _run_subagent_in_process(spec_name: str, prompt: str) -> dict[str, Any]:
+    worker_agent = _build_single_subagent(spec_name)
+    response = worker_agent.invoke(
+        {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+        }
+    )
+    return {
+        "subagent": spec_name,
+        "output": _normalize_agent_output(response),
+        "raw_response": response,
+    }
+
+
+class ProcessSubAgentManager:
+    def __init__(self, max_workers: int | None = None):
+        self._executor = ProcessPoolExecutor(
+            max_workers=max_workers or len(PROCESS_SUBAGENTS),
+            mp_context=mp.get_context("spawn"),
+        )
+        self._futures: dict[Future[dict[str, Any]], str] = {}
+
+    def submit(self, subagent_name: str, prompt: str) -> Future[dict[str, Any]]:
+        if subagent_name not in PROCESS_SUBAGENTS:
+            raise ValueError(f"Unknown subagent: {subagent_name}")
+        future = self._executor.submit(_run_subagent_in_process, subagent_name, prompt)
+        self._futures[future] = subagent_name
+        return future
+
+    def gather(
+        self, futures: list[Future[dict[str, Any]]] | None = None
+    ) -> dict[str, dict[str, Any]]:
+        results: dict[str, dict[str, Any]] = {}
+        target_futures = futures or list(self._futures)
+        for future in as_completed(target_futures):
+            subagent_name = self._futures.pop(future)
+            try:
+                results[subagent_name] = future.result()
+            except Exception as exc:  # noqa: BLE001
+                results[subagent_name] = {
+                    "subagent": subagent_name,
+                    "error": str(exc),
+                }
+        return results
+
+    def run_many(self, tasks: dict[str, str]) -> dict[str, dict[str, Any]]:
+        futures = [
+            self.submit(subagent_name=subagent_name, prompt=prompt)
+            for subagent_name, prompt in tasks.items()
+        ]
+        return self.gather(futures)
+
+    def shutdown(self) -> None:
+        self._executor.shutdown(wait=True, cancel_futures=True)
 
 
 # if __name__ == "__main__":

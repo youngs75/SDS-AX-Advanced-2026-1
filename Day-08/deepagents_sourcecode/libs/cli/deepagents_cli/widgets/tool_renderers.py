@@ -1,7 +1,6 @@
-"""Map tool names to specialized approval-widget renderers.
+"""특수 승인 위젯 렌더러에 도구 이름을 매핑합니다.
 
-The registry in this module keeps HITL previews consistent by routing each tool
-call to a renderer that knows how to summarize its arguments.
+이 모듈의 레지스트리는 인수를 요약하는 방법을 알고 있는 렌더러로 각 도구 호출을 라우팅하여 HITL 미리 보기의 일관성을 유지합니다.
 """
 
 from __future__ import annotations
@@ -20,31 +19,32 @@ if TYPE_CHECKING:
 
 
 class ToolRenderer:
-    """Strategy for building a tool's HITL approval widget.
+    """도구의 HITL 승인 위젯을 구축하기 위한 전략입니다.
 
-    Each renderer maps a tool name to a `(widget_class, data)` pair that
-    controls what the user sees in the approval box. Tools not registered
-    in `_RENDERER_REGISTRY` fall through to the default, which dumps all
-    args as `key: value` lines via `GenericApprovalWidget`.
+    각 렌더러는 승인 상자에서 사용자에게 표시되는 내용을 제어하는 ​​`(widget_class, data)` 쌍에 도구 이름을 매핑합니다.
+    `_RENDERER_REGISTRY`에 등록되지 않은 도구는 기본값으로 변경되어 모든 인수를 `GenericApprovalWidget`을 통해
+    `key: value` 줄로 덤프합니다.
+
     """
 
     @staticmethod
     def get_approval_widget(
         tool_args: dict[str, Any],
     ) -> tuple[type[ToolApprovalWidget], dict[str, Any]]:
-        """Get the approval widget class and data for this tool.
+        """이 도구에 대한 승인 위젯 클래스와 데이터를 가져옵니다.
 
         Args:
-            tool_args: The tool arguments from action_request
+            tool_args: action_request의 도구 인수
 
         Returns:
-            Tuple of (widget_class, data_dict)
+            (widget_class, data_dict)의 튜플
+
         """
         return GenericApprovalWidget, tool_args
 
 
 class WriteFileRenderer(ToolRenderer):
-    """Renderer for write_file tool - shows full file content."""
+    """write_file 도구용 렌더러 - 전체 파일 내용을 표시합니다."""
 
     @staticmethod
     def get_approval_widget(  # noqa: D102  # Protocol method — docstring on base class
@@ -68,7 +68,7 @@ class WriteFileRenderer(ToolRenderer):
 
 
 class TaskRenderer(ToolRenderer):
-    """Renderer for task tool — interrupt description provides full context."""
+    """작업 도구용 렌더러입니다. 인터럽트 설명이 전체 컨텍스트를 제공합니다."""
 
     @staticmethod
     def get_approval_widget(  # noqa: D102  # Protocol method — docstring on base class
@@ -78,7 +78,7 @@ class TaskRenderer(ToolRenderer):
 
 
 class EditFileRenderer(ToolRenderer):
-    """Renderer for edit_file tool - shows unified diff."""
+    """edit_file 도구용 렌더러 - 통합 diff를 표시합니다."""
 
     @staticmethod
     def get_approval_widget(  # noqa: D102  # Protocol method — docstring on base class
@@ -101,10 +101,11 @@ class EditFileRenderer(ToolRenderer):
 
     @staticmethod
     def _generate_diff(old_string: str, new_string: str) -> list[str]:
-        """Generate unified diff lines from old and new strings.
+        """이전 문자열과 새 문자열에서 통합된 diff 라인을 생성합니다.
 
         Returns:
-            List of diff lines without the file headers.
+            파일 헤더가 없는 diff 줄 목록입니다.
+
         """
         if not old_string and not new_string:
             return []
@@ -132,21 +133,21 @@ _RENDERER_REGISTRY: dict[str, type[ToolRenderer]] = {
     "write_file": WriteFileRenderer,
     "edit_file": EditFileRenderer,
 }
-"""Registry mapping tool names to renderers
+"""렌더러에 대한 레지스트리 매핑 도구 이름
 
-Note: bash/shell/execute use minimal approval (no renderer) — see
-ApprovalMenu._MINIMAL_TOOLS
+참고: bash/shell/execute는 최소 승인을 사용합니다(렌더러 없음). ApprovalMenu._MINIMAL_TOOLS를 참조하세요.
 """
 
 
 def get_renderer(tool_name: str) -> ToolRenderer:
-    """Get the renderer for a tool by name.
+    """도구의 렌더러를 이름으로 가져옵니다.
 
     Args:
-        tool_name: The name of the tool
+        tool_name: 도구 이름
 
     Returns:
-        The appropriate ToolRenderer instance
+        적절한 ToolRenderer 인스턴스
+
     """
     renderer_class = _RENDERER_REGISTRY.get(tool_name, ToolRenderer)
     return renderer_class()

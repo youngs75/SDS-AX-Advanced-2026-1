@@ -1,7 +1,7 @@
-"""Help screens and argparse utilities for the CLI.
+"""CLI에 대한 도움말 화면 및 argparse 유틸리티.
 
-This module is imported at CLI startup to wire `-h` actions into the
-argparse tree.  It must stay lightweight — no SDK or langchain imports.
+이 모듈은 `-h` 작업을 argparse 트리에 연결하기 위해 CLI 시작 시 가져옵니다.  SDK 또는 langchain 가져오기가 없어 경량으로
+유지되어야 합니다.
 """
 
 from rich.markup import escape
@@ -19,11 +19,12 @@ _HELP_OPTION_LINE = "  -h, --help              Show this help message"
 
 
 def _print_option_section(*lines: str, title: str = "Options") -> None:
-    """Print a help-screen options section with shared JSON/help flags.
+    """공유 JSON/도움말 플래그를 사용하여 도움말 화면 옵션 섹션을 인쇄합니다.
 
     Args:
-        *lines: Command-specific option lines to print before the shared flags.
-        title: Section title to display.
+        *lines: 공유 플래그 앞에 인쇄할 명령별 옵션 줄입니다.
+        title: 표시할 섹션 제목입니다.
+
     """
     console.print(f"[bold]{title}:[/bold]", style=theme.PRIMARY)
     for line in lines:
@@ -33,7 +34,7 @@ def _print_option_section(*lines: str, title: str = "Options") -> None:
 
 
 def show_help() -> None:
-    """Show top-level help information for the deepagents CLI."""
+    """deepagents CLI에 대한 최상위 도움말 정보를 표시합니다."""
     editable_path = _get_editable_install_path()
     install_type = f" (local: {escape(editable_path)})" if editable_path else ""
     banner_color = theme.PRIMARY_DEV if _is_editable_install() else theme.PRIMARY
@@ -145,9 +146,10 @@ def show_help() -> None:
 
 
 def show_list_help() -> None:
-    """Show help information for the `list` subcommand.
+    """`list` 하위 명령에 대한 도움말 정보를 표시합니다.
 
-    Invoked via the `-h` argparse action or directly from `cli_main`.
+    `-h` argparse 작업을 통해 또는 `cli_main`에서 직접 호출됩니다.
+
     """
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
@@ -169,7 +171,7 @@ def show_list_help() -> None:
 
 
 def show_agents_help() -> None:
-    """Show help information for the `agents` subcommand."""
+    """`agents` 하위 명령에 대한 도움말 정보를 표시합니다."""
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
     console.print("  deepagents agents <command> [options]")
@@ -188,7 +190,7 @@ def show_agents_help() -> None:
 
 
 def show_reset_help() -> None:
-    """Show help information for the `reset` subcommand."""
+    """`reset` 하위 명령에 대한 도움말 정보를 표시합니다."""
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
     console.print("  deepagents reset --agent NAME [--target SRC]")
@@ -217,10 +219,10 @@ def show_reset_help() -> None:
 
 
 def show_skills_help() -> None:
-    """Show help information for the `skills` subcommand.
+    """`skills` 하위 명령에 대한 도움말 정보를 표시합니다.
 
-    Invoked via the `-h` argparse action or directly from
-    `execute_skills_command` when no subcommand is given.
+    `-h` argparse 작업을 통해 호출되거나 하위 명령이 지정되지 않은 경우 `execute_skills_command`에서 직접 호출됩니다.
+
     """
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
@@ -263,7 +265,7 @@ def show_skills_help() -> None:
 
 
 def show_skills_list_help() -> None:
-    """Show help information for the `skills list` subcommand."""
+    """`skills list` 하위 명령에 대한 도움말 정보를 표시합니다."""
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
     console.print("  deepagents skills list [options]")
@@ -281,7 +283,7 @@ def show_skills_list_help() -> None:
 
 
 def show_skills_create_help() -> None:
-    """Show help information for the `skills create` subcommand."""
+    """`skills create` 하위 명령에 대한 도움말 정보를 표시합니다."""
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
     console.print("  deepagents skills create <name> [options]")
@@ -299,7 +301,7 @@ def show_skills_create_help() -> None:
 
 
 def show_skills_info_help() -> None:
-    """Show help information for the `skills info` subcommand."""
+    """`skills info` 하위 명령에 대한 도움말 정보를 표시합니다."""
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
     console.print("  deepagents skills info <name> [options]")
@@ -316,7 +318,7 @@ def show_skills_info_help() -> None:
 
 
 def show_skills_delete_help() -> None:
-    """Show help information for the `skills delete` subcommand."""
+    """`skills delete` 하위 명령에 대한 도움말 정보를 표시합니다."""
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
     console.print("  deepagents skills delete <name> [options]")
@@ -337,7 +339,7 @@ def show_skills_delete_help() -> None:
 
 
 def show_update_help() -> None:
-    """Show help information for the `update` subcommand."""
+    """`update` 하위 명령에 대한 도움말 정보를 표시합니다."""
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
     console.print("  deepagents update [options]")
@@ -355,10 +357,10 @@ def show_update_help() -> None:
 
 
 def show_threads_help() -> None:
-    """Show help information for the `threads` subcommand.
+    """`threads` 하위 명령에 대한 도움말 정보를 표시합니다.
 
-    Invoked via the `-h` argparse action or directly from `cli_main`
-    when no threads subcommand is given.
+    `-h` argparse 작업을 통해 호출되거나 스레드 하위 명령이 지정되지 않은 경우 `cli_main`에서 직접 호출됩니다.
+
     """
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
@@ -379,7 +381,7 @@ def show_threads_help() -> None:
 
 
 def show_threads_delete_help() -> None:
-    """Show help information for the `threads delete` subcommand."""
+    """`threads delete` 하위 명령에 대한 도움말 정보를 표시합니다."""
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
     console.print("  deepagents threads delete <ID> [options]")
@@ -395,7 +397,7 @@ def show_threads_delete_help() -> None:
 
 
 def show_threads_list_help() -> None:
-    """Show help information for the `threads list` subcommand."""
+    """`threads list` 하위 명령에 대한 도움말 정보를 표시합니다."""
     console.print()
     console.print("[bold]Usage:[/bold]", style=theme.PRIMARY)
     console.print("  deepagents threads list [options]")

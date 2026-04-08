@@ -1,8 +1,7 @@
-"""Lightweight types for the ask-user interrupt protocol.
+"""사용자 인터럽트 요청 프로토콜의 경량 유형입니다.
 
-Extracted from `ask_user` so `textual_adapter` can import `AskUserRequest` at
-module level — and `app` can reference the types at type-check time — without
-pulling in the langchain middleware stack.
+`ask_user`에서 추출되므로 `textual_adapter`은 모듈 수준에서 `AskUserRequest`을 가져올 수 있고 `app`은
+langchain 미들웨어 스택을 가져오지 않고도 유형 확인 시 유형을 참조할 수 있습니다.
 """
 
 from __future__ import annotations
@@ -14,13 +13,13 @@ from typing_extensions import TypedDict
 
 
 class Choice(TypedDict):
-    """A single choice option for a multiple choice question."""
+    """객관식 질문에 대한 단일 선택 옵션입니다."""
 
     value: Annotated[str, Field(description="The display label for this choice.")]
 
 
 class Question(TypedDict):
-    """A question to ask the user."""
+    """사용자에게 묻는 질문입니다."""
 
     question: Annotated[str, Field(description="The question text to display.")]
 
@@ -57,34 +56,34 @@ class Question(TypedDict):
 
 
 class AskUserRequest(TypedDict):
-    """Request payload sent via interrupt when asking the user questions."""
+    """사용자에게 질문할 때 인터럽트를 통해 요청 페이로드가 전송됩니다."""
 
     type: Literal["ask_user"]
-    """Discriminator tag, always `'ask_user'`."""
+    """판별자 태그는 항상 `'ask_user'`입니다."""
 
     questions: list[Question]
-    """Questions to present to the user."""
+    """사용자에게 제시할 질문입니다."""
 
     tool_call_id: str
-    """ID of the originating tool call, used to route the response back."""
+    """응답을 다시 라우팅하는 데 사용되는 원래 도구 호출의 ID입니다."""
 
 
 class AskUserAnswered(TypedDict):
-    """Widget result when the user submits answers."""
+    """사용자가 답변을 제출하면 위젯 결과가 표시됩니다."""
 
     type: Literal["answered"]
-    """Discriminator tag, always `'answered'`."""
+    """판별자 태그는 항상 `'answered'`입니다."""
 
     answers: list[str]
-    """User-provided answers, one per question."""
+    """사용자가 제공한 답변(질문당 하나씩)"""
 
 
 class AskUserCancelled(TypedDict):
-    """Widget result when the user cancels the prompt."""
+    """사용자가 프롬프트를 취소하면 위젯 결과가 표시됩니다."""
 
     type: Literal["cancelled"]
-    """Discriminator tag, always `'cancelled'`."""
+    """판별자 태그는 항상 `'cancelled'`입니다."""
 
 
 AskUserWidgetResult = AskUserAnswered | AskUserCancelled
-"""Discriminated union for the ask_user widget Future result."""
+"""Ask_user 위젯의 향후 결과에 대한 식별된 공용체입니다."""

@@ -1,13 +1,11 @@
-"""Server-side graph entry point for `langgraph dev`.
+"""`langgraph dev`에 대한 서버측 그래프 진입점입니다.
 
-This module is referenced by the generated `langgraph.json` and exposes the CLI
-agent graph as a module-level variable that the LangGraph server can load
-and serve.
+이 모듈은 생성된 `langgraph.json`에 의해 참조되며 LangGraph 서버가 로드하고 제공할 수 있는 모듈 수준 변수로 CLI 에이전트 그래프를
+노출합니다.
 
-The graph is created at module import time via `make_graph()`, which reads
-configuration from `ServerConfig.from_env()` — the same dataclass the CLI uses
-to *write* the configuration via `ServerConfig.to_env()`. This shared schema
-ensures the two sides stay in sync.
+그래프는 `make_graph()`을 통해 모듈 가져오기 시 생성됩니다. 이는 `ServerConfig.from_env()`에서 구성을 읽습니다. 이는
+CLI가 `ServerConfig.to_env()`을 통해 구성을 *쓰기*하는 데 사용하는 것과 동일한 데이터 클래스입니다. 이 공유 스키마는 양측이 동기화
+상태를 유지하도록 보장합니다.
 """
 
 from __future__ import annotations
@@ -32,25 +30,24 @@ def _build_tools(
     config: ServerConfig,
     project_context: ProjectContext | None,
 ) -> tuple[list[Any], list[Any] | None]:
-    """Assemble the tool list based on server config.
+    """서버 구성을 기반으로 도구 목록을 수집합니다.
 
-    Loads built-in tools (conditionally including web search when Tavily is
-    available) and MCP tools when enabled.
+    내장 도구(Tavily를 사용할 수 있는 경우 조건부로 웹 검색 포함)와 MCP 도구(활성화된 경우)를 로드합니다.
 
-    MCP discovery runs synchronously via `asyncio.run` because this function is
-    called during module-level graph construction (before the server's async
-    event loop is available).
+    MCP 검색은 `asyncio.run`을 통해 동기적으로 실행됩니다. 이 함수는 모듈 수준 그래프 구성 중에(서버의 비동기 이벤트 루프를 사용할 수
+    있기 전) 호출되기 때문입니다.
 
     Args:
-        config: Deserialized server configuration.
-        project_context: Resolved project context for MCP discovery.
+        config: 역직렬화된 서버 구성.
+        project_context: MCP 검색을 위한 프로젝트 컨텍스트가 해결되었습니다.
 
     Returns:
-        Tuple of `(tools, mcp_server_info)`.
+        `(tools, mcp_server_info)`의 튜플입니다.
 
     Raises:
-        FileNotFoundError: If the MCP config file is not found.
-        RuntimeError: If MCP tool loading fails.
+        FileNotFoundError: MCP 구성 파일을 찾을 수 없는 경우.
+        RuntimeError: MCP 도구 로딩이 실패한 경우.
+
     """
     from deepagents_cli.config import settings
     from deepagents_cli.tools import fetch_url, web_search
@@ -91,14 +88,14 @@ def _build_tools(
 
 
 def make_graph() -> Any:  # noqa: ANN401
-    """Create the CLI agent graph from environment-based configuration.
+    """환경 기반 구성에서 CLI 에이전트 그래프를 생성합니다.
 
-    Reads `DEEPAGENTS_CLI_SERVER_*` env vars via `ServerConfig.from_env()`
-    (the inverse of `ServerConfig.to_env()` used by the CLI process), resolves a
-    model, assembles tools, and compiles the agent graph.
+    `ServerConfig.from_env()`(CLI 프로세스에서 사용하는 `ServerConfig.to_env()`의 반대)을 통해
+    `DEEPAGENTS_CLI_SERVER_*` 환경 변수를 읽고, 모델을 확인하고, 도구를 조합하고, 에이전트 그래프를 컴파일합니다.
 
     Returns:
-        Compiled LangGraph agent graph.
+        LangGraph 에이전트 그래프를 컴파일했습니다.
+
     """
     config = ServerConfig.from_env()
     project_context = get_server_project_context()

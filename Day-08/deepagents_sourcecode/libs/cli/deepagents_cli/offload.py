@@ -1,7 +1,6 @@
-"""Business logic for the /offload command.
+"""/offload 명령에 대한 비즈니스 논리입니다.
 
-Extracts the core offload workflow from the UI layer so it can be
-tested independently of the Textual app.
+텍스트 앱과 독립적으로 테스트할 수 있도록 UI 계층에서 핵심 오프로드 워크플로를 추출합니다.
 """
 
 from __future__ import annotations
@@ -34,50 +33,51 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class OffloadResult:
-    """Successful offload result."""
+    """성공적인 오프로드 결과입니다."""
 
     new_event: SummarizationEvent
-    """The summarization event to write into agent state."""
+    """에이전트 상태에 쓸 요약 이벤트입니다."""
 
     messages_offloaded: int
-    """Number of older messages that were offloaded."""
+    """오프로드된 이전 메시지 수입니다."""
 
     messages_kept: int
-    """Number of recent messages retained in context."""
+    """컨텍스트에 보관된 최근 메시지 수입니다."""
 
     tokens_before: int
-    """Approximate token count of the conversation before offloading."""
+    """오프로드 전 대화의 대략적인 토큰 수입니다."""
 
     tokens_after: int
-    """Approximate token count of the conversation after offloading."""
+    """오프로드 후 대화의 대략적인 토큰 수입니다."""
 
     pct_decrease: int
-    """Percentage decrease in token usage."""
+    """토큰 사용량이 백분율로 감소합니다."""
 
     offload_warning: str | None
-    """Non-`None` when the backend write failed (non-fatal)."""
+    """백엔드 쓰기가 실패한 경우(치명적이지 않음) `None`이 아닙니다."""
 
 
 @dataclass(frozen=True)
 class OffloadThresholdNotMet:
-    """Offload was a no-op — conversation is within the retention budget."""
+    """오프로드는 아무 작업도 하지 않았고, 대화는 보존 예산 범위 안에 있습니다."""
 
     conversation_tokens: int
-    """Approximate token count of the conversation messages alone."""
+    """대화 메시지만의 대략적인 토큰 수입니다."""
 
     total_context_tokens: int
-    """Total context token count including system overhead, or `0` when no
-    token tracker is available."""
+    """시스템 오버헤드를 포함한 총 컨텍스트 토큰 수 또는 그렇지 않은 경우 `0`
+    토큰 추적기를 사용할 수 있습니다.
+    """
 
     context_limit: int | None
-    """Model context window limit, if available."""
+    """모델 컨텍스트 창 제한(사용 가능한 경우)"""
 
     budget_str: str
-    """Human-readable retention budget (e.g. "20.0K tokens")."""
+    """사람이 읽을 수 있는 보존 예산(예: "20.0K 토큰")"""
 
 
 class OffloadModelError(Exception):
-    """Raised when the model cannot be created for offloading."""
+    """오프로드용 모델을 생성할 수 없는 경우 발생합니다."""
 
 
 # ---------------------------------------------------------------------------
@@ -88,16 +88,16 @@ class OffloadModelError(Exception):
 def format_offload_limit(
     keep: tuple[str, int | float], context_limit: int | None
 ) -> str:
-    """Format offload retention settings into a human-readable limit string.
+    """오프로드 보존 설정의 형식을 사람이 읽을 수 있는 제한 문자열로 지정합니다.
 
     Args:
-        keep: Retention policy tuple `(type, value)` from summarization
-            defaults, where `type` is one of `"messages"`, `"tokens"`, or
-            `"fraction"`.
-        context_limit: Model context limit when available.
+        keep: 요약 기본값의 보존 정책 튜플 `(type, value)`. 여기서 `type`은 `"messages"`, `"tokens"` 또는
+              `"fraction"` 중 하나입니다.
+        context_limit: 사용 가능한 경우 모델 컨텍스트 제한.
 
     Returns:
-        A short display string describing the offload retention limit.
+        오프로드 보존 제한을 설명하는 짧은 표시 문자열입니다.
+
     """
     keep_type, keep_value = keep
 
@@ -126,24 +126,22 @@ async def offload_messages_to_backend(
     thread_id: str,
     backend: BackendProtocol,
 ) -> str | None:
-    """Write messages to backend storage before offloading.
+    """오프로드하기 전에 백엔드 스토리지에 메시지를 쓰세요.
 
-    Appends messages as a timestamped markdown section to the conversation
-    history file, matching the `SummarizationMiddleware` offload pattern.
+    `SummarizationMiddleware` 오프로드 패턴과 일치하여 대화 기록 파일에 타임스탬프가 표시된 마크다운 섹션으로 메시지를 추가합니다.
 
-    Filters out prior summary messages using the middleware's
-    `_filter_summary_messages` to avoid storing summaries-of-summaries.
+    요약 요약 저장을 피하기 위해 미들웨어의 `_filter_summary_messages`을 사용하여 이전 요약 메시지를 필터링합니다.
 
     Args:
-        messages: Messages to offload.
-        middleware: `SummarizationMiddleware` instance for filtering.
-        thread_id: Thread identifier used to derive the storage path.
-        backend: Backend to persist conversation history to.
+        messages: 오프로드할 메시지입니다.
+        middleware: 필터링을 위한 `SummarizationMiddleware` 인스턴스.
+        thread_id: 저장소 경로를 파생하는 데 사용되는 스레드 식별자입니다.
+        backend: 대화 기록을 유지할 백엔드입니다.
 
     Returns:
-        File path where history was stored, `""` (empty string) if there were no
-            non-summary messages to offload (not an error), or `None` if the
-            write failed.
+        기록이 저장된 파일 경로, 기록이 없는 경우 `""`(빈 문자열)
+            오프로드할 비요약 메시지(오류 아님) 또는 쓰기가 실패한 경우 `None`입니다.
+
     """
     path = f"/conversation_history/{thread_id}.md"
 
@@ -218,25 +216,25 @@ async def perform_offload(
     total_context_tokens: int,
     backend: BackendProtocol | None,
 ) -> OffloadResult | OffloadThresholdNotMet:
-    """Execute the offload workflow: summarize old messages and free context.
+    """오프로드 워크플로를 실행합니다. 오래된 메시지와 자유 컨텍스트를 요약합니다.
 
     Args:
-        messages: Current conversation messages from agent state.
-        prior_event: Existing `_summarization_event` if any.
-        thread_id: Thread identifier for backend storage.
-        model_spec: Model specification string (e.g. "openai:gpt-4").
-        profile_overrides: Optional profile overrides from CLI flags.
-        context_limit: Model context limit from settings.
-        total_context_tokens: Current total context token count, or `0` when
-            no token tracker is available.
-        backend: Backend for persisting offloaded history.
+        messages: 에이전트 상태의 현재 대화 메시지입니다.
+        prior_event: 기존 `_summarization_event`(있는 경우).
+        thread_id: 백엔드 저장소의 스레드 식별자입니다.
+        model_spec: 모델 사양 문자열(예: "openai:gpt-4")
+        profile_overrides: CLI 플래그에서 선택적 프로필 재정의.
+        context_limit: 설정의 모델 컨텍스트 제한입니다.
+        total_context_tokens: 현재 총 컨텍스트 토큰 수 또는 토큰 추적기를 사용할 수 없는 경우 `0`입니다.
+        backend: 오프로드된 기록을 유지하기 위한 백엔드입니다.
 
     Returns:
-        `OffloadResult` on success, `OffloadThresholdNotMet` when the
-            conversation is within the retention budget.
+        성공 시 `OffloadResult`, 성공 시 `OffloadThresholdNotMet`
+            대화는 보존 예산 내에 있습니다.
 
     Raises:
-        OffloadModelError: If the model cannot be created.
+        OffloadModelError: 모델을 생성할 수 없는 경우.
+
     """
     from deepagents.middleware.summarization import (
         SummarizationMiddleware,

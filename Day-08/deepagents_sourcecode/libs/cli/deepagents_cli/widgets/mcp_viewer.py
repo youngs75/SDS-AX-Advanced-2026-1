@@ -1,7 +1,6 @@
-"""Read-only modal for inspecting discovered MCP servers and tools.
+"""검색된 MCP 서버 및 도구를 검사하기 위한 읽기 전용 모달입니다.
 
-The viewer helps users understand which servers are loaded and what tool names
-or descriptions are currently available to the CLI session.
+뷰어는 사용자가 로드된 서버와 현재 CLI 세션에 사용할 수 있는 도구 이름 또는 설명을 이해하는 데 도움이 됩니다.
 """
 
 from __future__ import annotations
@@ -27,7 +26,7 @@ from deepagents_cli.config import get_glyphs, is_ascii_mode
 
 
 class MCPToolItem(Static):
-    """A selectable tool item in the MCP viewer."""
+    """MCP 뷰어에서 선택 가능한 도구 항목입니다."""
 
     def __init__(
         self,
@@ -37,13 +36,14 @@ class MCPToolItem(Static):
         *,
         classes: str = "",
     ) -> None:
-        """Initialize a tool item.
+        """도구 항목을 초기화합니다.
 
         Args:
-            name: Tool name.
-            description: Full tool description.
-            index: Flat index of this tool in the list.
-            classes: CSS classes.
+            name: 도구 이름.
+            description: 전체 도구 설명.
+            index: 목록에서 이 도구의 플랫 인덱스입니다.
+            classes: CSS 클래스.
+
         """
         if description:
             label = Content.from_markup(
@@ -58,17 +58,17 @@ class MCPToolItem(Static):
         self._expanded = False
 
     def _format_collapsed(self, name: str, description: str) -> Content:
-        """Build the collapsed (single-line) label.
+        """축소된(한 줄) 레이블을 작성합니다.
 
-        Truncates the description with `(...)` if it would overflow
-        the widget width.
+        설명이 위젯 너비를 초과할 경우 `(...)`으로 설명을 자릅니다.
 
         Args:
-            name: Tool name.
-            description: Tool description.
+            name: 도구 이름.
+            description: 도구 설명.
 
         Returns:
-            Styled Content label.
+            스타일이 지정된 콘텐츠 라벨.
+
         """
         if not description:
             return Content.from_markup("  $name", name=name)
@@ -86,14 +86,15 @@ class MCPToolItem(Static):
 
     @staticmethod
     def _format_expanded(name: str, description: str) -> Content:
-        """Build the expanded (multi-line) label.
+        """확장된(여러 줄) 레이블을 만듭니다.
 
         Args:
-            name: Tool name.
-            description: Tool description.
+            name: 도구 이름.
+            description: 도구 설명.
 
         Returns:
-            Styled Content label with full description on next line.
+            다음 줄에 전체 설명이 포함된 스타일이 지정된 콘텐츠 라벨입니다.
+
         """
         if description:
             return Content.from_markup(
@@ -104,7 +105,7 @@ class MCPToolItem(Static):
         return Content.from_markup("  [bold]$name[/bold]", name=name)
 
     def toggle_expand(self) -> None:
-        """Toggle between collapsed and expanded view."""
+        """축소된 보기와 확장된 보기 사이를 전환합니다."""
         self._expanded = not self._expanded
         if self._expanded:
             label = self._format_expanded(self.tool_name, self.tool_description)
@@ -115,20 +116,21 @@ class MCPToolItem(Static):
         self.update(label)
 
     def on_mount(self) -> None:
-        """Re-render with correct truncation once width is known."""
+        """너비가 알려지면 올바른 잘림으로 다시 렌더링합니다."""
         if not self._expanded:
             self.update(self._format_collapsed(self.tool_name, self.tool_description))
 
     def on_resize(self) -> None:
-        """Re-truncate when widget width changes."""
+        """위젯 너비가 변경되면 다시 잘립니다."""
         if not self._expanded:
             self.update(self._format_collapsed(self.tool_name, self.tool_description))
 
     def on_click(self, event: Click) -> None:
-        """Handle click — select and toggle expand via parent screen.
+        """클릭 처리 - 상위 화면을 통해 확장을 선택하고 전환합니다.
 
         Args:
-            event: The click event.
+            event: 클릭 이벤트입니다.
+
         """
         event.stop()
         screen = self.screen
@@ -138,11 +140,11 @@ class MCPToolItem(Static):
 
 
 class MCPViewerScreen(ModalScreen[None]):
-    """Modal viewer for active MCP servers and their tools.
+    """활성 MCP 서버 및 해당 도구에 대한 모달 뷰어입니다.
 
-    Displays servers grouped by name with transport type and tool count.
-    Navigate with arrow keys, Enter to expand/collapse tool descriptions,
-    Escape to close.
+    전송 유형 및 도구 개수와 함께 이름별로 그룹화된 서버를 표시합니다. 화살표 키로 탐색하고, 도구 설명을 확장/축소하려면 Enter를, 닫으려면
+    Esc를 누르세요.
+
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -228,10 +230,11 @@ class MCPViewerScreen(ModalScreen[None]):
     """
 
     def __init__(self, server_info: list[MCPServerInfo]) -> None:
-        """Initialize the MCP viewer screen.
+        """MCP 뷰어 화면을 초기화합니다.
 
         Args:
-            server_info: List of MCP server metadata to display.
+            server_info: 표시할 MCP 서버 메타데이터 목록입니다.
+
         """
         super().__init__()
         self._server_info = server_info
@@ -239,10 +242,11 @@ class MCPViewerScreen(ModalScreen[None]):
         self._selected_index = 0
 
     def compose(self) -> ComposeResult:
-        """Compose the screen layout.
+        """화면 레이아웃을 구성합니다.
 
         Yields:
-            Widgets for the MCP viewer UI.
+            MCP 뷰어 UI용 위젯입니다.
+
         """
         glyphs = get_glyphs()
         total_servers = len(self._server_info)
@@ -304,17 +308,18 @@ class MCPViewerScreen(ModalScreen[None]):
             yield Static(help_text, classes="mcp-viewer-help")
 
     async def on_mount(self) -> None:
-        """Apply ASCII border fallback if needed."""
+        """필요한 경우 ASCII 테두리 대체를 적용합니다."""
         if is_ascii_mode():
             container = self.query_one(Vertical)
             colors = theme.get_theme_colors(self)
             container.styles.border = ("ascii", colors.success)
 
     def _move_to(self, index: int) -> None:
-        """Move selection to the given index.
+        """선택 항목을 지정된 인덱스로 이동합니다.
 
         Args:
-            index: Target tool index.
+            index: 대상 도구 색인.
+
         """
         if not self._tool_widgets:
             return
@@ -327,10 +332,11 @@ class MCPViewerScreen(ModalScreen[None]):
             self._tool_widgets[index].scroll_visible()
 
     def _move_selection(self, delta: int) -> None:
-        """Move selection by delta positions.
+        """델타 위치별로 선택 항목을 이동합니다.
 
         Args:
-            delta: Number of positions to move.
+            delta: 이동할 위치 수입니다.
+
         """
         if not self._tool_widgets:
             return
@@ -339,28 +345,28 @@ class MCPViewerScreen(ModalScreen[None]):
         self._move_to(target)
 
     def action_move_up(self) -> None:
-        """Move selection up."""
+        """선택 항목을 위로 이동합니다."""
         self._move_selection(-1)
 
     def action_move_down(self) -> None:
-        """Move selection down."""
+        """선택 항목을 아래로 이동합니다."""
         self._move_selection(1)
 
     def action_toggle_expand(self) -> None:
-        """Toggle expand/collapse on the selected tool."""
+        """선택한 도구에서 확장/축소를 전환합니다."""
         if self._tool_widgets:
             self._tool_widgets[self._selected_index].toggle_expand()
 
     def action_page_up(self) -> None:
-        """Scroll up by one page."""
+        """한 페이지 위로 스크롤합니다."""
         scroll = self.query_one(".mcp-list", VerticalScroll)
         scroll.scroll_page_up()
 
     def action_page_down(self) -> None:
-        """Scroll down by one page."""
+        """한 페이지 아래로 스크롤합니다."""
         scroll = self.query_one(".mcp-list", VerticalScroll)
         scroll.scroll_page_down()
 
     def action_cancel(self) -> None:
-        """Close the viewer."""
+        """뷰어를 닫습니다."""
         self.dismiss(None)

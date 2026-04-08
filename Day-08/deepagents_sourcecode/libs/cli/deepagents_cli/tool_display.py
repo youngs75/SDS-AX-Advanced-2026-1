@@ -1,9 +1,9 @@
-"""Formatting utilities for tool call display in the CLI.
+"""도구 호출을 위한 형식 지정 유틸리티가 CLI에 표시됩니다.
 
-This module handles rendering tool calls and tool messages for the TUI.
+이 모듈은 TUI에 대한 렌더링 도구 호출 및 도구 메시지를 처리합니다.
 
-Imported at module level by `textual_adapter` (itself deferred from the startup
-path). Heavy SDK dependencies (e.g., `backends`) are deferred to function bodies.
+`textual_adapter`에 의해 모듈 수준에서 가져옵니다(자체는 시작 경로에서 지연됨). 과도한 SDK 종속성(예: `backends`)은 함수
+본문으로 연기됩니다.
 """
 
 import json
@@ -15,18 +15,18 @@ from deepagents_cli.config import MAX_ARG_LENGTH, get_glyphs
 from deepagents_cli.unicode_security import strip_dangerous_unicode
 
 _HIDDEN_CHAR_MARKER = " [hidden chars removed]"
-"""Marker appended to display values that had dangerous Unicode stripped, so
-users know the value was modified for safety."""
+"""위험한 유니코드가 제거된 값을 표시하기 위해 추가된 마커를 통해 사용자는 안전을 위해 해당 값이 수정되었음을 알 수 있습니다."""
 
 
 def _format_timeout(seconds: int) -> str:
-    """Format timeout in human-readable units (e.g., 300 -> '5m', 3600 -> '1h').
+    """사람이 읽을 수 있는 단위의 형식 시간 초과입니다(예: 300 -> '5m', 3600 -> '1h').
 
     Args:
-        seconds: The timeout value in seconds to format.
+        seconds: 형식화할 시간 초과 값(초)입니다.
 
     Returns:
-        Human-readable timeout string (e.g., '5m', '1h', '300s').
+        사람이 읽을 수 있는 시간 제한 문자열(예: '5m', '1h', '300s')입니다.
+
     """
     if seconds < 60:  # noqa: PLR2004  # Time unit boundary
         return f"{seconds}s"
@@ -39,16 +39,16 @@ def _format_timeout(seconds: int) -> str:
 
 
 def _coerce_timeout_seconds(timeout: int | str | None) -> int | None:
-    """Normalize timeout values to seconds for display.
+    """표시를 위해 시간 초과 값을 초 단위로 정규화합니다.
 
-    Accepts integer values and numeric strings. Returns `None` for invalid
-    values so display formatting never raises.
+    정수 값과 숫자 문자열을 허용합니다. 유효하지 않은 값에 대해서는 `None`을 반환하므로 표시 형식이 절대 발생하지 않습니다.
 
     Args:
-        timeout: Raw timeout value from tool arguments.
+        timeout: 도구 인수의 원시 시간 초과 값입니다.
 
     Returns:
-        Integer timeout in seconds, or `None` if unavailable/invalid.
+        초 단위의 정수 시간 제한 또는 사용할 수 없거나 유효하지 않은 경우 `None`입니다.
+
     """
     if type(timeout) is int:
         return timeout
@@ -64,10 +64,11 @@ def _coerce_timeout_seconds(timeout: int | str | None) -> int | None:
 
 
 def truncate_value(value: str, max_length: int = MAX_ARG_LENGTH) -> str:
-    """Truncate a string value if it exceeds max_length.
+    """max_length를 초과하는 경우 문자열 값을 자릅니다.
 
     Returns:
-        Truncated string with ellipsis suffix if exceeded, otherwise original.
+        초과하는 경우 줄임표 접미사가 있는 잘린 문자열, 그렇지 않으면 원본입니다.
+
     """
     if len(value) > max_length:
         return value[:max_length] + get_glyphs().ellipsis
@@ -75,17 +76,17 @@ def truncate_value(value: str, max_length: int = MAX_ARG_LENGTH) -> str:
 
 
 def _sanitize_display_value(value: object, *, max_length: int = MAX_ARG_LENGTH) -> str:
-    """Sanitize a value for safe, compact terminal display.
+    """안전하고 컴팩트한 터미널 디스플레이를 위해 값을 정리합니다.
 
-    Hidden/deceptive Unicode controls are stripped. When stripping occurs, a
-    marker is appended so users know the value changed for display safety.
+    숨겨진/기만적인 유니코드 컨트롤은 제거됩니다. 스트리핑이 발생하면 디스플레이 안전을 위해 변경된 값을 사용자가 알 수 있도록 마커가 추가됩니다.
 
     Args:
-        value: Any value to display.
-        max_length: Maximum display length before truncation.
+        value: 표시할 값입니다.
+        max_length: 잘리기 전의 최대 표시 길이입니다.
 
     Returns:
-        Sanitized display string.
+        표시 문자열을 정리했습니다.
+
     """
     raw = str(value)
     sanitized = strip_dangerous_unicode(raw)
@@ -96,29 +97,31 @@ def _sanitize_display_value(value: object, *, max_length: int = MAX_ARG_LENGTH) 
 
 
 def format_tool_display(tool_name: str, tool_args: dict) -> str:
-    """Format tool calls for display with tool-specific smart formatting.
+    """도구별 스마트 서식을 사용하여 표시할 도구 호출 서식을 지정합니다.
 
-    Shows the most relevant information for each tool type rather than all arguments.
+    모든 인수가 아닌 각 도구 유형에 대해 가장 관련성이 높은 정보를 표시합니다.
 
     Args:
-        tool_name: Name of the tool being called
-        tool_args: Dictionary of tool arguments
+        tool_name: 호출되는 도구의 이름
+        tool_args: 도구 인수 사전
 
     Returns:
-        Formatted string for display (e.g., "(*) read_file(config.py)" in ASCII mode)
+        표시용 형식 문자열(예: ASCII 모드의 "(*) read_file(config.py)")
 
     Examples:
         read_file(path="/long/path/file.py") → "<prefix> read_file(file.py)"
-        web_search(query="how to code") → '<prefix> web_search("how to code")'
-        execute(command="pip install foo") → '<prefix> execute("pip install foo")'
+        web_search(query="코드 작성 방법") → '<prefix> web_search("코드 작성 방법")' 실행(command="pip
+        install foo") → '<prefix> 실행("pip install foo")'
+
     """
     prefix = get_glyphs().tool_prefix
 
     def abbreviate_path(path_str: str, max_length: int = 60) -> str:
-        """Abbreviate a file path intelligently - show basename or relative path.
+        """지능적으로 파일 경로를 축약합니다. 기본 이름 또는 상대 경로를 표시합니다.
 
         Returns:
-            Shortened path string suitable for display.
+            표시에 적합한 단축 경로 문자열입니다.
+
         """
         try:
             path = Path(path_str)
@@ -239,17 +242,16 @@ def format_tool_display(tool_name: str, tool_args: dict) -> str:
 
 
 def _format_content_block(block: dict) -> str:
-    """Format a single content block dict for display.
+    """표시할 단일 콘텐츠 블록 사전 형식을 지정합니다.
 
-    Replaces large binary payloads (e.g. base64 image/video data) with a
-    human-readable placeholder so they don't flood the terminal.
+    대규모 바이너리 페이로드(예: base64 이미지/비디오 데이터)를 사람이 읽을 수 있는 자리 표시자로 대체하여 터미널이 넘치지 않도록 합니다.
 
     Args:
-        block: An `ImageContentBlock`, `VideoContentBlock`, or `FileContentBlock`
-            dictionary.
+        block: `ImageContentBlock`, `VideoContentBlock` 또는 `FileContentBlock` 사전.
 
     Returns:
-        A display-friendly string for the block.
+        블록에 대한 표시 친화적인 문자열입니다.
+
     """
     if block.get("type") == "image" and isinstance(block.get("base64"), str):
         b64 = block["base64"]
@@ -274,10 +276,11 @@ def _format_content_block(block: dict) -> str:
 
 
 def format_tool_message_content(content: Any) -> str:  # noqa: ANN401  # Content can be str, list, or dict
-    """Convert `ToolMessage` content into a printable string.
+    """`ToolMessage` 콘텐츠를 인쇄 가능한 문자열로 변환합니다.
 
     Returns:
-        Formatted string representation of the tool message content.
+        도구 메시지 콘텐츠의 형식화된 문자열 표현입니다.
+
     """
     if content is None:
         return ""

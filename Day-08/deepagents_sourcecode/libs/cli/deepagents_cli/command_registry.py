@@ -1,8 +1,7 @@
-"""Unified slash-command registry.
+"""통합 슬래시 명령 레지스트리.
 
-Every slash command is declared once as a `SlashCommand` entry in `COMMANDS`.
-Bypass-tier frozensets and autocomplete tuples are derived automatically — no
-other file should hard-code command metadata.
+모든 슬래시 명령은 `COMMANDS`의 `SlashCommand` 항목으로 한 번 선언됩니다. 우회 계층 고정 세트 및 자동 완성 튜플은 자동으로
+파생됩니다. 다른 파일은 명령 메타데이터를 하드 코딩해서는 안 됩니다.
 """
 
 from __future__ import annotations
@@ -16,42 +15,42 @@ if TYPE_CHECKING:
 
 
 class BypassTier(StrEnum):
-    """Classification that controls whether a command can skip the message queue."""
+    """명령이 메시지 대기열을 건너뛸 수 있는지 여부를 제어하는 ​​분류입니다."""
 
     ALWAYS = "always"
-    """Execute regardless of any busy state, including mid-thread-switch."""
+    """스레드 중간 전환을 포함하여 사용 중인 상태에 관계없이 실행됩니다."""
 
     CONNECTING = "connecting"
-    """Bypass only during initial server connection, not during agent/shell."""
+    """에이전트/셸 중에는 우회하지 않고 초기 서버 연결 중에만 우회합니다."""
 
     IMMEDIATE_UI = "immediate_ui"
-    """Open modal UI immediately; real work deferred via `_defer_action` callback."""
+    """즉시 모달 UI를 엽니다. `_defer_action` 콜백을 통해 실제 작업이 연기되었습니다."""
 
     SIDE_EFFECT_FREE = "side_effect_free"
-    """Execute the side effect immediately; defer chat output until idle."""
+    """즉시 부작용을 실행하십시오. 유휴 상태가 될 때까지 채팅 출력을 연기합니다."""
 
     QUEUED = "queued"
-    """Must wait in the queue when the app is busy."""
+    """앱이 사용 중일 때는 대기열에서 기다려야 합니다."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SlashCommand:
-    """A single slash-command definition."""
+    """단일 슬래시 명령 정의."""
 
     name: str
-    """Canonical command name (e.g. `/quit`)."""
+    """정식 명령 이름(예: `/quit`)."""
 
     description: str
-    """Short user-facing description."""
+    """사용자에게 표시되는 간단한 설명입니다."""
 
     bypass_tier: BypassTier
-    """Queue-bypass classification."""
+    """대기열 우회 분류."""
 
     hidden_keywords: str = ""
-    """Space-separated terms for fuzzy matching (never displayed)."""
+    """유사 일치를 위한 공백으로 구분된 용어입니다(표시되지 않음)."""
 
     aliases: tuple[str, ...] = ()
-    """Alternative names (e.g. `("/q",)` for `/quit`)."""
+    """대체 이름(예: `/quit`의 경우 `("/q",)`)"""
 
 
 COMMANDS: tuple[SlashCommand, ...] = (
@@ -167,7 +166,7 @@ COMMANDS: tuple[SlashCommand, ...] = (
         aliases=("/q",),
     ),
 )
-"""All slash commands."""
+"""모든 슬래시 명령."""
 
 
 # ---------------------------------------------------------------------------
@@ -176,13 +175,14 @@ COMMANDS: tuple[SlashCommand, ...] = (
 
 
 def _build_bypass_set(tier: BypassTier) -> frozenset[str]:
-    """Build a frozenset of command names (including aliases) for a tier.
+    """계층에 대한 명령 이름(별칭 포함)의 고정 집합을 구축합니다.
 
-    Args:
-        tier: The bypass tier to collect.
+Args:
+        tier: 수집할 우회 계층입니다.
 
-    Returns:
-        Frozenset of all names and aliases that belong to `tier`.
+Returns:
+        `tier`에 속하는 모든 이름과 별칭의 고정 집합입니다.
+
     """
     names: set[str] = set()
     for cmd in COMMANDS:
@@ -193,19 +193,19 @@ def _build_bypass_set(tier: BypassTier) -> frozenset[str]:
 
 
 ALWAYS_IMMEDIATE: frozenset[str] = _build_bypass_set(BypassTier.ALWAYS)
-"""Commands that execute regardless of any busy state."""
+"""사용 중 상태와 관계없이 실행되는 명령입니다."""
 
 BYPASS_WHEN_CONNECTING: frozenset[str] = _build_bypass_set(BypassTier.CONNECTING)
-"""Commands that bypass only during initial server connection."""
+"""초기 서버 연결 중에만 우회하는 명령입니다."""
 
 IMMEDIATE_UI: frozenset[str] = _build_bypass_set(BypassTier.IMMEDIATE_UI)
-"""Commands that open modal UI immediately, deferring real work."""
+"""실제 작업을 연기하고 모달 UI를 즉시 여는 명령입니다."""
 
 SIDE_EFFECT_FREE: frozenset[str] = _build_bypass_set(BypassTier.SIDE_EFFECT_FREE)
-"""Commands whose side effect fires immediately; chat output deferred until idle."""
+"""부작용이 즉시 발생하는 명령. 유휴 상태까지 채팅 출력이 연기됩니다."""
 
 QUEUE_BOUND: frozenset[str] = _build_bypass_set(BypassTier.QUEUED)
-"""Commands that must wait in the queue when the app is busy."""
+"""앱이 사용 중일 때 대기열에서 대기해야 하는 명령입니다."""
 
 ALL_CLASSIFIED: frozenset[str] = (
     ALWAYS_IMMEDIATE
@@ -214,9 +214,7 @@ ALL_CLASSIFIED: frozenset[str] = (
     | SIDE_EFFECT_FREE
     | QUEUE_BOUND
 )
-"""Union of all five tiers — used by drift tests."""
-
-
+"""5개 계층 모두의 통합 — 드리프트 테스트에 사용됩니다."""
 # ---------------------------------------------------------------------------
 # Autocomplete tuples
 # ---------------------------------------------------------------------------
@@ -224,20 +222,20 @@ ALL_CLASSIFIED: frozenset[str] = (
 SLASH_COMMANDS: list[tuple[str, str, str]] = [
     (cmd.name, cmd.description, cmd.hidden_keywords) for cmd in COMMANDS
 ]
-"""`(name, description, hidden_keywords)` tuples for `SlashCommandController`."""
+"""`SlashCommandController`에 대한 `(name, description, hidden_keywords)` 튜플."""
 
 
 def parse_skill_command(command: str) -> tuple[str, str]:
-    """Extract skill name and args from a `/skill:<name>` command.
+    """`/skill:<name>` 명령에서 스킬 이름과 인수를 추출합니다.
 
-    Args:
-        command: The full command string (e.g., `/skill:web-research find X`).
+Args:
+        command: 전체 명령 문자열(예: `/skill:web-research find X`).
 
-    Returns:
-        Tuple of `(skill_name, args)`.
+Returns:
+        `(skill_name, args)`의 튜플입니다.
 
-            The skill name is normalized to lowercase. Both are empty strings
-            when the command has no skill name after the prefix.
+            스킬 이름은 소문자로 정규화됩니다. 명령의 접두사 뒤에 스킬 이름이 없으면 둘 다 빈 문자열입니다.
+
     """
     after_prefix = command[len("/skill:") :].strip()
     parts = after_prefix.split(maxsplit=1)
@@ -249,33 +247,30 @@ def parse_skill_command(command: str) -> tuple[str, str]:
 
 
 _STATIC_SKILL_ALIASES: frozenset[str] = frozenset({"remember", "skill-creator"})
-"""Built-in skill names that have a dedicated top-level slash command.
+"""전용 최상위 슬래시 명령이 있는 내장 스킬 이름입니다.
 
-Only list skills whose `/skill:<name>` form is redundant because a `/<name>`
-convenience alias exists in `COMMANDS`.  Do **not** add every command name
-here — that would silently suppress unrelated user skills that happen to share a
-name with a slash command (e.g., a user skill called `model` should still
-appear as `/skill:model`).
+`COMMANDS`에 `/<name>` 편의 별칭이 존재하므로 `/skill:<name>` 형식이 중복되는 스킬만 나열합니다.  여기에 모든 명령 이름을
+추가하지 **않습니다**. 이렇게 하면 슬래시 명령과 이름을 공유하는 관련 없는 사용자 기술이 자동으로 억제됩니다(예: `model`이라는 사용자 기술은
+여전히 ​​`/skill:model`로 표시되어야 함).
 """
 
 
 def build_skill_commands(
     skills: list[ExtendedSkillMetadata],
 ) -> list[tuple[str, str, str]]:
-    """Build autocomplete tuples for discovered skills.
+    """발견된 기술에 대한 자동 완성 튜플을 구축합니다.
 
-    Each skill becomes a `/skill:<name>` entry with its description
-    and the skill name as a hidden keyword for fuzzy matching.
+    각 스킬은 설명과 퍼지 일치를 위한 숨겨진 키워드로 스킬 이름이 포함된 `/skill:<name>` 항목이 됩니다.
 
-    Skills that already have a dedicated slash command in `COMMANDS`
-    (e.g., `remember` → `/remember`) are excluded to avoid duplicate
-    autocomplete entries.
+    `COMMANDS`에 이미 전용 슬래시 명령이 있는 스킬(예: `remember` → `/remember`)은 자동 완성 항목이 중복되는 것을 방지하기
+    위해 제외됩니다.
 
-    Args:
-        skills: List of discovered skill metadata.
+Args:
+        skills: 검색된 스킬 메타데이터 목록입니다.
 
-    Returns:
-        List of `(name, description, hidden_keywords)` tuples.
+Returns:
+        `(name, description, hidden_keywords)` 튜플 목록입니다.
+
     """
     return [
         (f"/skill:{skill['name']}", skill["description"], skill["name"])

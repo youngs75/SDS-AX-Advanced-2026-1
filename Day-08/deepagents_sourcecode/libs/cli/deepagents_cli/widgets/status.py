@@ -1,7 +1,6 @@
-"""Footer widgets that summarize current CLI session state.
+"""현재 CLI 세션 상태를 요약하는 바닥글 위젯입니다.
 
-The status bar surfaces model choice, thread information, token context, and
-other compact session indicators that must stay visible while chatting.
+상태 표시줄에는 채팅 중에 계속 표시되어야 하는 모델 선택, 스레드 정보, 토큰 컨텍스트 및 기타 압축 세션 표시기가 표시됩니다.
 """
 
 from __future__ import annotations
@@ -29,25 +28,26 @@ if TYPE_CHECKING:
 
 
 class ModelLabel(Widget):
-    """A label that displays a model name, right-aligned with smart truncation.
+    """스마트 잘림을 사용하여 오른쪽 정렬된 모델 이름을 표시하는 레이블입니다.
 
-    When the full `provider:model` text doesn't fit, the provider is dropped
-    first. If the bare model name still doesn't fit, it is left-truncated
-    with a leading ellipsis so the most distinctive tail stays visible.
+    전체 `provider:model` 텍스트가 맞지 않으면 공급자가 먼저 삭제됩니다. 기본 모델 이름이 여전히 맞지 않으면 가장 독특한 꼬리가 계속
+    표시되도록 선행 줄임표를 사용하여 왼쪽이 잘립니다.
+
     """
 
     provider: reactive[str] = reactive("", layout=True)
     model: reactive[str] = reactive("", layout=True)
 
     def get_content_width(self, container: Size, viewport: Size) -> int:  # noqa: ARG002
-        """Return the intrinsic width so `width: auto` works.
+        """`width: auto`이 작동하도록 고유 너비를 반환합니다.
 
-        Args:
-            container: Size of the container.
-            viewport: Size of the viewport.
+Args:
+            container: 컨테이너의 크기.
+            viewport: 뷰포트의 크기.
 
-        Returns:
-            Character length of the full provider:model string.
+Returns:
+            Character length of the full provider: 모델 문자열.
+
         """
         if not self.model:
             return 0
@@ -55,10 +55,11 @@ class ModelLabel(Widget):
         return len(full)
 
     def render(self) -> RenderResult:
-        """Render the model label with width-aware truncation.
+        """너비 인식 잘림을 사용하여 모델 레이블을 렌더링합니다.
 
-        Returns:
-            Text content, truncated from the left when necessary.
+Returns:
+            필요한 경우 왼쪽에서 잘린 텍스트 콘텐츠입니다.
+
         """
         width = self.content_size.width
         if not self.model or width <= 0:
@@ -74,7 +75,7 @@ class ModelLabel(Widget):
 
 
 class StatusBar(Horizontal):
-    """Status bar showing mode, auto-approve, cwd, git branch, tokens, and model."""
+    """모드, 자동 승인, cwd, git 분기, 토큰, 모델을 표시하는 상태 표시줄."""
 
     DEFAULT_CSS = """
     StatusBar {
@@ -161,7 +162,7 @@ class StatusBar(Horizontal):
         text-align: right;
     }
     """
-    """Mode badges and auto-approve pills use distinct colors for at-a-glance status."""
+    """모드 배지와 자동 승인 알약은 한눈에 상태를 확인할 수 있도록 고유한 색상을 사용합니다."""
 
     mode: reactive[str] = reactive("normal", init=False)
     status_message: reactive[str] = reactive("", init=False)
@@ -171,22 +172,24 @@ class StatusBar(Horizontal):
     tokens: reactive[int] = reactive(0, init=False)
 
     def __init__(self, cwd: str | Path | None = None, **kwargs: Any) -> None:
-        """Initialize the status bar.
+        """상태 표시줄을 초기화합니다.
 
-        Args:
-            cwd: Current working directory to display
-            **kwargs: Additional arguments passed to parent
+Args:
+            cwd: 표시할 현재 작업 디렉터리
+            **kwargs: 부모에게 전달된 추가 인수
+
         """
         super().__init__(**kwargs)
         # Store initial cwd - will be used in compose()
         self._initial_cwd = str(cwd) if cwd else str(Path.cwd())
 
     def compose(self) -> ComposeResult:  # noqa: PLR6301 — Textual widget method
-        """Compose the status bar layout.
+        """상태 표시줄 레이아웃을 구성합니다.
 
-        Yields:
-            Widgets for mode, auto-approve, message, cwd, branch, tokens, and
-                model display.
+Yields:
+            모드, 자동 승인, 메시지, cwd, 지점, 토큰 등에 대한 위젯
+                모델 디스플레이.
+
         """
         yield Static("", classes="status-mode normal", id="mode-indicator")
         yield Static(
@@ -202,14 +205,15 @@ class StatusBar(Horizontal):
         yield ModelLabel(id="model-display")
 
     _BRANCH_WIDTH_THRESHOLD = 100
-    """Hide git branch display below this terminal width."""
+    """이 터미널 너비 아래에 git 분기 표시를 숨깁니다."""
     _CWD_WIDTH_THRESHOLD = 70
-    """Hide cwd display below this terminal width."""
+    """이 터미널 너비 아래에 cwd 표시를 숨깁니다."""
 
     def on_resize(self, event: events.Resize) -> None:
-        """Manage visibility of status items based on terminal width.
+        """터미널 너비에 따라 상태 항목의 가시성을 관리합니다.
 
-        Priority (highest first): model, cwd, git branch.
+        우선순위(가장 높은 것부터): 모델, cwd, git 브랜치.
+
         """
         width = event.size.width
         with suppress(NoMatches):
@@ -222,7 +226,7 @@ class StatusBar(Horizontal):
             )
 
     def on_mount(self) -> None:
-        """Set reactive values after mount to trigger watchers safely."""
+        """감시자를 안전하게 트리거하려면 마운트 후 반응 값을 설정하세요."""
         from deepagents_cli.config import settings
 
         self.cwd = self._initial_cwd
@@ -232,7 +236,7 @@ class StatusBar(Horizontal):
         label.model = settings.model_name or ""
 
     def watch_mode(self, mode: str) -> None:
-        """Update mode indicator when mode changes."""
+        """모드가 변경되면 모드 표시기를 업데이트합니다."""
         try:
             indicator = self.query_one("#mode-indicator", Static)
         except NoMatches:
@@ -250,7 +254,7 @@ class StatusBar(Horizontal):
             indicator.add_class("normal")
 
     def watch_auto_approve(self, new_value: bool) -> None:
-        """Update auto-approve indicator when state changes."""
+        """상태가 변경되면 자동 승인 표시기를 업데이트합니다."""
         try:
             indicator = self.query_one("#auto-approve-indicator", Static)
         except NoMatches:
@@ -265,7 +269,7 @@ class StatusBar(Horizontal):
             indicator.add_class("off")
 
     def watch_cwd(self, new_value: str) -> None:
-        """Update cwd display when it changes."""
+        """cwd 표시가 변경되면 업데이트하세요."""
         try:
             display = self.query_one("#cwd-display", Static)
         except NoMatches:
@@ -273,7 +277,7 @@ class StatusBar(Horizontal):
         display.update(self._format_cwd(new_value))
 
     def watch_branch(self, new_value: str) -> None:
-        """Update branch display when it changes."""
+        """변경 시 분기 표시를 업데이트합니다."""
         try:
             display = self.query_one("#branch-display", Static)
         except NoMatches:
@@ -282,7 +286,7 @@ class StatusBar(Horizontal):
         display.update(f"{icon} {new_value}" if new_value else "")
 
     def watch_status_message(self, new_value: str) -> None:
-        """Update status message display."""
+        """상태 메시지 표시를 업데이트합니다."""
         try:
             msg_widget = self.query_one("#status-message", Static)
         except NoMatches:
@@ -297,10 +301,11 @@ class StatusBar(Horizontal):
             msg_widget.update("")
 
     def _format_cwd(self, cwd_path: str = "") -> str:
-        """Format the current working directory for display.
+        """표시할 현재 작업 디렉터리의 형식을 지정합니다.
 
-        Returns:
-            Formatted path string, using ~ for home directory when possible.
+Returns:
+            가능한 경우 홈 디렉터리에 ~를 사용하여 형식화된 경로 문자열입니다.
+
         """
         path = Path(cwd_path or self.cwd or self._initial_cwd)
         try:
@@ -313,47 +318,50 @@ class StatusBar(Horizontal):
         return str(path)
 
     def set_mode(self, mode: str) -> None:
-        """Set the current input mode.
+        """현재 입력 모드를 설정합니다.
 
-        Args:
-            mode: One of "normal", "shell", or "command"
+Args:
+            mode: "일반", "쉘", "명령" 중 하나
+
         """
         self.mode = mode
 
     def set_auto_approve(self, *, enabled: bool) -> None:
-        """Set the auto-approve state.
+        """자동 승인 상태를 설정합니다.
 
-        Args:
-            enabled: Whether auto-approve is enabled
+Args:
+            enabled: 자동 승인 활성화 여부
+
         """
         self.auto_approve = enabled
 
     def set_status_message(self, message: str) -> None:
-        """Set the status message.
+        """상태 메시지를 설정합니다.
 
-        Args:
-            message: Status message to display (empty string to clear)
+Args:
+            message: 표시할 상태 메시지(지울 빈 문자열)
+
         """
         self.status_message = message
 
     _approximate: bool = False
-    """Append "+" to the token count to signal that the displayed value is stale.
+    """표시된 값이 오래되었음을 알리려면 토큰 개수에 "+"를 추가하세요.
 
-    (The actual context is larger because the generation was interrupted before
-    the model reported final usage.)
+    (모델이 최종 사용량을 보고하기 전에 생성이 중단되었기 때문에 실제 컨텍스트는 더 큽니다.)
+
     """
 
     def watch_tokens(self, new_value: int) -> None:
-        """Update token display when count changes."""
+        """개수가 변경되면 토큰 표시를 업데이트합니다."""
         self._render_tokens(new_value, approximate=self._approximate)
 
     def _render_tokens(self, count: int, *, approximate: bool = False) -> None:
-        """Render the token count into the display widget.
+        """토큰 수를 디스플레이 위젯에 렌더링합니다.
 
-        Args:
-            count: Total context token count.
-            approximate: Append "+" suffix to indicate the count is stale
-                (e.g. after an interrupted generation).
+Args:
+            count: 총 컨텍스트 토큰 수입니다.
+            approximate: 개수가 오래되었음을 나타내려면 "+" 접미사를 추가합니다(예: 생성이 중단된 후).
+
         """
         try:
             display = self.query_one("#tokens-display", Static)
@@ -371,15 +379,15 @@ class StatusBar(Horizontal):
             display.update("")
 
     def set_tokens(self, count: int, *, approximate: bool = False) -> None:
-        """Set the token count.
+        """토큰 수를 설정합니다.
 
-        Forces a display refresh even when the value is unchanged, because
-        `hide_tokens` clears the widget text without updating the reactive
-        attribute.
+        `hide_tokens`은 반응 속성을 업데이트하지 않고 위젯 텍스트를 지우기 때문에 값이 변경되지 않은 경우에도 디스플레이를 강제로 새로
+        고칩니다.
 
-        Args:
-            count: Current context token count.
-            approximate: Append "+" to indicate the count is stale.
+Args:
+            count: 현재 컨텍스트 토큰 수입니다.
+            approximate: 개수가 오래되었음을 나타내려면 "+"를 추가합니다.
+
         """
         self._approximate = approximate
         if self.tokens == count:
@@ -391,18 +399,19 @@ class StatusBar(Horizontal):
             self.tokens = count
 
     def hide_tokens(self) -> None:
-        """Hide the token display (e.g., during streaming)."""
+        """토큰 표시를 숨깁니다(예: 스트리밍 중)."""
         try:
             self.query_one("#tokens-display", Static).update("")
         except NoMatches:
             return
 
     def set_model(self, *, provider: str, model: str) -> None:
-        """Update the model display text.
+        """모델 표시 텍스트를 업데이트합니다.
 
-        Args:
-            provider: Model provider name (e.g., `'anthropic'`).
-            model: Model name (e.g., `'claude-sonnet-4-5'`).
+Args:
+            provider: 모델 제공자 이름(예: `'anthropic'`)
+            model: 모델 이름(예: `'claude-sonnet-4-5'`).
+
         """
         label = self.query_one("#model-display", ModelLabel)
         label.provider = provider

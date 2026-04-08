@@ -1,9 +1,8 @@
-"""Parse CLI arguments and dispatch the correct runtime mode.
+"""CLI 인수를 구문 분석하고 올바른 런타임 모드를 전달합니다.
 
-This module is the boundary between shell invocation and the deeper CLI
-runtime. It handles dependency checks, argument parsing, interactive startup,
-ACP mode, and non-interactive execution.
+이 모듈은 셸 호출과 더 깊은 CLI 런타임 사이의 경계입니다. 종속성 검사, 인수 구문 분석, 대화형 시작, ACP 모드 및 비대화형 실행을 처리합니다.
 """
+
 
 # ruff: noqa: E402
 # Imports placed after warning filters to suppress deprecation warnings
@@ -48,7 +47,8 @@ _DEFAULT_AGENT_NAME = "agent"
 # ---------------------------------------------------------------------------
 
 def check_cli_dependencies() -> None:
-    """Check if CLI optional dependencies are installed."""
+    """CLI 선택적 종속성이 설치되어 있는지 확인하십시오."""
+
     missing = []
 
     if importlib.util.find_spec("requests") is None:
@@ -85,10 +85,12 @@ _RIPGREP_SUPPRESS_HINT = (
 
 
 def _ripgrep_install_hint() -> str:
-    """Return a platform-specific install command for ripgrep.
+    """ripgrep에 대한 플랫폼별 설치 명령을 반환합니다.
 
-    Falls back to the GitHub URL when the platform isn't recognized.
+    플랫폼이 인식되지 않으면 GitHub URL로 대체됩니다.
+
     """
+
     plat = sys.platform
     if plat == "darwin":
         if shutil.which("brew"):
@@ -124,19 +126,20 @@ def _ripgrep_install_hint() -> str:
 
 
 def check_optional_tools(*, config_path: Path | None = None) -> list[str]:
-    """Check for recommended external tools and return missing tool names.
+    """권장되는 외부 도구를 확인하고 누락된 도구 이름을 반환하세요.
 
-    Skips tools that the user has suppressed via
-    `[warnings].suppress` in `config.toml`.
+    `config.toml`의 `[warnings].suppress`을 통해 사용자가 억제한 도구를 건너뜁니다.
 
     Args:
-        config_path: Path to config file.
+        config_path: 구성 파일의 경로입니다.
 
-            Defaults to `~/.deepagents/config.toml`.
+            기본값은 `~/.deepagents/config.toml`입니다.
 
     Returns:
-        List of missing tool names (e.g. `["ripgrep"]`).
+        누락된 도구 이름 목록(예: `["ripgrep"]`)
+
     """
+
     from deepagents_cli.model_config import is_warning_suppressed
 
     missing: list[str] = []
@@ -146,14 +149,16 @@ def check_optional_tools(*, config_path: Path | None = None) -> list[str]:
 
 
 def format_tool_warning_tui(tool: str) -> str:
-    """Format a missing-tool warning for the TUI toast.
+    """TUI 토스트에 대한 도구 누락 경고 형식을 지정합니다.
 
     Args:
-        tool: Name of the missing tool.
+        tool: 누락된 도구의 이름입니다.
 
     Returns:
-        Plain-text warning suitable for `App.notify`.
+        `App.notify`에 적합한 일반 텍스트 경고입니다.
+
     """
+
     if tool == "ripgrep":
         hint = _ripgrep_install_hint()
         return (
@@ -165,14 +170,16 @@ def format_tool_warning_tui(tool: str) -> str:
 
 
 def format_tool_warning_cli(tool: str) -> str:
-    """Format a missing-tool warning for non-interactive console output.
+    """비대화형 콘솔 출력에 대한 도구 누락 경고 형식을 지정합니다.
 
     Args:
-        tool: Name of the missing tool.
+        tool: 누락된 도구의 이름입니다.
 
     Returns:
-        Warning string suitable for `console.print`.
+        `console.print`에 적합한 경고 문자열입니다.
+
     """
+
     if tool == "ripgrep":
         hint = _ripgrep_install_hint()
         if hint.startswith("http"):
@@ -191,21 +198,21 @@ async def _preload_session_mcp_server_info(
     no_mcp: bool,
     trust_project_mcp: bool | None,
 ) -> list["MCPServerInfo"] | None:
-    """Load MCP metadata for the interactive TUI in server mode.
+    """서버 모드에서 대화형 TUI에 대한 MCP 메타데이터를 로드합니다.
 
-    In server mode the actual MCP tools are created inside the LangGraph server
-    process, but the local Textual app still needs MCP metadata for the welcome
-    banner and `/mcp` viewer. This preloads the metadata in the CLI process and
-    immediately cleans up any temporary MCP sessions it opened.
+    서버 모드에서 실제 MCP 도구는 LangGraph 서버 프로세스 내부에서 생성되지만 로컬 Textual 앱에는 환영 배너 및 `/mcp` 뷰어를 위한
+    MCP 메타데이터가 여전히 필요합니다. 그러면 CLI 프로세스에 메타데이터가 미리 로드되고 열린 임시 MCP 세션이 즉시 정리됩니다.
 
     Args:
-        mcp_config_path: Optional explicit MCP config path.
-        no_mcp: Whether MCP loading is disabled.
-        trust_project_mcp: Project-level MCP trust decision.
+        mcp_config_path: 선택적 명시적 MCP 구성 경로입니다.
+        no_mcp: MCP 로딩이 비활성화되었는지 여부입니다.
+        trust_project_mcp: 프로젝트 수준 MCP 신뢰 결정.
 
     Returns:
-        MCP server metadata for the TUI, or `None` when MCP is disabled.
+        TUI에 대한 MCP 서버 메타데이터 또는 MCP가 비활성화된 경우 `None`입니다.
+
     """
+
     if no_mcp:
         return None
 
@@ -242,11 +249,13 @@ async def _preload_session_mcp_server_info(
 # ---------------------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
-    """Parse command line arguments.
+    """명령줄 인수를 구문 분석합니다.
 
     Returns:
-        Parsed arguments namespace.
+        구문 분석된 인수 네임스페이스.
+
     """
+
     from deepagents_cli.output import add_json_output_arg
     from deepagents_cli.skills import setup_skills_parser
 
@@ -257,19 +266,20 @@ def parse_args() -> argparse.Namespace:
     def _make_help_action(
         help_fn: Callable[[], None],
     ) -> type[argparse.Action]:
-        """Create an argparse Action that displays *help_fn* and exits.
+        """*help_fn*을 표시하고 종료하는 argparse 작업을 만듭니다.
 
-        argparse requires a *class* (not a callable) for custom actions.
-        This factory uses a closure: the returned `_ShowHelp` class captures
-        *help_fn* from the enclosing scope so that each subcommand can wire `-h`
-        to its own Rich help screen.
+        argparse에는 사용자 정의 작업을 위한 *클래스*(호출 가능 항목 아님)가 필요합니다. 이 팩토리는 클로저를 사용합니다. 반환된
+        `_ShowHelp` 클래스는 포함 범위에서 *help_fn*을 캡처하므로 각 하위 명령은 `-h`을 자체 리치 도움말 화면에 연결할 수
+        있습니다.
 
         Args:
-            help_fn: Callable that prints help text to the console.
+            help_fn: 도움말 텍스트를 콘솔에 인쇄하는 호출 가능.
 
         Returns:
-            An argparse Action class wired to the given help function.
+            주어진 도움말 기능에 연결된 argparse Action 클래스입니다.
+
         """
+
 
         class _ShowHelp(argparse.Action):
             def __init__(
@@ -666,48 +676,46 @@ async def run_textual_cli_async(
     no_mcp: bool = False,
     trust_project_mcp: bool | None = None,
 ) -> "AppResult":
-    """Run the Textual CLI interface (async version).
+    """텍스트 CLI 인터페이스(비동기 버전)를 실행합니다.
 
-    Starts a LangGraph server in a subprocess and connects the TUI to it via the
-    `langgraph-sdk` client.
+    하위 프로세스에서 LangGraph 서버를 시작하고 `langgraph-sdk` 클라이언트를 통해 TUI를 여기에 연결합니다.
 
     Args:
-        assistant_id: Agent identifier for memory storage
-        auto_approve: Whether to auto-approve tool usage
-        sandbox_type: Type of sandbox
-            ("none", "agentcore", "modal", "runloop", "daytona", "langsmith")
-        sandbox_id: Optional existing sandbox ID to reuse.
-        sandbox_setup: Optional path to setup script to run in the sandbox
-            after creation.
-        model_name: Optional model name to use
-        model_params: Extra kwargs from `--model-params` to pass to the model.
+        assistant_id: 메모리 저장을 위한 에이전트 식별자
+        auto_approve: 도구 사용 자동 승인 여부
+        sandbox_type: 샌드박스 유형("none", "agentcore", "modal", "runloop", "daytona",
+                      "langsmith")
+        sandbox_id: 재사용할 선택적 기존 샌드박스 ID입니다.
+        sandbox_setup: 생성 후 샌드박스에서 실행할 설정 스크립트의 선택적 경로입니다.
+        model_name: 사용할 선택적 모델 이름
+        model_params: 모델에 전달할 `--model-params`의 추가 kwargs입니다.
 
-            These override config file values.
-        profile_override: Extra profile fields from `--profile-override`.
+            이는 구성 파일 값을 재정의합니다.
+        profile_override: `--profile-override`의 추가 프로필 필드입니다.
 
-            Merged on top of config file profile overrides.
-        thread_id: Thread ID for the session.
+            구성 파일 프로필 재정의 위에 병합됩니다.
+        thread_id: 세션의 스레드 ID입니다.
 
-            `None` when `resume_thread` is provided (the TUI resolves the final
-            ID asynchronously).
-        resume_thread: Raw resume intent from `-r` flag.
+            `resume_thread`이 제공되면 `None`입니다(TUI는 최종 ID를 비동기식으로 확인합니다).
+        resume_thread: `-r` 플래그의 원시 재개 의도입니다.
 
-            `'__MOST_RECENT__'` for bare `-r`, a thread ID string for `-r <id>`,
-            or `None` for new sessions.
+            `-r`의 경우 `'__MOST_RECENT__'`, `-r <id>`의 경우 스레드 ID 문자열, 새 세션의 경우 `None`입니다.
 
-            Resolved asynchronously inside the TUI.
-        initial_prompt: Optional prompt to auto-submit when session starts
-        mcp_config_path: Optional path to MCP servers JSON configuration file.
+            TUI 내에서 비동기적으로 해결되었습니다.
+        initial_prompt: 세션이 시작될 때 자동 제출하라는 선택적 프롬프트
+        mcp_config_path: MCP 서버 JSON 구성 파일의 선택적 경로입니다.
 
-            Merged on top of auto-discovered configs (highest precedence).
-        no_mcp: Disable all MCP tool loading.
-        trust_project_mcp: Controls project-level stdio server trust.
+            자동 검색된 구성 위에 병합됩니다(가장 높은 우선순위).
+        no_mcp: 모든 MCP 도구 로딩을 비활성화합니다.
+        trust_project_mcp: 프로젝트 수준 stdio 서버 신뢰를 제어합니다.
 
-            `True` to allow, `False` to deny, `None` to check trust store.
+            허용하려면 `True`, 거부하려면 `False`, 신뢰 저장소를 확인하려면 `None`입니다.
 
     Returns:
-        An `AppResult` with the return code and final thread ID.
+        반환 코드와 최종 스레드 ID가 포함된 `AppResult`입니다.
+
     """
+
     from rich.text import Text
 
     from deepagents_cli.app import AppResult, run_textual_app
@@ -817,22 +825,24 @@ async def _run_acp_cli_async(
     no_mcp: bool = False,
     trust_project_mcp: bool | None = None,
 ) -> int:
-    """Run ACP server mode and return a process exit code.
+    """ACP 서버 모드를 실행하고 프로세스 종료 코드를 반환합니다.
 
     Args:
-        assistant_id: Agent identifier to initialize.
-        run_acp_agent: ACP server runner function.
-        agent_server_cls: ACP server class constructor.
-        model_name: Optional model name to use.
-        model_params: Extra kwargs from `--model-params` to pass to the model.
-        profile_override: Extra profile fields from `--profile-override`.
-        mcp_config_path: Optional path to MCP servers JSON configuration file.
-        no_mcp: Disable all MCP tool loading.
-        trust_project_mcp: Controls project-level stdio server trust.
+        assistant_id: 초기화할 에이전트 식별자입니다.
+        run_acp_agent: ACP 서버 러너 기능.
+        agent_server_cls: ACP 서버 클래스 생성자.
+        model_name: 사용할 선택적 모델 이름입니다.
+        model_params: 모델에 전달할 `--model-params`의 추가 kwargs입니다.
+        profile_override: `--profile-override`의 추가 프로필 필드입니다.
+        mcp_config_path: MCP 서버 JSON 구성 파일의 선택적 경로입니다.
+        no_mcp: 모든 MCP 도구 로딩을 비활성화합니다.
+        trust_project_mcp: 프로젝트 수준 stdio 서버 신뢰를 제어합니다.
 
     Returns:
-        Exit code for ACP mode.
+        ACP 모드의 종료 코드입니다.
+
     """
+
     from deepagents_cli.agent import create_cli_agent, load_async_subagents
     from deepagents_cli.config import create_model, settings
     from deepagents_cli.model_config import ModelConfigError, save_recent_model
@@ -923,31 +933,29 @@ async def _run_acp_cli_async(
 
 
 def apply_stdin_pipe(args: argparse.Namespace) -> None:
-    r"""Read piped stdin and merge it into the parsed CLI arguments.
+    """파이프된 stdin을 읽고 이를 구문 분석된 CLI 인수에 병합합니다.
 
-    When stdin is not a TTY (i.e. input is piped), reads all available text
-    and applies it to the argument namespace. If stdin is a TTY or the piped
-    input is empty/whitespace-only, the function returns without modifying
-    `args`. Leading and trailing whitespace is stripped from piped input.
+    stdin이 TTY가 아닌 경우(즉, 입력이 파이프됨) 사용 가능한 모든 텍스트를 읽고 이를 인수 네임스페이스에 적용합니다. stdin이 TTY이거나
+    파이프 입력이 비어 있거나 공백만 있는 경우 함수는 `args`을 수정하지 않고 반환됩니다. 파이프 입력에서 선행 및 후행 공백이 제거됩니다.
 
-    - If `non_interactive_message` is already set (`-n`), prepends the
-        piped text to it (the CLI still runs non-interactively):
+    - `non_interactive_message`이 이미 설정된 경우(`-n`)
+        텍스트를 파이프로 연결합니다(CLI는 여전히 비대화식으로 실행됩니다).
 
         ```bash
         cat context.txt | deepagents -n "summarize this"
         # non_interactive_message = "{contents of context.txt}\n\nsummarize this"
         ```
 
-    - If `initial_prompt` is already set (`-m`, but not `-n`), prepends
-        the piped text to it (the CLI still runs interactively):
+    - `initial_prompt`이 이미 설정되어 있으면(`-m`, `-n`은 아님) 앞에 추가됩니다.
+        파이프로 연결된 텍스트(CLI는 여전히 대화형으로 실행됨):
 
         ```bash
         cat error.log | deepagents -m "explain this"
         # initial_prompt = "{contents of error.log}\n\nexplain this"
         ```
 
-    - Otherwise, sets `non_interactive_message` to the piped text, causing
-        the CLI to run non-interactively with it as the prompt:
+    - 그렇지 않으면 파이프된 텍스트에 `non_interactive_message`을 설정합니다.
+        프롬프트로 CLI를 사용하여 비대화식으로 실행하려면 다음을 수행하십시오.
 
         ```bash
         echo "fix the typo in README.md" | deepagents
@@ -955,8 +963,10 @@ def apply_stdin_pipe(args: argparse.Namespace) -> None:
         ```
 
     Args:
-        args: The parsed argument namespace (mutated in place).
+        args: 구문 분석된 인수 네임스페이스(제자리에서 변경됨)
+
     """
+
     from deepagents_cli.config import console
 
     explicit_stdin = args.stdin
@@ -1064,12 +1074,14 @@ def apply_stdin_pipe(args: argparse.Namespace) -> None:
 
 
 def _print_session_stats(stats: Any, console: Any) -> None:  # noqa: ANN401
-    """Print a session-level usage stats table to the console on TUI exit.
+    """TUI 종료 시 세션 수준 사용 통계 테이블을 콘솔에 인쇄합니다.
 
     Args:
-        stats: The cumulative session stats from the Textual app.
-        console: Rich console for output.
+        stats: Textual 앱의 누적 세션 통계입니다.
+        console: 출력을 위한 풍부한 콘솔.
+
     """
+
     from deepagents_cli.textual_adapter import SessionStats, print_usage_table
 
     if not isinstance(stats, SessionStats):
@@ -1078,20 +1090,20 @@ def _print_session_stats(stats: Any, console: Any) -> None:  # noqa: ANN401
 
 
 def _check_mcp_project_trust(*, trust_flag: bool = False) -> bool | None:
-    """Check whether project-level MCP stdio servers should be trusted.
+    """프로젝트 수준 MCP stdio 서버를 신뢰할 수 있는지 확인하세요.
 
-    When the project has no stdio servers in project-level configs, returns
-    `None` (no gate needed). When `--trust-project-mcp` was passed, returns
-    `True`. Otherwise checks the persistent trust store; if untrusted, shows
-    an interactive approval prompt.
+    프로젝트 수준 구성에 stdio 서버가 없는 경우 `None`(게이트 필요 없음)을 반환합니다. `--trust-project-mcp`이 전달되면
+    `True`을 반환합니다. 그렇지 않으면 영구 신뢰 저장소를 확인합니다. 신뢰할 수 없는 경우 대화형 승인 프롬프트가 표시됩니다.
 
     Args:
-        trust_flag: Whether `--trust-project-mcp` was passed.
+        trust_flag: `--trust-project-mcp`이 전달되었는지 여부.
 
     Returns:
-        `True` to allow project stdio servers, `False` to deny, or `None`
-            when no project stdio servers exist.
+        프로젝트 stdio 서버를 허용하려면 `True`, 거부하려면 `False`, 또는 `None`
+            프로젝트 stdio 서버가 없을 때.
+
     """
+
     from deepagents_cli.mcp_tools import (
         classify_discovered_configs,
         discover_mcp_configs,
@@ -1163,7 +1175,8 @@ def _check_mcp_project_trust(*, trust_flag: bool = False) -> bool | None:
 
 
 def cli_main() -> None:
-    """Entry point for console script."""
+    """콘솔 스크립트의 진입점입니다."""
+
     # Fix for gRPC fork issue on macOS
     # https://github.com/grpc/grpc/issues/37642
     if sys.platform == "darwin":
