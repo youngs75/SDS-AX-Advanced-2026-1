@@ -1,8 +1,7 @@
-"""CLI-specific tools that are not supplied by the core Deep Agents package.
+"""핵심 Deep Agents 패키지에서 제공되지 않는 CLI 관련 도구입니다.
 
-Today this module mostly wraps optional web-search functionality and keeps the
-provider client lazily initialized so startup stays cheap when the tool is
-unused.
+현재 이 모듈은 대부분 선택적 웹 검색 기능을 래핑하고 공급자 클라이언트를 지연 초기화 상태로 유지하므로 도구를 사용하지 않을 때 시작 비용이 저렴하게
+유지됩니다.
 """
 
 from __future__ import annotations
@@ -17,10 +16,11 @@ _tavily_client: TavilyClient | object | None = _UNSET
 
 
 def _get_tavily_client() -> TavilyClient | None:
-    """Get or initialize the lazy Tavily client singleton.
+    """게으른 Tavily 클라이언트 싱글톤을 가져오거나 초기화합니다.
 
-    Returns:
-        TavilyClient instance, or None if API key is not configured.
+Returns:
+        TavilyClient 인스턴스 또는 API 키가 구성되지 않은 경우 None입니다.
+
     """
     global _tavily_client  # noqa: PLW0603  # Module-level cache requires global statement
     if _tavily_client is not _UNSET:
@@ -43,32 +43,27 @@ def web_search(  # noqa: ANN201  # Return type depends on dynamic tool configura
     topic: Literal["general", "news", "finance"] = "general",
     include_raw_content: bool = False,
 ):
-    """Search the web using Tavily for current information and documentation.
+    """최신 정보와 문서를 보려면 Tavily를 사용하여 웹을 검색하세요.
 
-    This tool searches the web and returns relevant results. After receiving results,
-    you MUST synthesize the information into a natural, helpful response for the user.
+    이 도구는 웹을 검색하고 관련 결과를 반환합니다. 결과를 받은 후에는 정보를 사용자에게 자연스럽고 유용한 응답으로 종합해야 합니다.
 
-    Args:
-        query: The search query (be specific and detailed)
-        max_results: Number of results to return (default: 5)
-        topic: Search topic type - "general" for most queries, "news" for current events
-        include_raw_content: Include full page content (warning: uses more tokens)
+Args:
+        query: 검색어(구체적이고 상세함)
+        max_results: 반환할 결과 수(기본값: 5)
+        topic: 검색 주제 유형 - 대부분의 검색어는 '일반', 시사는 '뉴스'
+        include_raw_content: 전체 페이지 콘텐츠 포함(경고: 더 많은 토큰을 사용함)
 
-    Returns:
+Returns:
         Dictionary containing:
-        - results: List of search results, each with:
-            - title: Page title
-            - url: Page URL
-            - content: Relevant excerpt from the page
-            - score: Relevance score (0-1)
-        - query: The original search query
+        - results: 검색 결과 목록(각 항목: - 제목: 페이지 제목 - url: 페이지 URL - 내용: 페이지에서 관련 발췌 - 점수:
+                   관련성 점수(0-1))
+        - query: 원래 검색어
 
-    IMPORTANT: After using this tool:
-    1. Read through the 'content' field of each result
-    2. Extract relevant information that answers the user's question
-    3. Synthesize this into a clear, natural language response
-    4. Cite sources by mentioning the page titles or URLs
-    5. NEVER show the raw JSON to the user - always provide a formatted response
+    IMPORTANT: 이 도구를 사용한 후:
+    1. 각 결과의 '콘텐츠' 필드를 읽습니다. 2. 사용자 질문에 답변하는 관련 정보를 추출합니다. 3. 이를 명확하고 자연스러운 언어 응답으로
+    합성합니다. 4. 페이지 제목이나 URL을 언급하여 출처를 인용합니다. 5. 원시 JSON을 사용자에게 절대 표시하지 않습니다. 항상 형식화된 응답을
+    제공합니다.
+
     """
     try:
         import requests
@@ -117,29 +112,27 @@ def web_search(  # noqa: ANN201  # Return type depends on dynamic tool configura
 
 
 def fetch_url(url: str, timeout: int = 30) -> dict[str, Any]:
-    """Fetch content from a URL and convert HTML to markdown format.
+    """URL에서 콘텐츠를 가져와 HTML을 마크다운 형식으로 변환합니다.
 
-    This tool fetches web page content and converts it to clean markdown text,
-    making it easy to read and process HTML content. After receiving the markdown,
-    you MUST synthesize the information into a natural, helpful response for the user.
+    이 도구는 웹페이지 콘텐츠를 가져와서 깔끔한 마크다운 텍스트로 변환하므로 HTML 콘텐츠를 쉽게 읽고 처리할 수 있습니다. 마크다운을 받은 후에는
+    정보를 사용자에게 자연스럽고 유용한 응답으로 합성해야 합니다.
 
-    Args:
-        url: The URL to fetch (must be a valid HTTP/HTTPS URL)
-        timeout: Request timeout in seconds (default: 30)
+Args:
+        url: 가져올 URL(유효한 HTTP/HTTPS URL이어야 함)
+        timeout: 요청 제한 시간(초)(기본값: 30)
 
-    Returns:
+Returns:
         Dictionary containing:
-        - success: Whether the request succeeded
-        - url: The final URL after redirects
-        - markdown_content: The page content converted to markdown
-        - status_code: HTTP status code
-        - content_length: Length of the markdown content in characters
+        - success: 요청 성공 여부
+        - url: 리디렉션 후 최종 URL
+        - markdown_content: 마크다운으로 변환된 페이지 콘텐츠
+        - status_code: HTTP 상태 코드
+        - content_length: 마크다운 콘텐츠의 문자 길이
 
-    IMPORTANT: After using this tool:
-    1. Read through the markdown content
-    2. Extract relevant information that answers the user's question
-    3. Synthesize this into a clear, natural language response
-    4. NEVER show the raw markdown to the user unless specifically requested
+    IMPORTANT: 이 도구를 사용한 후:
+    1. 마크다운 콘텐츠를 읽습니다. 2. 사용자의 질문에 답하는 관련 정보를 추출합니다. 3. 이를 명확하고 자연스러운 언어 응답으로 합성합니다. 4.
+    특별히 요청하지 않는 한 사용자에게 원시 마크다운을 표시하지 마세요.
+
     """
     try:
         import requests

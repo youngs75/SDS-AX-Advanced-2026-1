@@ -1,7 +1,6 @@
-"""Normalize image and video inputs from files and the clipboard.
+"""파일 및 클립보드의 이미지 및 비디오 입력을 표준화합니다.
 
-These helpers detect supported media sources, load bytes safely, and convert
-them into the message content blocks expected by the agent runtime.
+이러한 도우미는 지원되는 미디어 소스를 감지하고 바이트를 안전하게 로드한 후 이를 에이전트 런타임에서 예상하는 메시지 콘텐츠 블록으로 변환합니다.
 """
 
 import base64
@@ -36,7 +35,7 @@ IMAGE_EXTENSIONS: frozenset[str] = frozenset(
         ".ico",
     }
 )
-"""Common image file extensions supported by PIL."""
+"""PIL이 지원하는 일반적인 이미지 파일 확장자."""
 
 VIDEO_EXTENSIONS: frozenset[str] = frozenset(
     {
@@ -48,37 +47,39 @@ VIDEO_EXTENSIONS: frozenset[str] = frozenset(
         ".wmv",
     }
 )
-"""Video file extensions with validated magic-byte support."""
+"""검증된 매직바이트 지원이 포함된 비디오 파일 확장자."""
 
 MAX_MEDIA_BYTES: int = 20 * 1024 * 1024
-"""Maximum media file size (20 MB). Keeps base64 payload under ~27 MB."""
+"""최대 미디어 파일 크기(20MB). base64 페이로드를 ~27MB 미만으로 유지합니다."""
 
 
 def _get_executable(name: str) -> str | None:
-    """Get full path to an executable using shutil.which().
+    """shutdown.which()를 사용하여 실행 파일의 전체 경로를 가져옵니다.
 
-    Args:
-        name: Name of the executable to find
+Args:
+        name: 찾을 실행 파일의 이름
 
-    Returns:
-        Full path to executable, or None if not found.
+Returns:
+        실행 파일의 전체 경로 또는 찾을 수 없는 경우 없음입니다.
+
     """
     return shutil.which(name)
 
 
 @dataclass
 class ImageData:
-    """Represents a pasted image with its base64 encoding."""
+    """base64 인코딩으로 붙여넣은 이미지를 나타냅니다."""
 
     base64_data: str
     format: str  # "png", "jpeg", etc.
     placeholder: str  # Display text like "[image 1]"
 
     def to_message_content(self) -> dict:
-        """Convert to LangChain message content format.
+        """LangChain 메시지 콘텐츠 형식으로 변환합니다.
 
-        Returns:
-            Dict with type and image_url for multimodal messages.
+Returns:
+            다중 모드 메시지에 대한 유형 및 image_url이 포함된 사전입니다.
+
         """
         return {
             "type": "image_url",
@@ -88,17 +89,18 @@ class ImageData:
 
 @dataclass
 class VideoData:
-    """Represents a pasted video with its base64 encoding."""
+    """base64 인코딩으로 붙여넣은 비디오를 나타냅니다."""
 
     base64_data: str
     format: str  # "mp4", "quicktime", etc.
     placeholder: str  # Display text like "[video 1]"
 
     def to_message_content(self) -> "VideoContentBlock":
-        """Convert to LangChain `VideoContentBlock` format.
+        """LangChain `VideoContentBlock` 형식으로 변환합니다.
 
-        Returns:
-            `VideoContentBlock` with base64 data and mime_type.
+Returns:
+            `VideoContentBlock`(base64 데이터 및 mime_type 포함)
+
         """
         from langchain_core.messages.content import create_video_block
 
@@ -109,12 +111,13 @@ class VideoData:
 
 
 def get_clipboard_image() -> ImageData | None:
-    """Attempt to read an image from the system clipboard.
+    """시스템 클립보드에서 이미지 읽기를 시도합니다.
 
-    Supports macOS via `pngpaste` or `osascript`.
+    `pngpaste` 또는 `osascript`을 통해 macOS를 지원합니다.
 
-    Returns:
-        ImageData if an image is found, None otherwise.
+Returns:
+        이미지가 발견되면 ImageData이고, 그렇지 않으면 None입니다.
+
     """
     if sys.platform == "darwin":
         return _get_macos_clipboard_image()
@@ -128,13 +131,14 @@ def get_clipboard_image() -> ImageData | None:
 
 
 def get_image_from_path(path: pathlib.Path) -> ImageData | None:
-    """Read and encode an image file from disk.
+    """디스크에서 이미지 파일을 읽고 인코딩합니다.
 
-    Args:
-        path: Path to the image file.
+Args:
+        path: 이미지 파일의 경로입니다.
 
-    Returns:
-        `ImageData` when the file is a valid image, otherwise `None`.
+Returns:
+        파일이 유효한 이미지인 경우 `ImageData`, 그렇지 않은 경우 `None`.
+
     """
     from PIL import Image, UnidentifiedImageError
 
@@ -178,13 +182,14 @@ def get_image_from_path(path: pathlib.Path) -> ImageData | None:
 
 
 def _detect_video_format(data: bytes) -> str | None:
-    """Detect video MIME subtype from magic bytes.
+    """매직 바이트에서 비디오 MIME 하위 유형을 감지합니다.
 
-    Args:
-        data: Raw file bytes (at least 12 bytes for reliable detection).
+Args:
+        data: 원시 파일 바이트(신뢰할 수 있는 감지를 위해 최소 12바이트).
 
-    Returns:
-        MIME subtype (e.g. "mp4", "webm") or `None` if unrecognized.
+Returns:
+        MIME 하위 유형(예: "mp4", "webm") 또는 인식할 수 없는 경우 `None`.
+
     """
     min_avi_len = 12
     if data[4:8] == b"ftyp":
@@ -203,13 +208,14 @@ def _detect_video_format(data: bytes) -> str | None:
 
 
 def get_video_from_path(path: pathlib.Path) -> VideoData | None:
-    """Read and encode a video file from disk.
+    """디스크에서 비디오 파일을 읽고 인코딩합니다.
 
-    Args:
-        path: Path to the video file.
+Args:
+        path: 비디오 파일의 경로입니다.
 
-    Returns:
-        `VideoData` when the file is a valid video, otherwise `None`.
+Returns:
+        파일이 유효한 비디오인 경우 `VideoData`, 그렇지 않은 경우 `None`.
+
     """
     suffix = path.suffix.lower()
     if suffix not in VIDEO_EXTENSIONS:
@@ -262,13 +268,14 @@ def get_video_from_path(path: pathlib.Path) -> VideoData | None:
 
 
 def get_media_from_path(path: pathlib.Path) -> ImageData | VideoData | None:
-    """Try to load a file as an image first, then as a video.
+    """먼저 파일을 이미지로 로드한 다음 비디오로 로드해 보십시오.
 
-    Args:
-        path: Path to the media file.
+Args:
+        path: 미디어 파일의 경로입니다.
 
-    Returns:
-        `ImageData` or `VideoData` if the file is valid media, otherwise `None`.
+Returns:
+        파일이 유효한 미디어인 경우 `ImageData` 또는 `VideoData`, 그렇지 않은 경우 `None`.
+
     """
     result: ImageData | VideoData | None = get_image_from_path(path)
     if result is not None:
@@ -277,12 +284,13 @@ def get_media_from_path(path: pathlib.Path) -> ImageData | VideoData | None:
 
 
 def _get_macos_clipboard_image() -> ImageData | None:
-    """Get clipboard image on macOS using pngpaste or osascript.
+    """pngpaste 또는 osascript를 사용하여 macOS에서 클립보드 이미지를 가져옵니다.
 
-    First tries pngpaste (faster if installed), then falls back to osascript.
+    먼저 pngpaste를 시도한 다음(설치하면 더 빠름) osascript로 돌아갑니다.
 
-    Returns:
-        ImageData if an image is found, None otherwise.
+Returns:
+        이미지가 발견되면 ImageData이고, 그렇지 않으면 None입니다.
+
     """
     from PIL import Image, UnidentifiedImageError
 
@@ -326,13 +334,13 @@ def _get_macos_clipboard_image() -> ImageData | None:
 
 
 def _get_clipboard_via_osascript() -> ImageData | None:
-    """Get clipboard image via osascript using a temp file.
+    """임시 파일을 사용하여 osascript를 통해 클립보드 이미지를 가져옵니다.
 
-    osascript outputs data in a special format that can't be captured as raw binary,
-    so we write to a temp file instead.
+    osascript는 원시 바이너리로 캡처할 수 없는 특수 형식으로 데이터를 출력하므로 대신 임시 파일에 씁니다.
 
-    Returns:
-        ImageData if an image is found, None otherwise.
+Returns:
+        이미지가 발견되면 ImageData이고, 그렇지 않으면 None입니다.
+
     """
     from PIL import Image, UnidentifiedImageError
 
@@ -442,13 +450,14 @@ def _get_clipboard_via_osascript() -> ImageData | None:
 
 
 def encode_to_base64(data: bytes) -> str:
-    """Encode raw bytes to a base64 string.
+    """원시 바이트를 base64 문자열로 인코딩합니다.
 
-    Args:
-        data: Raw bytes to encode.
+Args:
+        data: 인코딩할 원시 바이트입니다.
 
-    Returns:
-        Base64-encoded string.
+Returns:
+        Base64로 인코딩된 문자열.
+
     """
     return base64.b64encode(data).decode("utf-8")
 
@@ -456,15 +465,16 @@ def encode_to_base64(data: bytes) -> str:
 def create_multimodal_content(
     text: str, images: list[ImageData], videos: list[VideoData] | None = None
 ) -> list[dict]:
-    """Create multimodal message content with text, images, and videos.
+    """텍스트, 이미지, 비디오로 다양한 메시지 콘텐츠를 만드세요.
 
-    Args:
-        text: Text content of the message
-        images: List of ImageData objects
-        videos: Optional list of VideoData objects
+Args:
+        text: 메시지의 텍스트 내용
+        images: ImageData 객체 목록
+        videos: VideoData 개체의 선택적 목록
 
-    Returns:
-        List of content blocks in LangChain message format.
+Returns:
+        LangChain 메시지 형식의 콘텐츠 블록 목록입니다.
+
     """
     content_blocks = []
 

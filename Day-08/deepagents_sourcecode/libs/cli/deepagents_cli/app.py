@@ -1,8 +1,7 @@
-"""Run the Textual application that powers `deepagents-cli`.
+"""`deepagents-cli`을 지원하는 텍스트 애플리케이션을 실행하세요.
 
-The app coordinates widget state, agent execution, thread lifecycle,
-tool-approval flow, and user-facing commands while keeping the terminal UI
-responsive during long-running background work.
+앱은 장기 실행 백그라운드 작업 중에 터미널 UI의 응답성을 유지하면서 위젯 상태, 에이전트 실행, 스레드 수명 주기, 도구 승인 흐름 및 사용자 대상 명령을
+조정합니다.
 """
 
 from __future__ import annotations
@@ -120,10 +119,10 @@ _ITERM_CURSOR_GUIDE_ON = "\x1b]1337;HighlightCursorLine=yes\x1b\\"
 
 
 def _write_iterm_escape(sequence: str) -> None:
-    """Write an iTerm2 escape sequence to stderr.
+    """iTerm2 이스케이프 시퀀스를 stderr에 작성합니다.
 
-    Silently fails if the terminal is unavailable (redirected, closed, broken
-    pipe). This is a cosmetic feature, so failures should never crash the app.
+    터미널을 사용할 수 없는 경우(리디렉션, 폐쇄, 파이프 파손) 자동으로 실패합니다. 이는 외관상의 기능이므로 오류로 인해 앱이 충돌해서는 안 됩니다.
+
     """
     if not _IS_ITERM:
         return
@@ -145,10 +144,10 @@ if _IS_ITERM:
     import atexit
 
     def _restore_cursor_guide() -> None:
-        """Restore iTerm2 cursor guide on exit.
+        """종료 시 iTerm2 커서 안내를 복원합니다.
 
-        Registered with atexit to ensure the cursor guide is re-enabled
-        when the CLI exits, regardless of how the exit occurs.
+        종료 발생 방식에 관계없이 CLI가 종료될 때 커서 안내가 다시 활성화되도록 atexit에 등록되었습니다.
+
         """
         _write_iterm_escape(_ITERM_CURSOR_GUIDE_ON)
 
@@ -159,11 +158,13 @@ if _IS_ITERM:
 # Theme persistence and startup argument parsing helpers
 # ---------------------------------------------------------------------------
 
-def _load_theme_preference() -> str:
-    """Load the saved theme name from config, or return the default.
 
-    Returns:
-        A Textual theme name (e.g., `'langchain'`, `'langchain-light'`).
+def _load_theme_preference() -> str:
+    """구성에서 저장된 테마 이름을 로드하거나 기본값을 반환합니다.
+
+Returns:
+        텍스트 테마 이름(예: `'langchain'`, `'langchain-light'`).
+
     """
     import tomllib
 
@@ -191,13 +192,14 @@ def _load_theme_preference() -> str:
 
 
 def save_theme_preference(name: str) -> bool:
-    """Persist theme preference to `~/.deepagents/config.toml`.
+    """`~/.deepagents/config.toml`에 대한 테마 기본 설정을 유지합니다.
 
-    Args:
-        name: Textual theme name to save.
+Args:
+        name: 저장할 텍스트 테마 이름입니다.
 
-    Returns:
-        `True` if the preference was saved, `False` if any error occurred.
+Returns:
+        기본 설정이 저장된 경우 `True`, 오류가 발생한 경우 `False`입니다.
+
     """
     if name not in theme.ThemeEntry.REGISTRY:
         logger.warning("Refusing to save unknown theme '%s'", name)
@@ -240,28 +242,25 @@ def save_theme_preference(name: str) -> bool:
 
 
 def _extract_model_params_flag(raw_arg: str) -> tuple[str, dict[str, Any] | None]:
-    """Extract `--model-params` and its JSON value from a `/model` arg string.
+    """`/model` 인수 문자열에서 `--model-params` 및 해당 JSON 값을 추출합니다.
 
-    Handles quoted (`'...'` / `"..."`) and bare `{...}` values with balanced
-    braces so that JSON containing spaces works without quoting.
+    공백이 포함된 JSON이 인용 없이 작동하도록 균형 잡힌 중괄호로 인용된 값(`'...'` / `"..."`)과 순수 `{...}` 값을 처리합니다.
 
-    Note:
-        The bare-brace mode counts `{` / `}` characters without awareness of
-        JSON string contents. Values that contain literal braces inside strings
-        (e.g., `{"stop": "end}here"}`) will mis-parse. Users should quote the
-        value in that case.
+Note:
+        bare-brace 모드는 JSON 문자열 내용을 인식하지 못한 채 `{` / `}` 문자를 계산합니다. 문자열 안에 리터럴 중괄호가 포함된
+        값(예: `{"stop": "end}here"}`)은 잘못 구문 분석됩니다. 이 경우 사용자는 해당 값을 인용해야 합니다.
 
-    Args:
-        raw_arg: The argument string after `/model `.
+Args:
+        raw_arg: `/model ` 뒤의 인수 문자열입니다.
 
-    Returns:
-        Tuple of `(remaining_args, parsed_dict | None)`. Returns `None` for the
-            dict when the flag is absent.
+Returns:
+        `(remaining_args, parsed_dict | None)`의 튜플입니다. 다음에 대해 `None`을(를) 반환합니다.
+            플래그가 없을 때 dict.
 
-    Raises:
-        ValueError: If the value is missing, has unclosed quotes,
-            unbalanced braces, or is not valid JSON.
-        TypeError: If the parsed JSON is not a dict.
+Raises:
+        ValueError: 값이 누락되었거나, 닫히지 않은 따옴표, 불균형 중괄호가 있거나 유효한 JSON이 아닌 경우입니다.
+        TypeError: 구문 분석된 JSON이 dict가 아닌 경우.
+
     """
     flag = "--model-params"
     idx = raw_arg.find(flag)
@@ -335,60 +334,58 @@ def _extract_model_params_flag(raw_arg: str) -> tuple[str, dict[str, Any] | None
 InputMode = Literal["normal", "shell", "command"]
 
 _TYPING_IDLE_THRESHOLD_SECONDS: float = 2.0
-"""Seconds since the last keystroke after which the user is considered idle and
-a pending approval widget can be shown.
+"""마지막 키 입력 이후 사용자가 유휴 상태로 간주되고 보류 중인 승인 위젯이 표시될 수 있는 시간(초)입니다.
 
-Two seconds balances responsiveness with avoiding accidental approval
-key presses.
+2초는 실수로 승인 키를 누르는 것을 방지하는 동시에 응답 속도의 균형을 유지합니다.
 """
 
 _DEFERRED_APPROVAL_TIMEOUT_SECONDS: float = 30.0
-"""Maximum seconds the deferred-approval worker will wait for the user to stop
-typing before showing the approval widget regardless."""
+"""승인 지연 작업자가 승인 위젯을 표시하기 전에 사용자가 입력을 멈출 때까지 기다리는 최대 시간(초)입니다."""
 
 
 @dataclass(frozen=True, slots=True)
 class QueuedMessage:
-    """Represents a queued user message awaiting processing."""
+    """처리를 기다리는 대기 중인 사용자 메시지를 나타냅니다."""
 
     text: str
-    """The message text content."""
+    """메시지 텍스트 내용입니다."""
 
     mode: InputMode
-    """The input mode that determines message routing."""
+    """메시지 라우팅을 결정하는 입력 모드입니다."""
 
 
 DeferredActionKind = Literal["model_switch", "thread_switch", "chat_output"]
-"""Valid `DeferredAction.kind` values for type-checked deduplication."""
+"""유형 확인 중복 제거에 유효한 `DeferredAction.kind` 값입니다."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class DeferredAction:
-    """An action deferred until the current busy state resolves."""
+    """현재 사용 중 상태가 해결될 때까지 연기되는 작업입니다."""
 
     kind: DeferredActionKind
-    """Identity key for deduplication — one of `DeferredActionKind`."""
+    """중복 제거를 위한 ID 키 — `DeferredActionKind` 중 하나입니다."""
 
     execute: Callable[[], Awaitable[None]]
-    """Async callable that performs the actual work."""
+    """실제 작업을 수행하는 비동기 호출 가능 항목입니다."""
 
 
 @dataclass(frozen=True, slots=True)
 class _ThreadHistoryPayload:
-    """Data returned by `_fetch_thread_history_data`."""
+    """`_fetch_thread_history_data`에서 반환된 데이터입니다."""
 
     messages: list[MessageData]
-    """Converted message data ready for bulk loading."""
+    """변환된 메시지 데이터를 대량 로드할 준비가 되었습니다."""
 
     context_tokens: int
-    """Persisted `_context_tokens` from the checkpoint (0 if absent)."""
+    """체크포인트에서 `_context_tokens`을 유지했습니다(없는 경우 0)."""
 
 
 def _new_thread_id() -> str:
-    """Deferred-import wrapper around `sessions.generate_thread_id`.
+    """`sessions.generate_thread_id` 주변의 지연된 가져오기 래퍼입니다.
 
-    Returns:
-        UUID7 string.
+Returns:
+        UUID7 문자열.
+
     """
     from deepagents_cli.sessions import generate_thread_id
 
@@ -399,8 +396,9 @@ def _new_thread_id() -> str:
 # Mutable session state and the main Textual application
 # ---------------------------------------------------------------------------
 
+
 class TextualSessionState:
-    """Session state for the Textual app."""
+    """Textual 앱의 세션 상태입니다."""
 
     def __init__(
         self,
@@ -408,20 +406,22 @@ class TextualSessionState:
         auto_approve: bool = False,
         thread_id: str | None = None,
     ) -> None:
-        """Initialize session state.
+        """세션 상태를 초기화합니다.
 
-        Args:
-            auto_approve: Whether to auto-approve tool calls
-            thread_id: Optional thread ID (generates UUID7 if not provided)
+Args:
+            auto_approve: 도구 호출 자동 승인 여부
+            thread_id: 선택적 스레드 ID(제공되지 않은 경우 UUID7 생성)
+
         """
         self.auto_approve = auto_approve
         self.thread_id = thread_id or _new_thread_id()
 
     def reset_thread(self) -> str:
-        """Reset to a new thread.
+        """새 스레드로 재설정합니다.
 
-        Returns:
-            The new thread_id.
+Returns:
+            새 thread_id입니다.
+
         """
         self.thread_id = _new_thread_id()
         return self.thread_id
@@ -432,24 +432,25 @@ _COMMAND_URLS: dict[str, str] = {
     "/docs": DOCS_URL,
     "/feedback": "https://github.com/langchain-ai/deepagents/issues/new/choose",
 }
-"""Slash-command to URL mapping for commands that just open a browser."""
+"""브라우저를 여는 명령에 대한 URL 매핑에 대한 슬래시 명령입니다."""
 
 
 class DeepAgentsApp(App):
-    """Main Textual application for deepagents-cli."""
+    """deepagents-cli에 대한 기본 텍스트 응용 프로그램입니다."""
 
     TITLE = "Deep Agents"
-    """Textual application title."""
+    """텍스트 응용 프로그램 제목입니다."""
 
     CSS_PATH = "app.tcss"
-    """Path to the Textual CSS stylesheet for the app layout."""
+    """앱 레이아웃의 텍스트 CSS 스타일시트 경로입니다."""
 
     ENABLE_COMMAND_PALETTE = False
-    """Disable Textual's built-in command palette in favor of the custom slash
-    command system."""
+    """사용자 정의 슬래시를 위해 Textual의 내장 명령 팔레트를 비활성화합니다.
+    명령 시스템.
+    """
 
     SCROLL_SENSITIVITY_Y = 1.0
-    """Vertical scroll speed (reduced from Textual default for finer control)."""
+    """수직 스크롤 속도(세밀한 제어를 위해 텍스트 기본값에서 감소)"""
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("escape", "interrupt", "Interrupt", show=False, priority=True),
@@ -496,11 +497,12 @@ class DeepAgentsApp(App):
         Binding("3", "approval_no", "No", show=False),
         Binding("n", "approval_no", "No", show=False),
     ]
-    """App-level keybindings for interrupt, quit, toggles, and approval menu
-    navigation."""
+    """중단, 종료, 토글 및 승인 메뉴에 대한 앱 수준 키 바인딩
+    항해.
+    """
 
     class ServerReady(Message):
-        """Posted by the background server-startup worker on success."""
+        """백그라운드 서버 시작 작업자가 성공 시 게시한 내용입니다."""
 
         def __init__(  # noqa: D107
             self,
@@ -514,7 +516,7 @@ class DeepAgentsApp(App):
             self.mcp_server_info = mcp_server_info
 
     class ServerStartFailed(Message):
-        """Posted by the background server-startup worker on failure."""
+        """실패 시 백그라운드 서버 시작 작업자가 게시합니다."""
 
         def __init__(self, error: Exception) -> None:  # noqa: D107
             super().__init__()
@@ -539,47 +541,42 @@ class DeepAgentsApp(App):
         model_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize the Deep Agents application.
+        """Deep Agents 애플리케이션을 초기화합니다.
 
-        Args:
-            agent: Pre-configured LangGraph agent, or `None` when server
-                startup is deferred via `server_kwargs`.
-            assistant_id: Agent identifier for memory storage
-            backend: Backend for file operations
-            auto_approve: Whether to start with auto-approve enabled
-            cwd: Current working directory to display
-            thread_id: Thread ID for the session.
+Args:
+            agent: 사전 구성된 LangGraph 에이전트 또는 `None`(서버 시작이 `server_kwargs`을 통해 지연되는 경우).
+            assistant_id: 메모리 저장을 위한 에이전트 식별자
+            backend: 파일 작업을 위한 백엔드
+            auto_approve: 자동 승인을 활성화한 상태로 시작할지 여부
+            cwd: 표시할 현재 작업 디렉터리
+            thread_id: 세션의 스레드 ID입니다.
 
-                `None` when `resume_thread` is provided (resolved asynchronously).
-            resume_thread: Raw resume intent from `-r` flag.
+                `resume_thread`이 제공되는 경우 `None`(비동기적으로 해결됨)
+            resume_thread: `-r` 플래그의 원시 재개 의도입니다.
 
-                `'__MOST_RECENT__'` for bare `-r`, a thread ID string for
-                `-r <id>`, or `None` for new sessions.
+                `-r`의 경우 `'__MOST_RECENT__'`, `-r <id>`의 경우 스레드 ID 문자열, 새 세션의 경우
+                `None`입니다.
 
-                Resolved via `_resolve_resume_thread`
-                during `_start_server_background`.
+                `_start_server_background` 동안 `_resolve_resume_thread`을(를) 통해 해결되었습니다.
 
-                Requires `server_kwargs` to be set; ignored otherwise.
-            initial_prompt: Optional prompt to auto-submit when session starts
-            mcp_server_info: MCP server metadata for the `/mcp` viewer.
-            profile_override: Extra profile fields from `--profile-override`,
-                retained so later profile-aware behavior stays consistent with
-                the CLI override, including model selection details,
-                offload budget display, and on-demand `create_model()`
-                calls such as `/offload`.
-            server_proc: LangGraph server process for the interactive session.
-            server_kwargs: When provided, server startup is deferred.
+                `server_kwargs`을 설정해야 합니다. 그렇지 않으면 무시됩니다.
+            initial_prompt: 세션이 시작될 때 자동 제출하라는 선택적 프롬프트
+            mcp_server_info: `/mcp` 뷰어의 MCP 서버 메타데이터입니다.
+            profile_override: `--profile-override`의 추가 프로필 필드는 모델 선택 세부 정보, 오프로드 예산 표시,
+                              `/offload`와 같은 주문형 `create_model()` 호출을 포함하여 나중에 프로필 인식
+                              동작이 CLI 재정의와 일관되게 유지되도록 유지됩니다.
+            server_proc: 대화형 세션을 위한 LangGraph 서버 프로세스입니다.
+            server_kwargs: 제공되면 서버 시작이 지연됩니다.
 
-                The app shows a "Connecting..." state and starts the server in
-                the background using these kwargs
-                for `start_server_and_get_agent`.
-            mcp_preload_kwargs: Kwargs for `_preload_session_mcp_server_info`,
-                run concurrently with server startup when `server_kwargs` is set.
-            model_kwargs: Kwargs for deferred `create_model()`.
+                앱에 "연결 중..." 상태가 표시되고 `start_server_and_get_agent`에 대해 이러한 kwargs를 사용하여
+                백그라운드에서 서버를 시작합니다.
+            mcp_preload_kwargs: `_preload_session_mcp_server_info`용 Kwargs는
+                                `server_kwargs`이 설정되면 서버 시작과 동시에 실행됩니다.
+            model_kwargs: 지연된 `create_model()`에 대한 Kwargs.
 
-                When provided, model creation runs in a background worker after
-                first paint instead of blocking startup.
-            **kwargs: Additional arguments passed to parent
+                제공되면 시작을 차단하는 대신 첫 번째 페인트 후 백그라운드 작업자에서 모델 생성이 실행됩니다.
+            **kwargs: 부모에게 전달된 추가 인수
+
         """
         super().__init__(**kwargs)
 
@@ -599,9 +596,10 @@ class DeepAgentsApp(App):
         self._cwd = str(cwd) if cwd else str(Path.cwd())
 
         self._lc_thread_id = thread_id
-        """LangChain thread identifier.
+        """LangChain 스레드 식별자입니다.
 
-        Named `_lc_thread_id` to avoid collision with Textual's `App._thread_id`.
+        Textual의 `App._thread_id`과의 충돌을 피하기 위해 `_lc_thread_id`로 명명되었습니다.
+
         """
 
         self._resume_thread_intent = resume_thread
@@ -655,7 +653,7 @@ class DeepAgentsApp(App):
         self._agent_running = False
 
         self._shell_process: asyncio.subprocess.Process | None = None
-        """Shell command process tracking for interruption (! commands)."""
+        """중단에 대한 쉘 명령 프로세스 추적(! 명령)."""
 
         self._shell_worker: Worker[None] | None = None
 
@@ -664,38 +662,39 @@ class DeepAgentsApp(App):
         self._loading_widget: LoadingWidget | None = None
 
         self._context_tokens: int = 0
-        """Local cache of the last total-context token count.
+        """마지막 전체 컨텍스트 토큰 수의 로컬 캐시입니다.
 
-        Source of truth is `_context_tokens` in graph state; this is a sync
-        copy for the status bar.
+        정보의 출처는 그래프 상태의 `_context_tokens`입니다. 이는 상태 표시줄의 동기화 복사본입니다.
+
         """
 
         self._tokens_approximate: bool = False
-        """Whether the cached token count is stale (interrupted generation)."""
+        """캐시된 토큰 수가 오래되었는지 여부(중단된 생성)"""
 
         self._last_typed_at: float | None = None
-        """Typing-aware approval deferral state."""
+        """입력 인식 승인 연기 상태입니다."""
 
         self._approval_placeholder: Static | None = None
 
         self._update_available: tuple[bool, str | None] = (False, None)
-        """Update availability state — set by _check_for_updates, read on exit."""
+        """가용성 상태 업데이트 — `_check_for_updates`에 의해 설정되며 종료 시 읽습니다."""
 
         self._session_stats: SessionStats = SessionStats()
-        """Cumulative usage stats across all turns in this session."""
+        """이 세션의 모든 턴에 대한 누적 사용 통계입니다."""
 
         self._inflight_turn_stats: SessionStats | None = None
-        """Stats for the currently executing turn.
+        """현재 실행 중인 턴에 대한 통계입니다.
 
-        Held here so `exit()` can merge them synchronously before the event loop
-        tears down (e.g. `Ctrl+D` during a pending tool call).
+        이벤트 루프가 종료되기 전에 `exit()`이 이를 동기식으로 병합할 수 있도록 여기에 보관됩니다(예: 보류 중인 도구 호출 중
+        `Ctrl+D`).
+
         """
 
         self._inflight_turn_start: float = 0.0
-        """Monotonic timestamp when the current turn started."""
+        """현재 턴이 시작되었을 때의 단조로운 타임스탬프입니다."""
 
         self._pending_messages: deque[QueuedMessage] = deque()
-        """User message queue for sequential processing."""
+        """순차적 처리를 위한 사용자 메시지 큐입니다."""
 
         self._queued_widgets: deque[QueuedUserMessage] = deque()
 
@@ -706,27 +705,28 @@ class DeepAgentsApp(App):
         self._model_switching = False
 
         self._deferred_actions: list[DeferredAction] = []
-        """Deferred actions executed after the current busy state resolves."""
+        """현재 사용 중 상태가 해결된 후 실행되는 지연된 작업입니다."""
 
         self._message_store = MessageStore()
-        """Message virtualization store."""
+        """메시지 가상화 저장소."""
 
         self._startup_task: asyncio.Task[None] | None = None
-        """Startup task reference (set in on_mount)."""
+        """시작 작업 참조(on_mount에 설정)"""
 
         self._discovered_skills: list[ExtendedSkillMetadata] = []
-        """Cached skill metadata (populated by startup discovery worker,
-        refreshed on `/reload`).
+        """캐시된 기술 메타데이터(시작 검색 작업자에 의해 채워짐,
+        `/reload`에 새로 고쳐졌습니다).
 
-        Used by `_handle_skill_command` to skip re-walking all skill directories
-        on every invocation.
+        `_handle_skill_command`에서 모든 호출 시 모든 스킬 디렉터리 재탐색을 건너뛰는 데 사용됩니다.
+
         """
 
         self._skill_allowed_roots: list[Path] = []
-        """Pre-resolved skill root directories for containment checks in
+        """격리 확인을 위해 사전 해결된 스킬 루트 디렉터리
         `load_skill_content`.
 
-        Built alongside `_discovered_skills`.
+        `_discovered_skills`과 함께 구축되었습니다.
+
         """
 
         # Lazily imported here to avoid pulling image dependencies into
@@ -736,44 +736,44 @@ class DeepAgentsApp(App):
         self._image_tracker = MediaTracker()
 
     def _remote_agent(self) -> RemoteAgent | None:
-        """Return the agent narrowed to `RemoteAgent`, or `None`.
+        """`RemoteAgent` 또는 `None`로 축소된 에이전트를 반환합니다.
 
-        Returns `None` when:
+        다음과 같은 경우 `None`을 반환합니다.
 
-        - No agent is configured (`self._agent is None`).
-        - The agent is a local `Pregel` graph (e.g. ACP mode, test harnesses).
+        - 구성된 에이전트가 없습니다(`self._agent is None`). - 에이전트는 로컬 `Pregel` 그래프입니다(예: ACP 모드,
+        테스트 하네스).
 
-        Used to gate features that require a server-backed agent (e.g. model
-        switching via `ConfigurableModelMiddleware`, checkpointer fallback).
-        Checks the agent type rather than server ownership so this works for
-        both CLI-spawned servers and externally managed ones.
+        서버 지원 에이전트가 필요한 기능을 제어하는 ​​데 사용됩니다(예: `ConfigurableModelMiddleware`을 통한 모델 전환,
+        체크포인터 대체). 서버 소유권이 아닌 에이전트 유형을 확인하므로 이는 CLI 생성 서버와 외부에서 관리되는 서버 모두에 대해 작동합니다.
 
-        Returns:
-            The `RemoteAgent` instance, or `None` for local agents.
+Returns:
+            `RemoteAgent` 인스턴스 또는 로컬 에이전트의 경우 `None`입니다.
+
         """
         from deepagents_cli.remote_client import RemoteAgent
 
         return self._agent if isinstance(self._agent, RemoteAgent) else None
 
     def get_theme_variable_defaults(self) -> dict[str, str]:
-        """Return custom CSS variable defaults for the current theme.
+        """현재 테마에 대한 사용자 정의 CSS 변수 기본값을 반환합니다.
 
-        Most styling uses Textual's built-in variables (`$primary`,
-        `$text-muted`, `$error-muted`, etc.).  This override injects the
-        app-specific variables (`$mode-bash`, `$mode-command`, `$skill`,
-        `$skill-hover`, `$tool`, `$tool-hover`) that have no Textual equivalent.
+        대부분의 스타일은 Textual의 내장 변수(`$primary`, `$text-muted`, `$error-muted` 등)를 사용합니다.  이
+        재정의는 해당 텍스트가 없는 앱별 변수(`$mode-bash`, `$mode-command`, `$skill`, `$skill-hover`,
+        `$tool`, `$tool-hover`)를 삽입합니다.
 
-        Returns:
-            Dict of CSS variable names to hex color values.
+Returns:
+            16진수 색상 값에 대한 CSS 변수 이름의 사전입니다.
+
         """
         colors = theme.get_theme_colors(self)
         return theme.get_css_variable_defaults(colors=colors)
 
     def compose(self) -> ComposeResult:
-        """Compose the application layout.
+        """애플리케이션 레이아웃을 구성합니다.
 
-        Yields:
-            UI components for the main chat area and status bar.
+Yields:
+            기본 채팅 영역 및 상태 표시줄의 UI 구성요소입니다.
+
         """
         # Main chat area with scrollable messages
         # VerticalScroll tracks user scroll intent for better auto-scroll behavior
@@ -798,11 +798,11 @@ class DeepAgentsApp(App):
         yield StatusBar(cwd=self._cwd, id="status-bar")
 
     async def on_mount(self) -> None:
-        """Initialize components after mount.
+        """마운트 후 구성요소를 초기화합니다.
 
-        Only widget queries and lightweight config go here — anything that
-        would delay the first rendered frame (subprocess calls, heavy
-        imports) is deferred to `_post_paint_init` via `call_after_refresh`.
+        여기에는 위젯 쿼리와 경량 구성만 있습니다. 첫 번째 렌더링된 프레임을 지연시키는 모든 것(하위 프로세스 호출, 과도한 가져오기)은
+        `call_after_refresh`을 통해 `_post_paint_init`로 연기됩니다.
+
         """
         # Move all objects allocated during import/compose into the permanent
         # generation so the cyclic GC skips them during first-paint rendering.
@@ -854,12 +854,11 @@ class DeepAgentsApp(App):
         )
 
     async def _resolve_git_branch_and_continue(self) -> None:
-        """Resolve git branch, then schedule remaining init workers.
+        """git 분기를 해결한 다음 나머지 초기화 작업자를 예약합니다.
 
-        Launched via `asyncio.create_task()` during `on_mount` so the subprocess
-        runs concurrently with first-paint rendering. `_post_paint_init` is
-        scheduled via `call_after_refresh` regardless of whether branch
-        resolution succeeds.
+        `on_mount` 중에 `asyncio.create_task()`을 통해 시작되므로 하위 프로세스가 첫 번째 페인트 렌더링과 동시에
+        실행됩니다. `_post_paint_init`은 분기 확인 성공 여부에 관계없이 `call_after_refresh`을 통해 예약됩니다.
+
         """
         try:
             import subprocess  # noqa: S404  # stdlib, already loaded
@@ -894,10 +893,10 @@ class DeepAgentsApp(App):
             self.call_after_refresh(self._post_paint_init)
 
     async def _post_paint_init(self) -> None:
-        """Fire background workers for remaining startup work.
+        """남은 시작 작업을 위해 백그라운드 작업자를 해고합니다.
 
-        Everything here is non-blocking: workers and thread-offloaded calls
-        so the UI stays responsive.
+        여기에 있는 모든 것은 비차단입니다. 즉, 작업자 및 스레드 오프로드 호출을 통해 UI가 응답성을 유지합니다.
+
         """
         # Create UI adapter unconditionally — it only holds UI callbacks and
         # doesn't depend on the agent. The agent is injected later at
@@ -994,7 +993,7 @@ class DeepAgentsApp(App):
                 )
 
     async def _init_session_state(self) -> None:
-        """Create session state in a thread (imports deepagents_cli.sessions)."""
+        """스레드에서 세션 상태를 생성합니다(deepagents_cli.sessions 가져오기)."""
 
         def _create() -> TextualSessionState:
             return TextualSessionState(
@@ -1013,7 +1012,7 @@ class DeepAgentsApp(App):
             )
 
     async def _check_optional_tools_background(self) -> None:
-        """Check for optional tools in a thread and notify if missing."""
+        """스레드에서 선택적 도구를 확인하고 누락된 경우 알림을 보냅니다."""
         try:
             from deepagents_cli.main import (
                 check_optional_tools,
@@ -1044,13 +1043,13 @@ class DeepAgentsApp(App):
             )
 
     async def _discover_skills(self) -> None:
-        """Discover skills, cache metadata, and update autocomplete.
+        """기술을 발견하고, 메타데이터를 캐시하고, 자동 완성을 업데이트하세요.
 
-        Caches the full `ExtendedSkillMetadata` list and pre-resolved
-        containment roots so that `/skill:<name>` invocations can skip
-        re-walking every skill directory.
+        `/skill:<name>` 호출이 모든 기술 디렉터리 재탐색을 건너뛸 수 있도록 전체 `ExtendedSkillMetadata` 목록과 사전
+        해결된 포함 루트를 캐시합니다.
 
-        Runs filesystem I/O in a thread to avoid blocking the event loop.
+        이벤트 루프 차단을 방지하기 위해 스레드에서 파일 시스템 I/O를 실행합니다.
+
         """
         from deepagents_cli.command_registry import SLASH_COMMANDS, build_skill_commands
 
@@ -1100,14 +1099,14 @@ class DeepAgentsApp(App):
     def _discover_skills_and_roots(
         self,
     ) -> tuple[list[ExtendedSkillMetadata], list[Path]]:
-        """Discover skills and build pre-resolved containment roots.
+        """기술을 발견하고 미리 해결된 격리 루트를 구축하세요.
 
-        Shared by `_discover_skills` (startup/reload) and the cache-miss
-        fallback in `_handle_skill_command` to avoid duplicating the
-        `list_skills` call and root-resolution logic.
+        `list_skills` 호출 및 루트 해결 논리의 중복을 방지하기 위해 `_discover_skills`(시작/다시 로드) 및
+        `_handle_skill_command`의 캐시 누락 폴백에서 공유됩니다.
 
-        Returns:
-            Tuple of `(skill metadata list, pre-resolved containment roots)`.
+Returns:
+            `(skill metadata list, pre-resolved containment roots)`의 튜플입니다.
+
         """
         from deepagents_cli.config import settings
         from deepagents_cli.skills.load import list_skills
@@ -1143,12 +1142,12 @@ class DeepAgentsApp(App):
         return skills, roots
 
     async def _resolve_resume_thread(self) -> None:
-        """Resolve a `-r` resume intent into a concrete thread ID.
+        """`-r` 재개 의도를 구체적인 스레드 ID로 해결합니다.
 
-        Consumes `self._resume_thread_intent` and resolves it into a concrete
-        thread ID. Mutates `self._lc_thread_id` and optionally
-        `self._assistant_id` / `self._server_kwargs`. Falls back to a fresh
-        thread on any DB error.
+        `self._resume_thread_intent`을(를) 소비하고 이를 구체적인 스레드 ID로 확인합니다.
+        `self._lc_thread_id` 및 선택적으로 `self._assistant_id` / `self._server_kwargs`을
+        변형합니다. DB 오류가 발생하면 새로운 스레드로 대체됩니다.
+
         """
         from deepagents_cli.sessions import (
             find_similar_threads,
@@ -1220,10 +1219,11 @@ class DeepAgentsApp(App):
             self._session_state.thread_id = self._lc_thread_id
 
     async def _start_server_background(self) -> None:
-        """Background worker: resolve resume-thread intent, start server + MCP preload.
+        """백그라운드 작업자: 재개 스레드 의도를 해결하고 서버 시작 + MCP 사전 로드.
 
-        Also runs deferred model creation if `model_kwargs` was provided,
-        so the langchain import + init doesn't block first paint.
+        또한 `model_kwargs`이 제공된 경우 지연된 모델 생성을 실행하므로 langchain import + init가 첫 번째 페인트를
+        차단하지 않습니다.
+
         """
         # Phase 1: Resolve resume thread (if any) before server startup
         if self._resume_thread_intent:
@@ -1298,7 +1298,7 @@ class DeepAgentsApp(App):
         )
 
     def on_deep_agents_app_server_ready(self, event: ServerReady) -> None:
-        """Handle successful background server startup."""
+        """성공적인 백그라운드 서버 시작을 처리합니다."""
         self._connecting = False
         self._agent = event.agent
         self._server_proc = event.server_proc
@@ -1353,7 +1353,7 @@ class DeepAgentsApp(App):
             )
 
     def on_deep_agents_app_server_start_failed(self, event: ServerStartFailed) -> None:
-        """Handle background server startup failure."""
+        """백그라운드 서버 시작 실패를 처리합니다."""
         self._connecting = False
         logger.error("Server startup failed: %s", event.error, exc_info=event.error)
         # Update banner to show persistent failure state
@@ -1373,10 +1373,10 @@ class DeepAgentsApp(App):
 
     @staticmethod
     def _prewarm_deferred_imports() -> None:
-        """Background-load modules deferred from the startup path.
+        """시작 경로에서 지연되는 백그라운드 로드 모듈입니다.
 
-        Populates `sys.modules` so the first user-triggered inline import
-        is a cheap dict lookup instead of a cold module load.
+        `sys.modules`을 채워 첫 번째 사용자 트리거 인라인 가져오기가 콜드 모듈 로드 대신 저렴한 dict 조회가 되도록 합니다.
+
         """
         # Internal modules moved from top-level to local imports — a failure
         # here indicates a packaging or code bug, not a missing optional dep, so
@@ -1434,7 +1434,7 @@ class DeepAgentsApp(App):
         )
 
     async def _prewarm_threads_cache(self) -> None:  # noqa: PLR6301  # Worker hook kept as instance method
-        """Prewarm thread selector cache without blocking app startup."""
+        """앱 시작을 차단하지 않고 미리 준비한 스레드 선택기 캐시입니다."""
         from deepagents_cli.sessions import (
             get_thread_limit,
             prewarm_thread_message_counts,
@@ -1443,7 +1443,7 @@ class DeepAgentsApp(App):
         await prewarm_thread_message_counts(limit=get_thread_limit())
 
     async def _prewarm_model_caches(self) -> None:
-        """Prewarm model discovery and profile caches without blocking startup."""
+        """시작을 차단하지 않고 사전 준비 모델 검색 및 프로필 캐시를 수행합니다."""
         try:
             from deepagents_cli.model_config import (
                 get_available_models,
@@ -1458,7 +1458,7 @@ class DeepAgentsApp(App):
             logger.warning("Could not prewarm model caches", exc_info=True)
 
     async def _check_for_updates(self) -> None:
-        """Check PyPI for a newer version and optionally auto-update."""
+        """최신 버전이 있는지 PyPI를 확인하고 선택적으로 자동 업데이트하세요."""
         # Phase 1: version check (benign failure)
         try:
             from deepagents_cli.update_check import (
@@ -1522,7 +1522,7 @@ class DeepAgentsApp(App):
             )
 
     async def _show_whats_new(self) -> None:
-        """Show a 'what's new' banner on the first launch after an upgrade."""
+        """업그레이드 후 처음 실행 시 '새로운 기능' 배너를 표시합니다."""
         try:
             from deepagents_cli.update_check import should_show_whats_new
 
@@ -1553,7 +1553,8 @@ class DeepAgentsApp(App):
             logger.warning("Failed to persist seen-version marker", exc_info=True)
 
     async def _handle_update_command(self) -> None:
-        """Handle the `/update` slash command — check for and install updates."""
+        """`/update` 슬래시 명령을 처리합니다. 업데이트를 확인하고 설치합니다."""
+
         await self._mount_message(UserMessage("/update"))
         try:
             from deepagents_cli.update_check import (
@@ -1597,7 +1598,8 @@ class DeepAgentsApp(App):
             )
 
     async def _handle_auto_update_toggle(self) -> None:
-        """Handle the `/auto-update` slash command — persist toggle immediately."""
+        """`/auto-update` 슬래시 명령을 처리합니다. 즉시 토글을 지속합니다."""
+
         try:
             from deepagents_cli.config import _is_editable_install
             from deepagents_cli.update_check import (
@@ -1633,48 +1635,49 @@ class DeepAgentsApp(App):
             )
 
     def on_scroll_up(self, _event: ScrollUp) -> None:
-        """Handle scroll up to check if we need to hydrate older messages."""
+        """위로 스크롤하여 오래된 메시지를 수화해야 하는지 확인하세요."""
         self._check_hydration_needed()
 
     def _update_status(self, message: str) -> None:
-        """Update the status bar with a message."""
+        """메시지로 상태 표시줄을 업데이트합니다."""
         if self._status_bar:
             self._status_bar.set_status_message(message)
 
     def _update_tokens(self, count: int, *, approximate: bool = False) -> None:
-        """Update the token count in the status bar.
+        """상태 표시줄에서 토큰 수를 업데이트합니다.
 
-        Low-level helper — only touches the UI.  Callers that also need to
-        update the local cache should use `_on_tokens_update` instead.
+        낮은 수준의 도우미 — UI에만 닿습니다.  로컬 캐시도 업데이트해야 하는 호출자는 대신 `_on_tokens_update`을 사용해야 합니다.
 
-        Args:
-            count: Total context token count.
-            approximate: Append "+" to signal a stale/interrupted count.
+Args:
+            count: 총 컨텍스트 토큰 수입니다.
+            approximate: 오래된/중단된 카운트를 알리려면 "+"를 추가하세요.
+
         """
         if self._status_bar:
             self._status_bar.set_tokens(count, approximate=approximate)
 
     def _on_tokens_update(self, count: int, *, approximate: bool = False) -> None:
-        """Update the local cache *and* the status bar.
+        """로컬 캐시 *및* 상태 표시줄을 업데이트합니다.
 
-        This is the callback wired to the adapter's `_on_tokens_update`.
+        이는 어댑터의 `_on_tokens_update`에 연결된 콜백입니다.
 
-        Args:
-            count: Total context token count to cache and display.
-            approximate: Append "+" to signal a stale/interrupted count.
+Args:
+            count: 캐시하고 표시할 총 컨텍스트 토큰 수입니다.
+            approximate: 오래된/중단된 카운트를 알리려면 "+"를 추가하세요.
+
         """
         self._context_tokens = count
         self._tokens_approximate = approximate
         self._update_tokens(count, approximate=approximate)
 
     def _show_tokens(self, *, approximate: bool = False) -> None:
-        """Restore the status bar to the cached token value.
+        """상태 표시줄을 캐시된 토큰 값으로 복원합니다.
 
-        Args:
-            approximate: Append "+" to signal a stale/interrupted count.
+Args:
+            approximate: 오래된/중단된 카운트를 알리려면 "+"를 추가하세요.
 
-                This flag is sticky until `_on_tokens_update` receives a fresh
-                count from the model.
+                이 플래그는 `_on_tokens_update`이 모델로부터 새로운 카운트를 받을 때까지 고정되어 있습니다.
+
         """
         self._tokens_approximate = self._tokens_approximate or approximate
         self._update_tokens(
@@ -1683,14 +1686,15 @@ class DeepAgentsApp(App):
         )
 
     def _hide_tokens(self) -> None:
-        """Hide the token display during streaming."""
+        """스트리밍 중에 토큰 표시를 숨깁니다."""
         if self._status_bar:
             self._status_bar.hide_tokens()
 
     def _check_hydration_needed(self) -> None:
-        """Check if we need to hydrate messages from the store.
+        """매장에서 보낸 메시지를 수화해야 하는지 확인하세요.
 
-        Called when user scrolls up near the top of visible messages.
+        사용자가 표시되는 메시지 상단 근처에서 위로 스크롤할 때 호출됩니다.
+
         """
         if not self._message_store.has_messages_above:
             return
@@ -1708,10 +1712,10 @@ class DeepAgentsApp(App):
             self.call_later(self._hydrate_messages_above)
 
     async def _hydrate_messages_above(self) -> None:
-        """Hydrate older messages when user scrolls near the top.
+        """사용자가 상단 근처로 스크롤하면 오래된 메시지를 수화합니다.
 
-        This recreates widgets for archived messages and inserts them
-        at the top of the messages container.
+        그러면 보관된 메시지에 대한 위젯이 다시 생성되어 메시지 컨테이너 상단에 삽입됩니다.
+
         """
         if not self._message_store.has_messages_above:
             return
@@ -1784,16 +1788,15 @@ class DeepAgentsApp(App):
         chat.scroll_y = old_scroll_y + added_height
 
     async def _mount_before_queued(self, container: Container, widget: Widget) -> None:
-        """Mount a widget in the messages container, before any queued widgets.
+        """대기 중인 위젯 이전에 메시지 컨테이너에 위젯을 마운트합니다.
 
-        Queued-message widgets must stay at the bottom of the container so
-        they remain visually anchored below the current agent response.
-        This helper inserts `widget` just before the first queued widget,
-        or appends at the end when the queue is empty.
+        대기 중인 메시지 위젯은 현재 에이전트 응답 아래에 시각적으로 고정되어 있도록 컨테이너 하단에 있어야 합니다. 이 도우미는 첫 번째 대기열에
+        추가된 위젯 바로 앞에 `widget`을 삽입하거나 대기열이 비어 있을 때 끝에 추가합니다.
 
-        Args:
-            container: The `#messages` container to mount into.
-            widget: The widget to mount.
+Args:
+            container: 마운트할 `#messages` 컨테이너입니다.
+            widget: 마운트할 위젯입니다.
+
         """
         if not container.is_attached:
             return
@@ -1811,16 +1814,16 @@ class DeepAgentsApp(App):
         await container.mount(widget)
 
     def _is_spinner_at_correct_position(self, container: Container) -> bool:
-        """Check whether the loading spinner is already correctly positioned.
+        """로딩 스피너가 이미 올바르게 배치되었는지 확인하세요.
 
-        The spinner should be immediately before the first queued widget, or
-        at the very end of the container when the queue is empty.
+        스피너는 첫 번째 대기열에 추가된 위젯 바로 앞에 있거나 대기열이 비어 있을 때 컨테이너 맨 끝에 있어야 합니다.
 
-        Args:
-            container: The `#messages` container.
+Args:
+            container: `#messages` 컨테이너.
 
-        Returns:
-            `True` if the spinner is already in the correct position.
+Returns:
+            `True` 스피너가 이미 올바른 위치에 있는 경우.
+
         """
         children = list(container.children)
         if not children or self._loading_widget not in children:
@@ -1837,10 +1840,11 @@ class DeepAgentsApp(App):
         return children[-1] == self._loading_widget
 
     async def _set_spinner(self, status: SpinnerStatus) -> None:
-        """Show, update, or hide the loading spinner.
+        """로딩 스피너를 표시, 업데이트 또는 숨깁니다.
 
-        Args:
-            status: The spinner status to display, or `None` to hide.
+Args:
+            status: 표시하려면 스피너 상태이고, 숨기려면 `None`입니다.
+
         """
         if status is None:
             # Hide
@@ -1870,21 +1874,21 @@ class DeepAgentsApp(App):
         action_requests: Any,  # noqa: ANN401  # ActionRequest uses dynamic typing
         assistant_id: str | None,
     ) -> asyncio.Future:
-        """Request user approval inline in the messages area.
+        """메시지 영역에서 인라인으로 사용자 승인을 요청하세요.
 
-        Mounts ApprovalMenu in the messages area (inline with chat).
-        ChatInput stays visible - user can still see it.
+        메시지 영역에 ApprovalMenu를 탑재합니다(채팅과 함께 인라인). ChatInput은 계속 표시됩니다. 사용자는 계속 볼 수 있습니다.
 
-        If another approval is already pending, queue this one.
+        다른 승인이 이미 보류 중인 경우 이 승인을 대기열에 추가하세요.
 
-        Auto-approves shell commands that are in the configured allow-list.
+        구성된 허용 목록에 있는 셸 명령을 자동 승인합니다.
 
-        Args:
-            action_requests: List of action request dicts to approve
-            assistant_id: The assistant ID for display purposes
+Args:
+            action_requests: 승인할 작업 요청 목록
+            assistant_id: 표시 목적의 어시스턴트 ID
 
-        Returns:
-            A Future that resolves to the user's decision.
+Returns:
+            사용자의 결정으로 결정되는 Future입니다.
+
         """
         from deepagents_cli.config import (
             SHELL_TOOL_NAMES,
@@ -1981,14 +1985,14 @@ class DeepAgentsApp(App):
         menu: ApprovalMenu,
         result_future: asyncio.Future[dict[str, str]],
     ) -> None:
-        """Mount the approval menu widget inline in the messages area.
+        """메시지 영역에 승인 메뉴 위젯을 인라인으로 탑재합니다.
 
-        If mounting fails, clears `_pending_approval_widget` and propagates
-        the exception via `result_future`.
+        마운트에 실패하면 `_pending_approval_widget`을 지우고 `result_future`을 통해 예외를 전파합니다.
 
-        Args:
-            menu: The `ApprovalMenu` instance to mount.
-            result_future: The future to resolve/reject for the caller.
+Args:
+            menu: 마운트할 `ApprovalMenu` 인스턴스입니다.
+            result_future: 호출자에 대해 해결/거부할 미래입니다.
+
         """
         try:
             messages = self.query_one("#messages", Container)
@@ -2010,16 +2014,16 @@ class DeepAgentsApp(App):
         menu: ApprovalMenu,
         result_future: asyncio.Future[dict[str, str]],
     ) -> None:
-        """Wait until the user is idle, then swap the placeholder for the real menu.
+        """사용자가 유휴 상태가 될 때까지 기다린 다음 자리 표시자를 실제 메뉴로 바꿉니다.
 
-        Exits early if the placeholder has already been detached (e.g. the
-        approval was cancelled while waiting).  In that case the future is
-        cancelled so the caller is not left hanging.
+        자리 표시자가 이미 분리된 경우 조기 종료됩니다(예: 대기 중에 승인이 취소됨).  이 경우 future가 취소되어 호출자가 계속 대기 상태로
+        남지 않습니다.
 
-        Args:
-            placeholder: The temporary placeholder widget currently mounted.
-            menu: The `ApprovalMenu` to show once the user stops typing.
-            result_future: The future backing this approval flow.
+Args:
+            placeholder: 현재 마운트된 임시 자리 표시자 위젯입니다.
+            menu: 사용자가 입력을 중지하면 표시되는 `ApprovalMenu`입니다.
+            result_future: 이 승인 흐름을 뒷받침하는 미래.
+
         """
         deadline = _monotonic() + _DEFERRED_APPROVAL_TIMEOUT_SECONDS
         while self._is_user_typing():  # Simple polling
@@ -2054,12 +2058,11 @@ class DeepAgentsApp(App):
         await self._mount_approval_widget(menu, result_future)
 
     def _on_auto_approve_enabled(self) -> None:
-        """Handle auto-approve being enabled via the HITL approval menu.
+        """HITL 승인 메뉴를 통해 활성화되는 자동 승인을 처리합니다.
 
-        Called when the user selects "Auto-approve all" from an approval
-        dialog. Syncs the auto-approve state across the app flag, status
-        bar indicator, and session state so subsequent tool calls skip
-        the approval prompt.
+        사용자가 승인 대화상자에서 "모두 자동 승인"을 선택하면 호출됩니다. 앱 플래그, 상태 표시줄 표시기 및 세션 상태 전반에 걸쳐 자동 승인
+        상태를 동기화하므로 후속 도구 호출에서는 승인 프롬프트를 건너뛸 수 있습니다.
+
         """
         self._auto_approve = True
         if self._status_bar:
@@ -2073,11 +2076,12 @@ class DeepAgentsApp(App):
         *,
         context: str,
     ) -> None:
-        """Remove an ask_user widget without surfacing cleanup races.
+        """정리 경주를 표시하지 않고 Ask_user 위젯을 제거합니다.
 
-        Args:
-            widget: Ask-user widget instance to remove.
-            context: Short context string for diagnostics.
+Args:
+            widget: 사용자에게 제거할 위젯 인스턴스를 요청합니다.
+            context: 진단을 위한 짧은 컨텍스트 문자열입니다.
+
         """
         try:
             await widget.remove()
@@ -2092,15 +2096,16 @@ class DeepAgentsApp(App):
         self,
         questions: list[Question],
     ) -> asyncio.Future[AskUserWidgetResult]:
-        """Display the ask_user widget and return a Future with user response.
+        """Ask_user 위젯을 표시하고 사용자 응답과 함께 Future를 반환합니다.
 
-        Args:
-            questions: List of question dicts, each with `question`, `type`,
-                and optional `choices` and `required` keys.
+Args:
+            questions: 각각 `question`, `type`, 선택적 `choices` 및 `required` 키가 포함된 질문 사전
+                       목록입니다.
 
-        Returns:
-            A Future that resolves to a dict with `'type'` (`'answered'` or
-                `'cancelled'`) and, when answered, an `'answers'` list.
+Returns:
+            `'type'`(`'answered'` 또는
+                `'cancelled'`) 및 응답 시 `'answers'` 목록.
+
         """
         loop = asyncio.get_running_loop()
         result_future: asyncio.Future[AskUserWidgetResult] = loop.create_future()
@@ -2152,7 +2157,7 @@ class DeepAgentsApp(App):
         self,
         event: Any,  # noqa: ARG002, ANN401
     ) -> None:
-        """Handle ask_user menu answers - remove widget and refocus input."""
+        """Ask_user 메뉴 답변 처리 - 위젯을 제거하고 입력에 다시 초점을 맞춥니다."""
         if self._pending_ask_user_widget:
             widget = self._pending_ask_user_widget
             self._pending_ask_user_widget = None
@@ -2165,7 +2170,7 @@ class DeepAgentsApp(App):
         self,
         event: Any,  # noqa: ARG002, ANN401
     ) -> None:
-        """Handle ask_user menu cancellation - remove widget and refocus input."""
+        """Ask_user 메뉴 취소 처리 - 위젯을 제거하고 입력에 다시 초점을 맞춥니다."""
         if self._pending_ask_user_widget:
             widget = self._pending_ask_user_widget
             self._pending_ask_user_widget = None
@@ -2175,11 +2180,12 @@ class DeepAgentsApp(App):
             self.call_after_refresh(self._chat_input.focus_input)
 
     async def _process_message(self, value: str, mode: InputMode) -> None:
-        """Route a message to the appropriate handler based on mode.
+        """모드에 따라 메시지를 적절한 핸들러로 라우팅합니다.
 
-        Args:
-            value: The message text to process.
-            mode: The input mode that determines message routing.
+Args:
+            value: 처리할 메시지 텍스트입니다.
+            mode: 메시지 라우팅을 결정하는 입력 모드입니다.
+
         """
         if mode == "shell":
             await self._handle_shell_command(value.removeprefix("!"))
@@ -2192,13 +2198,14 @@ class DeepAgentsApp(App):
             await self._handle_user_message(value)
 
     def _can_bypass_queue(self, value: str) -> bool:
-        """Check if a slash command can skip the message queue.
+        """슬래시 명령이 메시지 대기열을 건너뛸 수 있는지 확인하세요.
 
-        Args:
-            value: The lowered, stripped command string (e.g. `/model`).
+Args:
+            value: 낮춰지고 제거된 명령 문자열(예: `/model`)입니다.
 
-        Returns:
-            `True` if the command should bypass the busy-state queue.
+Returns:
+            `True` 명령이 사용 중 상태 대기열을 우회해야 하는 경우.
+
         """
         from deepagents_cli.command_registry import (
             BYPASS_WHEN_CONNECTING,
@@ -2216,7 +2223,7 @@ class DeepAgentsApp(App):
         return cmd in SIDE_EFFECT_FREE
 
     async def on_chat_input_submitted(self, event: ChatInput.Submitted) -> None:
-        """Handle submitted input from ChatInput widget."""
+        """ChatInput 위젯에서 제출된 입력을 처리합니다."""
         value = event.value
         mode: InputMode = event.mode  # type: ignore[assignment]  # Textual event mode is str at type level but InputMode at runtime
 
@@ -2259,7 +2266,7 @@ class DeepAgentsApp(App):
         await self._process_message(value, mode)
 
     def on_chat_input_mode_changed(self, event: ChatInput.ModeChanged) -> None:
-        """Update status bar when input mode changes."""
+        """입력 모드가 변경되면 상태 표시줄을 업데이트합니다."""
         if self._status_bar:
             self._status_bar.set_mode(event.mode)
 
@@ -2267,15 +2274,16 @@ class DeepAgentsApp(App):
         self,
         event: ChatInput.Typing,  # noqa: ARG002  # Textual event handler signature
     ) -> None:
-        """Record the most recent keystroke time for typing-aware approval deferral."""
+        """입력 인식 승인 연기를 위해 가장 최근의 키 입력 시간을 기록합니다."""
         self._last_typed_at = _monotonic()
 
     def _is_user_typing(self) -> bool:
-        """Return whether the user typed recently (within the idle threshold).
+        """사용자가 최근에 입력했는지 여부를 반환합니다(유휴 임계값 내에서).
 
-        Returns:
-            `True` if the last recorded typing event occurred within the last
-                `_TYPING_IDLE_THRESHOLD_SECONDS` seconds, `False` otherwise.
+Returns:
+            `True` 마지막으로 기록된 타이핑 이벤트가 마지막 기간 내에 발생한 경우
+                `_TYPING_IDLE_THRESHOLD_SECONDS`초, 그렇지 않으면 `False`.
+
         """
         if self._last_typed_at is None:
             return False
@@ -2285,7 +2293,7 @@ class DeepAgentsApp(App):
         self,
         event: Any,  # noqa: ARG002, ANN401  # Textual event handler signature
     ) -> None:
-        """Handle approval menu decision - remove from messages and refocus input."""
+        """승인 메뉴 결정 처리 - 메시지에서 제거하고 입력에 다시 집중합니다."""
         # Defensively remove any lingering placeholder (should already be gone
         # once the deferred worker swaps it, but guard against edge cases).
         if self._approval_placeholder is not None:
@@ -2309,13 +2317,13 @@ class DeepAgentsApp(App):
             self.call_after_refresh(self._chat_input.focus_input)
 
     async def _handle_shell_command(self, command: str) -> None:
-        """Handle a shell command (! prefix).
+        """쉘 명령(! 접두사)을 처리합니다.
 
-        Thin dispatcher that mounts the user message and spawns a worker
-        so the event loop stays free for key events (Esc/Ctrl+C).
+        사용자 메시지를 마운트하고 작업자를 생성하여 이벤트 루프가 주요 이벤트(Esc/Ctrl+C)에 대해 자유롭게 유지되도록 하는 씬 디스패처입니다.
 
-        Args:
-            command: The shell command to execute.
+Args:
+            command: 실행할 쉘 명령입니다.
+
         """
         await self._mount_message(UserMessage(f"!{command}"))
         self._shell_running = True
@@ -2329,17 +2337,17 @@ class DeepAgentsApp(App):
         )
 
     async def _run_shell_task(self, command: str) -> None:
-        """Run a shell command in a background worker.
+        """백그라운드 작업자에서 셸 명령을 실행합니다.
 
-        This mirrors `_run_agent_task`: running in a worker keeps the event
-        loop free so Esc/Ctrl+C can cancel the worker -> raise
-        `CancelledError` -> kill the process.
+        이는 `_run_agent_task`을 미러링합니다. 작업자에서 실행하면 이벤트 루프를 자유롭게 유지하므로 Esc/Ctrl+C는 작업자 취소
+        -> `CancelledError` 발생 -> 프로세스 종료를 수행할 수 있습니다.
 
-        Args:
-            command: The shell command to execute.
+Args:
+            command: 실행할 쉘 명령입니다.
 
-        Raises:
-            CancelledError: If the command is interrupted by the user.
+Raises:
+            CancelledError: 사용자가 명령을 중단한 경우.
+
         """
         try:
             proc = await asyncio.create_subprocess_shell(
@@ -2390,7 +2398,7 @@ class DeepAgentsApp(App):
             await self._cleanup_shell_task()
 
     async def _cleanup_shell_task(self) -> None:
-        """Clean up after shell command task completes or is cancelled."""
+        """셸 명령 작업이 완료되거나 취소된 후 정리합니다."""
         was_interrupted = self._shell_process is not None and (
             self._shell_worker is not None and self._shell_worker.is_cancelled
         )
@@ -2415,12 +2423,11 @@ class DeepAgentsApp(App):
         await self._process_next_from_queue()
 
     async def _kill_shell_process(self) -> None:
-        """Terminate the running shell command process.
+        """실행 중인 쉘 명령 프로세스를 종료합니다.
 
-        On POSIX, sends SIGTERM to the entire process group (killing children).
-        On Windows, terminates only the root process. No-op if the process has
-        already exited. Waits up to 5s for clean shutdown, then escalates
-        to SIGKILL.
+        POSIX에서는 SIGTERM을 전체 프로세스 그룹에 보냅니다(자식 종료). Windows에서는 루트 프로세스만 종료합니다. 프로세스가 이미
+        종료된 경우 작동하지 않습니다. 완전한 종료를 위해 최대 5초를 기다린 후 SIGKILL로 에스컬레이션합니다.
+
         """
         proc = self._shell_process
         if proc is None or proc.returncode is not None:
@@ -2457,15 +2464,15 @@ class DeepAgentsApp(App):
             pass
 
     async def _open_url_command(self, command: str, cmd: str) -> None:
-        """Open a URL in the browser and display a clickable link.
+        """브라우저에서 URL을 열고 클릭 가능한 링크를 표시합니다.
 
-        The browser opens immediately regardless of busy state. When the app is
-        busy, a queued indicator is shown and the real chat output (user echo
-        + clickable link) replaces it after the current task finishes.
+        사용 중인 상태와 관계없이 브라우저가 즉시 열립니다. 앱이 사용 중인 경우 대기열 표시기가 표시되고 현재 작업이 완료된 후 실제 채팅
+        출력(사용자 에코 + 클릭 가능한 링크)이 이를 대체합니다.
 
-        Args:
-            command: The raw command text (displayed as user message).
-            cmd: The normalized slash command used to look up the URL.
+Args:
+            command: 원시 명령 텍스트(사용자 메시지로 표시됨)
+            cmd: URL을 조회하는 데 사용되는 정규화된 슬래시 명령입니다.
+
         """
         url = _COMMAND_URLS[cmd]
         webbrowser.open(url)
@@ -2497,18 +2504,17 @@ class DeepAgentsApp(App):
 
     @staticmethod
     async def _build_thread_message(prefix: str, thread_id: str) -> str | Content:
-        """Build a thread status message, hyperlinking the ID when possible.
+        """가능하면 ID를 하이퍼링크하여 스레드 상태 메시지를 작성하십시오.
 
-        Attempts to resolve the LangSmith thread URL with a short timeout.
-        Falls back to plain text if tracing is not configured or resolution
-        fails.
+        짧은 시간 초과로 LangSmith 스레드 URL을 확인하려고 시도합니다. 추적이 구성되지 않았거나 확인에 실패하면 일반 텍스트로 대체됩니다.
 
-        Args:
-            prefix: Label before the thread ID (e.g. `'Resumed thread'`).
-            thread_id: The thread identifier.
+Args:
+            prefix: 스레드 ID 앞에 라벨을 붙입니다(예: `'Resumed thread'`).
+            thread_id: 스레드 식별자입니다.
 
-        Returns:
-            `Content` with a clickable thread ID, or a plain string.
+Returns:
+            `Content`(클릭 가능한 스레드 ID 또는 일반 문자열)
+
         """
         from deepagents_cli.config import build_langsmith_thread_url
 
@@ -2528,16 +2534,14 @@ class DeepAgentsApp(App):
         return f"{prefix}: {thread_id}"
 
     async def _handle_trace_command(self, command: str) -> None:
-        """Open the current thread in LangSmith.
+        """LangSmith에서 현재 스레드를 엽니다.
 
-        Resolves the URL and opens the browser immediately regardless of busy
-        state. When the app is busy, chat output (user echo + clickable link)
-        is deferred until the current task finishes. Error conditions (no
-        session, URL failure, tracing not configured) render immediately
-        regardless of busy state.
+        사용 중인 상태와 관계없이 URL을 확인하고 즉시 브라우저를 엽니다. 앱이 사용 중이면 현재 작업이 완료될 때까지 채팅 출력(사용자 에코 +
+        클릭 가능한 링크)이 연기됩니다. 오류 조건(세션 없음, URL 실패, 추적이 구성되지 않음)은 사용 중 상태와 관계없이 즉시 렌더링됩니다.
 
-        Args:
-            command: The raw command text (displayed as user message).
+Args:
+            command: 원시 명령 텍스트(사용자 메시지로 표시됨)
+
         """
         from deepagents_cli.config import build_langsmith_thread_url
 
@@ -2601,10 +2605,11 @@ class DeepAgentsApp(App):
         await self._mount_message(AppMessage(link))
 
     async def _handle_command(self, command: str) -> None:
-        """Handle a slash command.
+        """슬래시 명령을 처리합니다.
 
-        Args:
-            command: The slash command (including /)
+Args:
+            command: 슬래시 명령(/ 포함)
+
         """
         from deepagents_cli.config import newline_shortcut, settings
 
@@ -2869,15 +2874,14 @@ class DeepAgentsApp(App):
             self.query_one("#chat", VerticalScroll).anchor()
 
     async def _handle_skill_command(self, command: str) -> None:
-        """Handle a `/skill:<name>` command by loading and invoking a skill.
+        """스킬을 로드하고 호출하여 `/skill:<name>` 명령을 처리합니다.
 
-        Looks up the skill from cached metadata (populated at startup), falling
-        back to a fresh filesystem walk on cache miss. Reads the `SKILL.md`
-        body, wraps it in a prompt envelope with any user-provided arguments,
-        and sends the composed message to the agent.
+        캐시된 메타데이터(시작 시 채워짐)에서 기술을 찾아 캐시 누락 시 새로운 파일 시스템 워크로 돌아갑니다. `SKILL.md` 본문을 읽고 이를
+        사용자가 제공한 인수와 함께 프롬프트 봉투에 래핑한 다음 작성된 메시지를 에이전트에 보냅니다.
 
-        Args:
-            command: The full command string (e.g., `/skill:web-research find X`).
+Args:
+            command: 전체 명령 문자열(예: `/skill:web-research find X`).
+
         """
         from deepagents_cli.command_registry import parse_skill_command
         from deepagents_cli.skills.load import load_skill_content
@@ -3025,10 +3029,11 @@ class DeepAgentsApp(App):
         )
 
     async def _get_conversation_token_count(self) -> int | None:
-        """Return the approximate conversation-only token count.
+        """대략적인 대화 전용 토큰 수를 반환합니다.
 
-        Returns:
-            Token count as an integer, or `None` if state is unavailable.
+Returns:
+            토큰 수는 정수로 표시되며, 상태를 사용할 수 없는 경우에는 `None`입니다.
+
         """
         if not self._agent:
             return None
@@ -3052,14 +3057,14 @@ class DeepAgentsApp(App):
             return None
 
     def _resolve_offload_budget_str(self) -> str | None:
-        """Resolve the offload retention budget as a human-readable string.
+        """오프로드 보존 예산을 사람이 읽을 수 있는 문자열로 확인합니다.
 
-        Instantiates a model and computes summarization defaults, so this is
-        not a trivial accessor.
+        모델을 인스턴스화하고 요약 기본값을 계산하므로 이는 사소한 접근자가 아닙니다.
 
-        Returns:
-            A string like `"20.0K (10% of 200.0K)"` or
-            `"last 6 messages"`, or `None` if the budget cannot be determined.
+Returns:
+            `"20.0K (10% of 200.0K)"` 또는 `"last 6 messages"`과 같은 문자열입니다. 예산을 결정할 수 없는
+            경우에는 `None`입니다.
+
         """
         from deepagents_cli.config import create_model, settings
 
@@ -3085,7 +3090,7 @@ class DeepAgentsApp(App):
             return None
 
     async def _handle_offload(self) -> None:
-        """Offload older messages to free context window space."""
+        """오래된 메시지를 오프로드하여 컨텍스트 창 공간을 확보하세요."""
         from deepagents_cli.config import settings
         from deepagents_cli.offload import (
             OffloadModelError,
@@ -3214,10 +3219,11 @@ class DeepAgentsApp(App):
                 logger.exception("Failed to dismiss spinner after offload")
 
     async def _handle_user_message(self, message: str) -> None:
-        """Handle a user message to send to the agent.
+        """에이전트에 보낼 사용자 메시지를 처리합니다.
 
-        Args:
-            message: The user's message
+Args:
+            message: 사용자의 메시지
+
         """
         # Mount the user message
         await self._mount_message(UserMessage(message))
@@ -3229,16 +3235,16 @@ class DeepAgentsApp(App):
         *,
         message_kwargs: dict[str, Any] | None = None,
     ) -> None:
-        """Send a message to the agent and start execution.
+        """에이전트에 메시지를 보내고 실행을 시작합니다.
 
-        This is the low-level send path. It does NOT mount any widget — the
-        caller is responsible for mounting the appropriate visual representation
-        (e.g., `UserMessage`, `SkillMessage`) before calling this method.
+        이는 낮은 수준의 전송 경로입니다. 어떤 위젯도 마운트하지 않습니다. 호출자는 이 메서드를 호출하기 전에 적절한 시각적 표현(예:
+        `UserMessage`, `SkillMessage`)을 마운트해야 합니다.
 
-        Args:
-            message: The prompt to send to the agent.
-            message_kwargs: Extra fields merged into the stream input message
-                dict (e.g., `additional_kwargs` for skill metadata).
+Args:
+            message: 에이전트에게 보낼 프롬프트입니다.
+            message_kwargs: 추가 필드가 스트림 입력 메시지 사전에 병합되었습니다(예: 기술 메타데이터의 경우
+                            `additional_kwargs`).
+
         """
         # Anchor to bottom so streaming response stays visible
         with suppress(NoMatches, ScreenStackError):
@@ -3268,14 +3274,15 @@ class DeepAgentsApp(App):
         *,
         message_kwargs: dict[str, Any] | None = None,
     ) -> None:
-        """Run the agent task in a background worker.
+        """백그라운드 작업자에서 에이전트 작업을 실행합니다.
 
-        This runs in a Textual worker so the main event loop stays responsive.
+        이는 텍스트 작업자에서 실행되므로 기본 이벤트 루프가 계속 응답합니다.
 
-        Args:
-            message: The prompt to send to the agent.
-            message_kwargs: Extra fields merged into the stream input message
-                dict (e.g., `additional_kwargs` for skill metadata).
+Args:
+            message: 에이전트에게 보낼 프롬프트입니다.
+            message_kwargs: 추가 필드가 스트림 입력 메시지 사전에 병합되었습니다(예: 기술 메타데이터의 경우
+                            `additional_kwargs`).
+
         """
         # Caller ensures _ui_adapter is set (checked in _handle_user_message)
         if self._ui_adapter is None:
@@ -3329,10 +3336,11 @@ class DeepAgentsApp(App):
             await self._cleanup_agent_task()
 
     async def _process_next_from_queue(self) -> None:
-        """Process the next message from the queue if any exist.
+        """큐에 다음 메시지가 있으면 처리합니다.
 
-        Dequeues and processes the next pending message in FIFO order.
-        Uses the `_processing_pending` flag to prevent reentrant execution.
+        FIFO 순서로 다음 보류 메시지를 대기열에서 빼고 처리합니다. 재진입 실행을 방지하기 위해 `_processing_pending` 플래그를
+        사용합니다.
+
         """
         if self._processing_pending or not self._pending_messages or self._exit:
             return
@@ -3363,7 +3371,7 @@ class DeepAgentsApp(App):
             await self._process_next_from_queue()
 
     async def _cleanup_agent_task(self) -> None:
-        """Clean up after agent task completes or is cancelled."""
+        """에이전트 작업이 완료되거나 취소된 후 정리합니다."""
         self._agent_running = False
         self._agent_worker = None
 
@@ -3394,17 +3402,17 @@ class DeepAgentsApp(App):
 
     @staticmethod
     def _convert_messages_to_data(messages: list[Any]) -> list[MessageData]:
-        """Convert LangChain messages into lightweight `MessageData` objects.
+        """LangChain 메시지를 가벼운 `MessageData` 개체로 변환합니다.
 
-        This is a pure function with zero DOM operations. Tool call matching
-        happens here: `ToolMessage` results are matched by `tool_call_id` and
-        stored directly on the corresponding `MessageData`.
+        이는 DOM 작업이 없는 순수 함수입니다. 도구 호출 일치는 여기에서 발생합니다. `ToolMessage` 결과는 `tool_call_id`과
+        일치하고 해당 `MessageData`에 직접 저장됩니다.
 
-        Args:
-            messages: LangChain message objects from a thread checkpoint.
+Args:
+            messages: 스레드 체크포인트의 LangChain 메시지 개체입니다.
 
-        Returns:
-            Ordered list of `MessageData` ready for `MessageStore.bulk_load`.
+Returns:
+            `MessageStore.bulk_load`에 대한 `MessageData` 주문 목록이 준비되었습니다.
+
         """
         from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
@@ -3508,19 +3516,18 @@ class DeepAgentsApp(App):
         return result
 
     async def _get_thread_state_values(self, thread_id: str) -> dict[str, Any]:
-        """Fetch thread state values, with remote checkpointer fallback.
+        """원격 체크포인터 폴백을 사용하여 스레드 상태 값을 가져옵니다.
 
-        In server mode the LangGraph dev server can report an empty thread state
-        after a restart even when checkpoints exist on disk. When that happens,
-        read the latest checkpoint directly so resumed threads can still load
-        history and offload correctly.
+        서버 모드에서 LangGraph 개발 서버는 디스크에 체크포인트가 있더라도 다시 시작한 후 빈 스레드 상태를 보고할 수 있습니다. 그런 일이
+        발생하면 재개된 스레드가 계속 기록을 로드하고 올바르게 오프로드할 수 있도록 최신 체크포인트를 직접 읽으십시오.
 
-        Args:
-            thread_id: Thread ID to fetch from checkpoint storage.
+Args:
+            thread_id: 체크포인트 저장소에서 가져올 스레드 ID입니다.
 
-        Returns:
-            Thread state values keyed by channel name. Returns an empty dict
-                when no checkpointed values are available.
+Returns:
+            채널 이름으로 키가 지정된 스레드 상태 값입니다. 빈 사전을 반환합니다.
+                체크포인트된 값을 사용할 수 없는 경우.
+
         """
         if not self._agent:
             return {}
@@ -3559,19 +3566,17 @@ class DeepAgentsApp(App):
         return values
 
     async def _fetch_thread_history_data(self, thread_id: str) -> _ThreadHistoryPayload:
-        """Fetch and convert stored messages for a thread.
+        """스레드에 대해 저장된 메시지를 가져오고 변환합니다.
 
-        In server mode the LangGraph dev server starts with an empty thread
-        store, so `aget_state` via the HTTP API returns no messages even when
-        checkpoints exist on disk. We fall back to reading the SQLite
-        checkpointer directly to guarantee resumed threads load their history.
+        서버 모드에서 LangGraph 개발 서버는 빈 스레드 저장소로 시작하므로 HTTP API를 통한 `aget_state`은 디스크에 체크포인트가
+        있어도 메시지를 반환하지 않습니다. 재개된 스레드가 기록을 로드하도록 보장하기 위해 SQLite 체크포인터를 직접 읽는 방식으로 돌아갑니다.
 
-        Args:
-            thread_id: Thread ID to fetch from checkpoint storage.
+Args:
+            thread_id: 체크포인트 저장소에서 가져올 스레드 ID입니다.
 
-        Returns:
-            Payload containing converted message data and the persisted
-            context-token count.
+Returns:
+            변환된 메시지 데이터와 지속되는 컨텍스트 토큰 수를 포함하는 페이로드입니다.
+
         """
         state_values = await self._get_thread_state_values(thread_id)
         raw_tokens = state_values.get("_context_tokens")
@@ -3596,14 +3601,15 @@ class DeepAgentsApp(App):
 
     @staticmethod
     async def _read_channel_values_from_checkpointer(thread_id: str) -> dict[str, Any]:
-        """Read checkpoint channel values directly from the SQLite checkpointer.
+        """SQLite 체크포인터에서 직접 체크포인트 채널 값을 읽습니다.
 
-        Args:
-            thread_id: Thread ID to look up.
+Args:
+            thread_id: 조회할 스레드 ID입니다.
 
-        Returns:
-            Channel values from the latest checkpoint, or an empty dict on
-                failure.
+Returns:
+            최신 체크포인트의 채널 값 또는 빈 사전
+                실패.
+
         """
         try:
             from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -3639,12 +3645,13 @@ class DeepAgentsApp(App):
         prefix: str,
         thread_id: str,
     ) -> None:
-        """Upgrade a plain thread message to a linked one when URL resolves.
+        """URL이 확인되면 일반 스레드 메시지를 연결된 메시지로 업그레이드합니다.
 
-        Args:
-            widget: The already-mounted app message.
-            prefix: Text prefix before thread ID.
-            thread_id: Thread ID to resolve.
+Args:
+            widget: 이미 마운트된 앱 메시지입니다.
+            prefix: 스레드 ID 앞의 텍스트 접두사입니다.
+            thread_id: 해결할 스레드 ID입니다.
+
         """
         try:
             thread_msg = await self._build_thread_message(prefix, thread_id)
@@ -3677,12 +3684,13 @@ class DeepAgentsApp(App):
         prefix: str,
         thread_id: str,
     ) -> None:
-        """Schedule thread URL link resolution and apply updates in the background.
+        """스레드 URL 링크 확인을 예약하고 백그라운드에서 업데이트를 적용합니다.
 
-        Args:
-            widget: The message widget to update.
-            prefix: Text prefix before thread ID.
-            thread_id: Thread ID to resolve.
+Args:
+            widget: 업데이트할 메시지 위젯입니다.
+            prefix: 스레드 ID 앞의 텍스트 접두사입니다.
+            thread_id: 해결할 스레드 ID입니다.
+
         """
         self.run_worker(
             self._upgrade_thread_message_link(
@@ -3699,21 +3707,18 @@ class DeepAgentsApp(App):
         thread_id: str | None = None,
         preloaded_payload: _ThreadHistoryPayload | None = None,
     ) -> None:
-        """Load and render message history when resuming a thread.
+        """스레드를 재개할 때 메시지 기록을 로드하고 렌더링합니다.
 
-        When `preloaded_payload` is provided (e.g., from `_resume_thread`),
-        this reuses that data. Otherwise, it fetches checkpoint state from the
-        agent and converts stored messages into lightweight `MessageData`
-        objects. The method then bulk-loads into the `MessageStore` and mounts
-        only the last `WINDOW_SIZE` widgets to reduce DOM operations on large
-        threads.
+        `preloaded_payload`이 제공되면(예: `_resume_thread`에서) 해당 데이터를 재사용합니다. 그렇지 않으면 에이전트에서
+        체크포인트 상태를 가져오고 저장된 메시지를 경량 `MessageData` 개체로 변환합니다. 그런 다음 이 메서드는 `MessageStore`에
+        대량 로드되고 마지막 `WINDOW_SIZE` 위젯만 마운트하여 대규모 스레드에서 DOM 작업을 줄입니다.
 
-        Args:
-            thread_id: Optional explicit thread ID to load.
+Args:
+            thread_id: 로드할 선택적 명시적 스레드 ID입니다.
 
-                Defaults to current.
-            preloaded_payload: Optional pre-fetched history payload for the
-                thread.
+                기본값은 현재입니다.
+            preloaded_payload: 스레드에 대해 선택적으로 미리 가져온 기록 페이로드입니다.
+
         """
         history_thread_id = thread_id or self._lc_thread_id
         if not history_thread_id:
@@ -3800,17 +3805,17 @@ class DeepAgentsApp(App):
     async def _mount_message(
         self, widget: Static | AssistantMessage | ToolCallMessage | SkillMessage
     ) -> None:
-        """Mount a message widget to the messages area.
+        """메시지 위젯을 메시지 영역에 마운트합니다.
 
-        This method also stores the message data and handles pruning
-        when the widget count exceeds the maximum.
+        이 방법은 또한 메시지 데이터를 저장하고 위젯 수가 최대값을 초과할 때 정리를 처리합니다.
 
-        If the ``#messages`` container is not present (e.g. the screen has
-        been torn down during an interruption), the call is silently skipped
-        to avoid cascading `NoMatches` errors.
+        ``#messages`` container is not present (e.g. the screen has been torn down
+        during an interruption), the call is silently skipped to avoid cascading
+        `NoMatches` 오류가 발생한 경우.
 
-        Args:
-            widget: The message widget to mount
+Args:
+            widget: 마운트할 메시지 위젯
+
         """
         try:
             messages = self.query_one("#messages", Container)
@@ -3849,10 +3854,10 @@ class DeepAgentsApp(App):
             pass
 
     async def _prune_old_messages(self) -> None:
-        """Prune oldest message widgets if we exceed the window size.
+        """창 크기를 초과하면 가장 오래된 메시지 위젯을 정리합니다.
 
-        This removes widgets from the DOM but keeps data in MessageStore
-        for potential re-hydration when scrolling up.
+        이렇게 하면 DOM에서 위젯이 제거되지만 위로 스크롤할 때 잠재적인 재수화를 위해 MessageStore에 데이터가 유지됩니다.
+
         """
         if not self._message_store.window_exceeded():
             return
@@ -3885,22 +3890,23 @@ class DeepAgentsApp(App):
             self._message_store.mark_pruned(pruned_ids)
 
     def _set_active_message(self, message_id: str | None) -> None:
-        """Set the active streaming message (won't be pruned).
+        """활성 스트리밍 메시지를 설정합니다(정리되지 않음).
 
-        Args:
-            message_id: The ID of the active message, or None to clear.
+Args:
+            message_id: 활성 메시지의 ID 또는 삭제할 경우 None입니다.
+
         """
         self._message_store.set_active_message(message_id)
 
     def _sync_message_content(self, message_id: str, content: str) -> None:
-        """Sync final message content back to the store after streaming.
+        """스트리밍 후 최종 메시지 콘텐츠를 스토어에 다시 동기화하세요.
 
-        Called when streaming finishes so the store holds the full text
-        instead of the empty string captured at mount time.
+        스트리밍이 완료되면 호출되어 저장소에 마운트 시 캡처된 빈 문자열 대신 전체 텍스트가 보관됩니다.
 
-        Args:
-            message_id: The ID of the message to update.
-            content: The final content after streaming.
+Args:
+            message_id: 업데이트할 메시지의 ID입니다.
+            content: 스트리밍 후 최종 콘텐츠입니다.
+
         """
         self._message_store.update_message(
             message_id,
@@ -3909,7 +3915,7 @@ class DeepAgentsApp(App):
         )
 
     async def _clear_messages(self) -> None:
-        """Clear the messages area and message store."""
+        """메시지 영역과 메시지 저장소를 지웁니다."""
         # Clear the message store first
         self._message_store.clear()
         try:
@@ -3922,14 +3928,13 @@ class DeepAgentsApp(App):
             )
 
     def _pop_last_queued_message(self) -> None:
-        """Remove the most recently queued message (LIFO).
+        """가장 최근에 대기 중인 메시지(LIFO)를 제거합니다.
 
-        If the chat input is empty the evicted text is restored there so the
-        user can edit and re-submit. Otherwise the message is discarded. The
-        toast message distinguishes between the two outcomes.
+        채팅 입력이 비어 있으면 제거된 텍스트가 복원되어 사용자가 편집하고 다시 제출할 수 있습니다. 그렇지 않으면 메시지가 삭제됩니다. 토스트
+        메시지는 두 가지 결과를 구별합니다.
 
-        Caller must ensure `_pending_messages` is non-empty. A defensive guard
-        is included in case of async TOCTOU races.
+        호출자는 `_pending_messages`이 비어 있지 않은지 확인해야 합니다. 비동기 TOCTOU 경주의 경우 방어 가드가 포함됩니다.
+
         """
         if not self._pending_messages:
             return
@@ -3959,7 +3964,7 @@ class DeepAgentsApp(App):
             self.notify("Queued message discarded (input not empty)", timeout=3)
 
     def _discard_queue(self) -> None:
-        """Clear pending messages, deferred actions, and queued widgets."""
+        """보류 중인 메시지, 지연된 작업 및 대기 중인 위젯을 지웁니다."""
         self._pending_messages.clear()
         for w in self._queued_widgets:
             w.remove()
@@ -3967,13 +3972,13 @@ class DeepAgentsApp(App):
         self._deferred_actions.clear()
 
     def _defer_action(self, action: DeferredAction) -> None:
-        """Queue a deferred action, replacing any existing action of the same kind.
+        """동일한 종류의 기존 작업을 대체하여 지연된 작업을 대기열에 넣습니다.
 
-        Last-write-wins: if the user selects a model twice while busy, only the
-        final selection runs.
+        마지막 쓰기 우선: 사용자가 바쁜 동안 모델을 두 번 선택하면 최종 선택만 실행됩니다.
 
-        Args:
-            action: The deferred action to queue.
+Args:
+            action: 대기열에 대한 지연된 작업입니다.
+
         """
         self._deferred_actions = [
             a for a in self._deferred_actions if a.kind != action.kind
@@ -3981,12 +3986,12 @@ class DeepAgentsApp(App):
         self._deferred_actions.append(action)
 
     async def _maybe_drain_deferred(self) -> None:
-        """Drain deferred actions unless a server connection is still in progress."""
+        """서버 연결이 아직 진행 중이지 않은 경우 지연된 작업을 비웁니다."""
         if not self._connecting:
             await self._drain_deferred_actions()
 
     async def _drain_deferred_actions(self) -> None:
-        """Execute deferred actions queued while busy (e.g. model/thread switch)."""
+        """바쁜 동안 대기 중인 지연된 작업을 실행합니다(예: 모델/스레드 전환)."""
         while self._deferred_actions:
             action = self._deferred_actions.pop(0)
             try:
@@ -4007,24 +4012,22 @@ class DeepAgentsApp(App):
                     )
 
     def _cancel_worker(self, worker: Worker[None] | None) -> None:
-        """Discard the message queue and cancel an active worker.
+        """메시지 대기열을 삭제하고 활성 작업자를 취소합니다.
 
-        Args:
-            worker: The worker to cancel.
+Args:
+            worker: 취소할 작업자입니다.
+
         """
         self._discard_queue()
         if worker is not None:
             worker.cancel()
 
     def action_quit_or_interrupt(self) -> None:
-        """Handle Ctrl+C - interrupt agent, reject approval, or quit on double press.
+        """Ctrl+C 처리 - 에이전트 중단, 승인 거부 또는 두 번 누르기 종료.
 
-        Priority order:
-        1. If shell command is running, kill it
-        2. If approval menu is active, reject it
-        3. If agent is running, interrupt it (preserve input)
-        4. If double press (quit_pending), quit
-        5. Otherwise show quit hint
+        우선 순위: 1. 쉘 명령이 실행 중인 경우 종료 2. 승인 메뉴가 활성화된 경우 거부 3. 에이전트가 실행 중인 경우 중단(입력 유지) 4.
+        두 번 누르면(quit_pending) 종료 5. 그렇지 않으면 종료 힌트 표시
+
         """
         # If shell command is running, cancel the worker
         if self._shell_running and self._shell_worker:
@@ -4061,10 +4064,11 @@ class DeepAgentsApp(App):
             self._arm_quit_pending("Ctrl+C")
 
     def _arm_quit_pending(self, shortcut: str) -> None:
-        """Set the pending-quit flag and show a matching hint.
+        """보류 중인 종료 플래그를 설정하고 일치하는 힌트를 표시합니다.
 
-        Args:
-            shortcut: The key chord to show in the quit hint.
+Args:
+            shortcut: 종료 힌트에 표시되는 키 코드입니다.
+
         """
         self._quit_pending = True
         quit_timeout = 3
@@ -4074,17 +4078,12 @@ class DeepAgentsApp(App):
         self.set_timer(quit_timeout, lambda: setattr(self, "_quit_pending", False))
 
     def action_interrupt(self) -> None:
-        """Handle escape key.
+        """이스케이프 키를 처리합니다.
 
-        Priority order:
-        1. If modal screen is active, dismiss it
-        2. If completion popup is open, dismiss it
-        3. If input is in command/shell mode, exit to normal mode
-        4. If shell command is running, kill it
-        5. If approval menu is active, reject it
-        6. If ask-user menu is active, cancel it
-        7. If queued messages exist, pop the last one (LIFO)
-        8. If agent is running, interrupt it
+        우선순위: 1. 모달 화면이 활성화되어 있으면 해제 2. 완료 팝업이 열려 있으면 해제 3. 입력이 명령/셸 모드인 경우 일반 모드로 종료 4.
+        셸 명령이 실행 중이면 종료 5. 승인 메뉴가 활성화되어 있으면 거부 6. 사용자에게 묻기 메뉴가 활성화되어 있으면 취소 7. 대기 중인
+        메시지가 있으면 마지막 메시지 팝(LIFO) 8. 에이전트가 실행 중이면 중단
+
         """
         from deepagents_cli.widgets.thread_selector import ThreadSelectorScreen
 
@@ -4145,7 +4144,7 @@ class DeepAgentsApp(App):
             return
 
     def action_quit_app(self) -> None:
-        """Handle quit action (Ctrl+D)."""
+        """종료 작업을 처리합니다(Ctrl+D)."""
         from deepagents_cli.widgets.thread_selector import (
             DeleteThreadConfirmScreen,
             ThreadSelectorScreen,
@@ -4168,16 +4167,16 @@ class DeepAgentsApp(App):
         return_code: int = 0,
         message: Any = None,  # noqa: ANN401  # Dynamic LangGraph message type
     ) -> None:
-        """Exit the app, restoring iTerm2 cursor guide if applicable.
+        """해당하는 경우 앱을 종료하고 iTerm2 커서 가이드를 복원합니다.
 
-        Overrides parent to restore iTerm2's cursor guide before Textual's
-        cleanup. The atexit handler serves as a fallback for abnormal
-        termination.
+        Textual을 정리하기 전에 iTerm2의 커서 안내를 복원하기 위해 상위 항목을 재정의합니다. atexit 핸들러는 비정상적인 종료에 대한
+        대체 역할을 합니다.
 
-        Args:
-            result: Return value passed to the app runner.
-            return_code: Exit code (non-zero for errors).
-            message: Optional message to display on exit.
+Args:
+            result: 앱 실행기에 전달된 반환 값입니다.
+            return_code: 종료 코드(오류의 경우 0이 아님)
+            message: 종료 시 표시할 선택적 메시지입니다.
+
         """
         # Merge in-flight turn stats before any cleanup that might raise.
         # When the agent worker is cancelled (e.g. Ctrl+D during a pending tool
@@ -4221,11 +4220,11 @@ class DeepAgentsApp(App):
         super().exit(result=result, return_code=return_code, message=message)
 
     def action_toggle_auto_approve(self) -> None:
-        """Toggle auto-approve mode for the current session.
+        """현재 세션에 대한 자동 승인 모드를 전환합니다.
 
-        When enabled, all tool calls (shell execution, file writes/edits,
-        web search, URL fetch) run without prompting. Updates the status
-        bar indicator and session state.
+        활성화되면 모든 도구 호출(셸 실행, 파일 쓰기/편집, 웹 검색, URL 가져오기)이 메시지 없이 실행됩니다. 상태 표시줄 표시기와 세션 상태를
+        업데이트합니다.
+
         """
         from deepagents_cli.widgets.thread_selector import ThreadSelectorScreen
 
@@ -4247,7 +4246,7 @@ class DeepAgentsApp(App):
             self._session_state.auto_approve = self._auto_approve
 
     def action_toggle_tool_output(self) -> None:
-        """Toggle expand/collapse of the most recent tool output or skill body."""
+        """최신 도구 출력 또는 기술 본문의 확장/축소를 전환합니다."""
         # Try skill messages first (most recent collapsible content)
         with suppress(NoMatches):
             skill_messages = list(self.query(SkillMessage))
@@ -4267,28 +4266,29 @@ class DeepAgentsApp(App):
     # NOTE: These only activate when approval widget is pending
     # AND input is not focused
     def action_approval_up(self) -> None:
-        """Handle up arrow in approval menu."""
+        """승인 메뉴에서 위쪽 화살표를 처리합니다."""
         # Only handle if approval is active
         # (input handles its own up for history/completion)
         if self._pending_approval_widget and not self._is_input_focused():
             self._pending_approval_widget.action_move_up()
 
     def action_approval_down(self) -> None:
-        """Handle down arrow in approval menu."""
+        """승인 메뉴에서 아래쪽 화살표를 처리합니다."""
         if self._pending_approval_widget and not self._is_input_focused():
             self._pending_approval_widget.action_move_down()
 
     def action_approval_select(self) -> None:
-        """Handle enter in approval menu."""
+        """승인 메뉴에서 입력을 처리합니다."""
         # Only handle if approval is active AND input is not focused
         if self._pending_approval_widget and not self._is_input_focused():
             self._pending_approval_widget.action_select()
 
     def _is_input_focused(self) -> bool:
-        """Check if the chat input (or its text area) has focus.
+        """채팅 입력(또는 해당 텍스트 영역)에 포커스가 있는지 확인하세요.
 
-        Returns:
-            True if the input widget has focus, False otherwise.
+Returns:
+            입력 위젯에 포커스가 있으면 True이고, 그렇지 않으면 False입니다.
+
         """
         if not self._chat_input:
             return False
@@ -4299,27 +4299,27 @@ class DeepAgentsApp(App):
         return focused.id == "chat-input" or focused in self._chat_input.walk_children()
 
     def action_approval_yes(self) -> None:
-        """Handle yes/1 in approval menu."""
+        """승인 메뉴에서 yes/1을 처리합니다."""
         if self._pending_approval_widget:
             self._pending_approval_widget.action_select_approve()
 
     def action_approval_auto(self) -> None:
-        """Handle auto/2 in approval menu."""
+        """승인 메뉴에서 auto/2를 처리합니다."""
         if self._pending_approval_widget:
             self._pending_approval_widget.action_select_auto()
 
     def action_approval_no(self) -> None:
-        """Handle no/3 in approval menu."""
+        """승인 메뉴에서 3번을 처리합니다."""
         if self._pending_approval_widget:
             self._pending_approval_widget.action_select_reject()
 
     def action_approval_escape(self) -> None:
-        """Handle escape in approval menu - reject."""
+        """승인 메뉴에서 이스케이프 처리 - 거부."""
         if self._pending_approval_widget:
             self._pending_approval_widget.action_select_reject()
 
     async def action_open_editor(self) -> None:
-        """Open the current prompt text in an external editor ($VISUAL/$EDITOR)."""
+        """외부 편집기($VISUAL/$EDITOR)에서 현재 프롬프트 텍스트를 엽니다."""
         from deepagents_cli.editor import open_in_editor
 
         chat_input = self._chat_input
@@ -4349,7 +4349,7 @@ class DeepAgentsApp(App):
         chat_input.focus_input()
 
     def on_paste(self, event: Paste) -> None:
-        """Route unfocused paste events to chat input for drag/drop reliability."""
+        """드래그/드롭 안정성을 위해 집중되지 않은 붙여넣기 이벤트를 채팅 입력으로 라우팅합니다."""
         if not self._chat_input:
             return
         if (
@@ -4363,12 +4363,12 @@ class DeepAgentsApp(App):
             event.stop()
 
     def on_app_focus(self) -> None:
-        """Restore chat input focus when the terminal regains OS focus.
+        """터미널이 OS 포커스를 다시 얻으면 채팅 입력 포커스를 복원합니다.
 
-        When the user opens a link via `webbrowser.open`, OS focus shifts to
-        the browser. On returning to the terminal, Textual fires `AppFocus`
-        (requires a terminal that supports FocusIn events). Re-focusing the chat
-        input here keeps it ready for typing.
+        사용자가 `webbrowser.open`을 통해 링크를 열면 OS 포커스가 브라우저로 이동합니다. 터미널로 돌아오면 Textual은
+        `AppFocus`을 실행합니다(FocusIn 이벤트를 지원하는 터미널 필요). 여기에서 채팅 입력에 다시 초점을 맞추면 입력할 준비가
+        유지됩니다.
+
         """
         if not self._chat_input:
             return
@@ -4379,7 +4379,7 @@ class DeepAgentsApp(App):
         self._chat_input.focus_input()
 
     def on_click(self, _event: Click) -> None:
-        """Handle clicks anywhere in the terminal to focus on the command line."""
+        """명령줄에 집중하려면 터미널 어디에서나 클릭을 처리하세요."""
         if not self._chat_input:
             return
         # Don't steal focus from approval or ask_user widgets
@@ -4388,7 +4388,7 @@ class DeepAgentsApp(App):
         self.call_after_refresh(self._chat_input.focus_input)
 
     def on_mouse_up(self, event: MouseUp) -> None:  # noqa: ARG002  # Textual event handler signature
-        """Copy selection to clipboard on mouse release."""
+        """마우스를 놓으면 선택 항목이 클립보드에 복사됩니다."""
         from deepagents_cli.clipboard import copy_selection_to_clipboard
 
         copy_selection_to_clipboard(self)
@@ -4402,10 +4402,11 @@ class DeepAgentsApp(App):
         *,
         extra_kwargs: dict[str, Any] | None = None,
     ) -> None:
-        """Show interactive model selector as a modal screen.
+        """대화형 모델 선택기를 모달 화면으로 표시합니다.
 
-        Args:
-            extra_kwargs: Extra constructor kwargs from `--model-params`.
+Args:
+            extra_kwargs: `--model-params`의 추가 생성자 kwargs.
+
         """
         from functools import partial
 
@@ -4413,7 +4414,7 @@ class DeepAgentsApp(App):
         from deepagents_cli.widgets.model_selector import ModelSelectorScreen
 
         def handle_result(result: tuple[str, str] | None) -> None:
-            """Handle the model selector result."""
+            """모델 선택기 결과를 처리합니다."""
             if result is not None:
                 model_spec, _ = result
                 if self._agent_running or self._shell_running or self._connecting:
@@ -4450,7 +4451,7 @@ class DeepAgentsApp(App):
         self.push_screen(screen, handle_result)
 
     def _register_custom_themes(self) -> None:
-        """Register all custom themes (built-in LC + user-defined) with Textual."""
+        """모든 사용자 정의 테마(내장 LC + 사용자 정의)를 Textual에 등록합니다."""
         for name, entry in theme.ThemeEntry.REGISTRY.items():
             if entry.custom:
                 c = entry.colors
@@ -4482,7 +4483,7 @@ class DeepAgentsApp(App):
                     )
 
     async def _show_theme_selector(self) -> None:
-        """Show interactive theme selector as a modal screen."""
+        """대화형 테마 선택기를 모달 화면으로 표시합니다."""
         from deepagents_cli.widgets.theme_selector import ThemeSelectorScreen
 
         # Capture scroll state.  The submit handler may have already caused
@@ -4495,7 +4496,7 @@ class DeepAgentsApp(App):
         chat.release_anchor()
 
         def handle_result(result: str | None) -> None:
-            """Handle the theme selector result."""
+            """테마 선택기 결과를 처리합니다."""
             if result is not None:
                 self.theme = result
                 self.refresh_css(animate=False)
@@ -4536,7 +4537,7 @@ class DeepAgentsApp(App):
         self.push_screen(screen, handle_result)
 
     async def _show_mcp_viewer(self) -> None:
-        """Show read-only MCP server/tool viewer as a modal screen."""
+        """읽기 전용 MCP 서버/도구 뷰어를 모달 화면으로 표시합니다."""
         from deepagents_cli.widgets.mcp_viewer import MCPViewerScreen
 
         screen = MCPViewerScreen(server_info=self._mcp_server_info or [])
@@ -4548,7 +4549,7 @@ class DeepAgentsApp(App):
         self.push_screen(screen, handle_result)
 
     async def _show_thread_selector(self) -> None:
-        """Show interactive thread selector as a modal screen."""
+        """대화형 스레드 선택기를 모달 화면으로 표시합니다."""
         from functools import partial
 
         from deepagents_cli.sessions import get_cached_threads, get_thread_limit
@@ -4560,7 +4561,7 @@ class DeepAgentsApp(App):
         initial_threads = get_cached_threads(limit=thread_limit)
 
         def handle_result(result: str | None) -> None:
-            """Handle the thread selector result."""
+            """스레드 선택기 결과를 처리합니다."""
             if result is not None:
                 if self._agent_running or self._shell_running or self._connecting:
                     self._defer_action(
@@ -4591,12 +4592,13 @@ class DeepAgentsApp(App):
         missing_message: str,
         warn_if_missing: bool,
     ) -> None:
-        """Update the welcome banner thread ID when the banner is mounted.
+        """배너가 탑재되면 환영 배너 스레드 ID를 업데이트합니다.
 
-        Args:
-            thread_id: Thread ID to display on the banner.
-            missing_message: Log message template when banner is missing.
-            warn_if_missing: Whether to log missing-banner cases at warning level.
+Args:
+            thread_id: 배너에 표시할 스레드 ID입니다.
+            missing_message: 배너가 누락된 경우 로그 메시지 템플릿입니다.
+            warn_if_missing: 경고 수준에서 배너 누락 사례를 기록할지 여부입니다.
+
         """
         try:
             banner = self.query_one("#welcome-banner", WelcomeBanner)
@@ -4608,14 +4610,14 @@ class DeepAgentsApp(App):
                 logger.debug(missing_message, thread_id)
 
     async def _resume_thread(self, thread_id: str) -> None:
-        """Resume a previously saved thread.
+        """이전에 저장한 스레드를 재개합니다.
 
-        Fetches the selected thread history, then atomically switches UI state.
-        Prefetching first avoids clearing the active chat when history loading
-        fails.
+        선택한 스레드 기록을 가져온 다음 UI 상태를 원자적으로 전환합니다. 먼저 미리 가져오면 기록 로드에 실패할 때 활성 채팅이 지워지는 것을
+        방지합니다.
 
-        Args:
-            thread_id: The thread ID to resume.
+Args:
+            thread_id: 재개할 스레드 ID입니다.
+
         """
         if not self._agent:
             await self._mount_message(
@@ -4725,20 +4727,19 @@ class DeepAgentsApp(App):
         *,
         extra_kwargs: dict[str, Any] | None = None,
     ) -> None:
-        """Switch to a new model, preserving conversation history.
+        """대화 기록을 보존하면서 새로운 모델로 전환하세요.
 
-        This requires a server-backed interactive session. It sets a model
-        override that `ConfigurableModelMiddleware` picks up on the next
-        invocation, so the conversation thread stays intact and no server
-        restart is required.
+        이를 위해서는 서버 지원 대화형 세션이 필요합니다. `ConfigurableModelMiddleware`이 다음 호출 시 선택하는 모델 재정의를
+        설정하므로 대화 스레드가 그대로 유지되고 서버를 다시 시작할 필요가 없습니다.
 
-        Args:
-            model_spec: The model specification to switch to.
+Args:
+            model_spec: 전환할 모델 사양입니다.
 
-                Can be in `provider:model` format
-                (e.g., `'anthropic:claude-sonnet-4-5'`) or just the model name
-                for auto-detection.
-            extra_kwargs: Extra constructor kwargs from `--model-params`.
+                Can be in `provider: 모델 형식
+                (e.g., `'anthropic: clude-sonnet-4-5'`) 또는 모델 이름만
+                자동 감지를 위해.
+            extra_kwargs: `--model-params`의 추가 생성자 kwargs.
+
         """
         from deepagents_cli.config import create_model, detect_provider, settings
         from deepagents_cli.model_config import (
@@ -4854,13 +4855,14 @@ class DeepAgentsApp(App):
             self._model_switching = False
 
     async def _set_default_model(self, model_spec: str) -> None:
-        """Set the default model in config without switching the current session.
+        """현재 세션을 전환하지 않고 구성에서 기본 모델을 설정합니다.
 
-        Updates `[models].default` in `~/.deepagents/config.toml` so that
-        future CLI launches use this model. Does not affect the running session.
+        향후 CLI 실행 시 이 모델을 사용할 수 있도록 `~/.deepagents/config.toml`의 `[models].default`을
+        업데이트합니다. 실행 중인 세션에는 영향을 주지 않습니다.
 
-        Args:
-            model_spec: The model specification (e.g., `'anthropic:claude-opus-4-6'`).
+Args:
+            model_spec: 모델 사양(예: `'anthropic:claude-opus-4-6'`)입니다.
+
         """
         from deepagents_cli.config import detect_provider
         from deepagents_cli.model_config import ModelSpec, save_default_model
@@ -4883,10 +4885,10 @@ class DeepAgentsApp(App):
             )
 
     async def _clear_default_model(self) -> None:
-        """Remove the default model from config.
+        """구성에서 기본 모델을 제거합니다.
 
-        After clearing, future launches fall back to `[models].recent` or
-        environment auto-detection.
+        삭제 후 향후 실행은 `[models].recent` 또는 환경 자동 감지로 대체됩니다.
+
         """
         from deepagents_cli.model_config import clear_default_model
 
@@ -4910,22 +4912,24 @@ class DeepAgentsApp(App):
 # App shutdown result and top-level runner
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class AppResult:
-    """Result from running the Textual application."""
+    """텍스트 애플리케이션을 실행한 결과입니다."""
 
     return_code: int
-    """Exit code (0 for success, non-zero for error)."""
+    """종료 코드(성공의 경우 0, 오류의 경우 0이 아님)"""
 
     thread_id: str | None
-    """The final thread ID at shutdown. May differ from the initial thread ID if
-    the user switched threads via `/threads`."""
+    """종료 시 최종 스레드 ID입니다. 다음과 같은 경우 초기 스레드 ID와 다를 수 있습니다.
+    사용자가 `/threads`을(를) 통해 스레드를 전환했습니다.
+    """
 
     session_stats: SessionStats = field(default_factory=SessionStats)
-    """Cumulative usage stats across all turns in the session."""
+    """세션의 모든 턴에 대한 누적 사용 통계입니다."""
 
     update_available: tuple[bool, str | None] = (False, None)
-    """`(is_available, latest_version)` for post-exit update warning."""
+    """종료 후 업데이트 경고는 `(is_available, latest_version)`입니다."""
 
 
 async def run_textual_app(
@@ -4945,44 +4949,39 @@ async def run_textual_app(
     mcp_preload_kwargs: dict[str, Any] | None = None,
     model_kwargs: dict[str, Any] | None = None,
 ) -> AppResult:
-    """Run the Textual application.
+    """텍스트 애플리케이션을 실행합니다.
 
-    When `server_kwargs` is provided (and `agent` is `None`), the app starts
-    immediately with a "Connecting..." banner and launches the server in the
-    background.  Server cleanup is handled automatically after the app exits.
+    `server_kwargs`이 제공되면(그리고 `agent`은 `None`임) 앱은 "연결 중..." 배너와 함께 즉시 시작되고 백그라운드에서 서버를
+    시작합니다.  서버 정리는 앱이 종료된 후 자동으로 처리됩니다.
 
-    Args:
-        agent: Pre-configured LangGraph agent (optional).
-        assistant_id: Agent identifier for memory storage.
-        backend: Backend for file operations.
-        auto_approve: Whether to start with auto-approve enabled.
-        cwd: Current working directory to display.
-        thread_id: Thread ID for the session.
+Args:
+        agent: 사전 구성된 LangGraph 에이전트(선택 사항).
+        assistant_id: 메모리 저장을 위한 에이전트 식별자입니다.
+        backend: 파일 작업을 위한 백엔드.
+        auto_approve: 자동 승인을 활성화한 상태로 시작할지 여부입니다.
+        cwd: 표시할 현재 작업 디렉터리입니다.
+        thread_id: 세션의 스레드 ID입니다.
 
-            `None` when `resume_thread` is provided (the TUI resolves the final
-            ID asynchronously).
-        resume_thread: Raw resume intent from `-r` flag. `'__MOST_RECENT__'` for
-            bare `-r`, a thread ID string for `-r <id>`, or `None` for new
-            sessions.
+            `resume_thread`이 제공되면 `None`입니다(TUI는 최종 ID를 비동기식으로 확인합니다).
+        resume_thread: `-r` 플래그의 원시 재개 의도입니다. `-r`의 경우 `'__MOST_RECENT__'`, `-r <id>`의
+                       경우 스레드 ID 문자열, 새 세션의 경우 `None`입니다.
 
-            Resolved asynchronously during TUI startup.
-        initial_prompt: Optional prompt to auto-submit when session starts.
-        mcp_server_info: MCP server metadata for the `/mcp` viewer.
-        profile_override: Extra profile fields from `--profile-override`,
-            retained so later profile-aware behavior stays consistent with
-            the CLI override, including model selection details, offload
-            budget display, and on-demand `create_model()` calls such
-            as `/offload`.
-        server_proc: LangGraph server process for the interactive session.
-        server_kwargs: Kwargs for deferred `start_server_and_get_agent` call.
-        mcp_preload_kwargs: Kwargs for concurrent MCP metadata preload.
-        model_kwargs: Kwargs for deferred `create_model()` call.
+            TUI 시작 중에 비동기적으로 해결되었습니다.
+        initial_prompt: 세션이 시작될 때 자동 제출하라는 선택적 프롬프트입니다.
+        mcp_server_info: `/mcp` 뷰어의 MCP 서버 메타데이터입니다.
+        profile_override: `--profile-override`의 추가 프로필 필드는 모델 선택 세부 정보, 오프로드 예산 표시,
+                          `/offload`와 같은 주문형 `create_model()` 호출을 포함하여 나중에 프로필 인식 동작이
+                          CLI 재정의와 일관되게 유지되도록 유지됩니다.
+        server_proc: 대화형 세션을 위한 LangGraph 서버 프로세스입니다.
+        server_kwargs: 지연된 `start_server_and_get_agent` 호출에 대한 Kwargs입니다.
+        mcp_preload_kwargs: 동시 MCP 메타데이터 사전 로드를 위한 Kwargs.
+        model_kwargs: 지연된 `create_model()` 호출에 대한 Kwargs입니다.
 
-            When provided, model creation runs in a background worker after
-            first paint so the splash screen appears immediately.
+            제공된 경우 모델 생성은 첫 번째 페인트 후 백그라운드 작업자에서 실행되므로 스플래시 화면이 즉시 나타납니다.
 
-    Returns:
-        An `AppResult` with the return code and final thread ID.
+Returns:
+        반환 코드와 최종 스레드 ID가 포함된 `AppResult`입니다.
+
     """
     app = DeepAgentsApp(
         agent=agent,

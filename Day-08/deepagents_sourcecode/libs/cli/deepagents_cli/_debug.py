@@ -1,9 +1,7 @@
-"""Shared debug-logging configuration for verbose file-based tracing.
+"""자세한 파일 기반 추적을 위한 공유 디버그 로깅 구성입니다.
 
-When the `DEEPAGENTS_CLI_DEBUG` environment variable is set, modules that handle
-streaming or remote communication can enable detailed file-based logging. This
-helper centralizes the setup so the env-var name, file path, and format are
-defined in one place.
+`DEEPAGENTS_CLI_DEBUG` 환경 변수가 설정되면 스트리밍 또는 원격 통신을 처리하는 모듈에서 자세한 파일 기반 로깅을 활성화할 수 있습니다. 이
+도우미는 설정을 중앙 집중화하므로 env-var 이름, 파일 경로 및 형식이 한 곳에서 정의됩니다.
 """
 
 from __future__ import annotations
@@ -16,16 +14,16 @@ from deepagents_cli._env_vars import DEBUG, DEBUG_FILE
 
 
 def configure_debug_logging(target: logging.Logger) -> None:
-    """Attach a file handler to *target* when `DEEPAGENTS_CLI_DEBUG` is set.
+    """`DEEPAGENTS_CLI_DEBUG`이 설정된 경우 *대상*에 파일 처리기를 연결합니다.
 
-    The log file defaults to `'/tmp/deepagents_debug.log'` but can be overridden
-    with `DEEPAGENTS_CLI_DEBUG_FILE`. The handler appends so that multiple
-    modules share the same log file across a session.
+    로그 파일의 기본값은 `'/tmp/deepagents_debug.log'`이지만 `DEEPAGENTS_CLI_DEBUG_FILE`로 재정의할 수
+    있습니다. 핸들러는 여러 모듈이 세션 전체에서 동일한 로그 파일을 공유하도록 추가됩니다.
 
-    Does nothing when `DEEPAGENTS_CLI_DEBUG` is not set.
+    `DEEPAGENTS_CLI_DEBUG`이 설정되지 않은 경우 아무 작업도 수행하지 않습니다.
 
-    Args:
-        target: Logger to configure.
+Args:
+        target: 구성할 로거입니다.
+
     """
     if not os.environ.get(DEBUG):
         return

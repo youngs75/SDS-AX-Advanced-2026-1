@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Skill Initializer - Creates a new skill from template.
+"""스킬 초기화 프로그램 - 템플릿에서 새 스킬을 생성합니다.
 
-Usage:
- init_skill.py <skill-name> --path <path>
+용법:
+ init_skill.py <기술 이름> --path <경로>
 
 Examples:
- init_skill.py my-new-skill --path skills/public
- init_skill.py my-api-helper --path skills/private
+ init_skill.py my-new-skill --path 기술/공개 init_skill.py my-api-helper --path 기술/private
  init_skill.py custom-skill --path /custom/location
 
-For deepagents CLI:
+deepagent CLI의 경우:
  init_skill.py my-skill --path ~/.deepagents/agent/skills
 """
 
@@ -190,22 +189,20 @@ Note: This is a text placeholder. Actual assets can be any file type.
 
 
 def _validate_name(name: str) -> tuple[bool, str]:
-    """Validate skill name per Agent Skills spec.
+    """에이전트 기술 사양에 따라 기술 이름을 확인하세요.
 
-    Requirements (https://agentskills.io/specification):
-    - 1-64 characters
-    - Unicode lowercase alphanumeric and hyphens only
-    - Cannot start or end with hyphen
-    - No consecutive hyphens
+    요구 사항(https://agentskills.io/specification): - 1~64자 - 유니코드 소문자 영숫자 및 하이픈만 가능 -
+    하이픈으로 시작하거나 끝날 수 없음 - 연속 하이픈 없음
 
-    Unicode lowercase alphanumeric means any character where
-    `c.isalpha() and c.islower()` or `c.isdigit()` returns `True`.
+    유니코드 소문자 영숫자는 `c.isalpha() and c.islower()` 또는 `c.isdigit()`이 `True`을 반환하는 모든 문자를
+    의미합니다.
 
-    Args:
-        name: The skill name to validate.
+Args:
+        name: 유효성을 검사할 스킬 이름입니다.
 
-    Returns:
-        Tuple of (is_valid, error_message). If valid, error_message is empty.
+Returns:
+        (is_valid, error_message)의 튜플입니다. 유효한 경우 error_message는 비어 있습니다.
+
     """
     if not name or not name.strip():
         return False, "cannot be empty"
@@ -223,23 +220,25 @@ def _validate_name(name: str) -> tuple[bool, str]:
 
 
 def title_case_skill_name(skill_name):
-    """Convert hyphenated skill name to Title Case for display.
+    """하이픈으로 연결된 스킬 이름을 제목 케이스로 변환하여 표시합니다.
 
-    Returns:
-        Skill name with each word capitalized.
+Returns:
+        스킬 이름은 각 단어를 대문자로 표기합니다.
+
     """
     return " ".join(word.capitalize() for word in skill_name.split("-"))
 
 
 def init_skill(skill_name, path):
-    """Initialize a new skill directory with template SKILL.md.
+    """SKILL.md 템플릿을 사용하여 새 기술 디렉터리를 초기화합니다.
 
-    Args:
-        skill_name: Name of the skill
-        path: Path where the skill directory should be created
+Args:
+        skill_name: 스킬 이름
+        path: 스킬 디렉터리를 생성해야 하는 경로
 
-    Returns:
-        Path to created skill directory, or None if error
+Returns:
+        생성된 스킬 디렉터리의 경로 또는 오류인 경우 없음
+
     """
     is_valid, error_msg = _validate_name(skill_name)
     if not is_valid:
@@ -320,7 +319,7 @@ def init_skill(skill_name, path):
 
 
 def main():
-    """Main entry point for the skill initialization script."""
+    """스킬 초기화 스크립트의 기본 진입점입니다."""
     if len(sys.argv) < 4 or sys.argv[2] != "--path":
         print("Usage: init_skill.py <skill-name> --path <path>")
         print("\nSkill name requirements:")

@@ -1,7 +1,6 @@
-"""Autocomplete system for @ mentions and / commands.
+"""@ 멘션 및 / 명령에 대한 자동 완성 시스템입니다.
 
-This is a custom implementation that handles trigger-based completion
-for slash commands (/) and file mentions (@).
+이는 슬래시 명령(/) 및 파일 언급(@)에 대한 트리거 기반 완료를 처리하는 사용자 정의 구현입니다.
 """
 
 from __future__ import annotations
@@ -21,10 +20,11 @@ from deepagents_cli.project_utils import find_project_root
 
 
 def _get_git_executable() -> str | None:
-    """Get full path to git executable using shutil.which().
+    """shutdown.which()를 사용하여 git 실행 파일의 전체 경로를 가져옵니다.
 
     Returns:
-        Full path to git executable, or None if not found.
+        git 실행 파일의 전체 경로이거나, 찾을 수 없으면 None입니다.
+
     """
     return shutil.which("git")
 
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 
 class CompletionResult(StrEnum):
-    """Result of handling a key event in the completion system."""
+    """완료 시스템에서 주요 이벤트를 처리한 결과입니다."""
 
     IGNORED = "ignored"  # Key not handled, let default behavior proceed
     HANDLED = "handled"  # Key handled, prevent default
@@ -42,53 +42,55 @@ class CompletionResult(StrEnum):
 
 
 class CompletionView(Protocol):
-    """Protocol for views that can display completion suggestions."""
+    """완료 제안을 표시할 수 있는 보기에 대한 프로토콜입니다."""
 
     def render_completion_suggestions(
         self, suggestions: list[tuple[str, str]], selected_index: int
     ) -> None:
-        """Render the completion suggestions popup.
+        """완료 제안 팝업을 렌더링합니다.
 
         Args:
-            suggestions: List of (label, description) tuples
-            selected_index: Index of currently selected item
+            suggestions: (레이블, 설명) 튜플 목록
+            selected_index: 현재 선택된 항목의 인덱스
+
         """
         ...
 
     def clear_completion_suggestions(self) -> None:
-        """Hide/clear the completion suggestions popup."""
+        """완료 제안 팝업을 숨기거나 지웁니다."""
         ...
 
     def replace_completion_range(self, start: int, end: int, replacement: str) -> None:
-        """Replace text in the input from start to end with replacement.
+        """입력의 텍스트를 처음부터 끝까지 교체로 바꿉니다.
 
         Args:
-            start: Start index in the input text
-            end: End index in the input text
-            replacement: Text to insert
+            start: 입력 텍스트의 시작 인덱스
+            end: 입력 텍스트의 끝 인덱스
+            replacement: 삽입할 텍스트
+
         """
         ...
 
 
 class CompletionController(Protocol):
-    """Protocol for completion controllers."""
+    """완료 컨트롤러를 위한 프로토콜입니다."""
 
     def can_handle(self, text: str, cursor_index: int) -> bool:
-        """Check if this controller can handle the current input state."""
+        """이 컨트롤러가 현재 입력 상태를 처리할 수 있는지 확인하세요."""
         ...
 
     def on_text_changed(self, text: str, cursor_index: int) -> None:
-        """Called when input text changes."""
+        """입력 텍스트가 변경되면 호출됩니다."""
         ...
 
     def on_key(
         self, event: events.Key, text: str, cursor_index: int
     ) -> CompletionResult:
-        """Handle a key event. Returns how the event was handled."""
+        """주요 이벤트를 처리합니다. 이벤트가 처리된 방법을 반환합니다."""
         ...
 
     def reset(self) -> None:
-        """Reset/clear the completion state."""
+        """완료 상태를 재설정/삭제합니다."""
         ...
 
 
@@ -98,28 +100,29 @@ class CompletionController(Protocol):
 
 
 MAX_SUGGESTIONS = 10
-"""UI cap so the completion popup doesn't get unwieldy."""
+"""완료 팝업이 다루기 힘들지 않도록 UI 캡을 적용했습니다."""
 
 _MIN_SLASH_FUZZY_SCORE = 25
-"""Minimum score for slash-command fuzzy matches."""
+"""슬래시 명령 퍼지 일치에 대한 최소 점수입니다."""
 
 _MIN_DESC_SEARCH_LEN = 2
-"""Minimum query length to search command descriptions (avoids single-char noise)."""
+"""명령 설명을 검색하기 위한 최소 쿼리 길이(단일 문자 노이즈 방지)"""
 
 
 class SlashCommandController:
-    """Controller for / slash command completion."""
+    """/슬래시 명령 완료를 위한 컨트롤러입니다."""
 
     def __init__(
         self,
         commands: list[tuple[str, str, str]],
         view: CompletionView,
     ) -> None:
-        """Initialize the slash command controller.
+        """슬래시 명령 컨트롤러를 초기화합니다.
 
         Args:
-            commands: List of `(command, description, hidden_keywords)` tuples.
-            view: View to render suggestions to.
+            commands: `(command, description, hidden_keywords)` 튜플 목록입니다.
+            view: 제안을 렌더링할 보기입니다.
+
         """
         self._commands = commands
         self._view = view
@@ -127,28 +130,29 @@ class SlashCommandController:
         self._selected_index = 0
 
     def update_commands(self, commands: list[tuple[str, str, str]]) -> None:
-        """Replace the commands list and reset suggestions.
+        """명령 목록을 바꾸고 제안을 재설정합니다.
 
-        Used to merge dynamically discovered skill commands with
-        the static command registry at runtime.
+        런타임 시 동적으로 검색된 기술 명령을 정적 명령 레지스트리와 병합하는 데 사용됩니다.
 
         Args:
-            commands: New list of `(command, description, hidden_keywords)` tuples.
+            commands: `(command, description, hidden_keywords)` 튜플의 새 목록입니다.
+
         """
         self._commands = commands
         self.reset()
 
     @staticmethod
     def can_handle(text: str, cursor_index: int) -> bool:  # noqa: ARG004  # Required by AutocompleteProvider interface
-        """Handle input that starts with /.
+        """/로 시작하는 입력을 처리합니다.
 
         Returns:
-            True if text starts with slash, indicating a command.
+            텍스트가 명령을 나타내는 슬래시로 시작하면 참입니다.
+
         """
         return text.startswith("/")
 
     def reset(self) -> None:
-        """Clear suggestions."""
+        """명확한 제안."""
         if self._suggestions:
             self._suggestions.clear()
             self._selected_index = 0
@@ -156,16 +160,17 @@ class SlashCommandController:
 
     @staticmethod
     def _score_command(search: str, cmd: str, desc: str, keywords: str = "") -> float:
-        """Score a command against a search string. Higher = better match.
+        """검색 문자열에 대해 명령의 점수를 매깁니다. 높을수록 더 잘 일치합니다.
 
         Args:
-            search: Lowercase search string (without leading `/`).
-            cmd: Command name (e.g. `'/help'`).
-            desc: Command description text.
-            keywords: Space-separated hidden keywords for matching.
+            search: 소문자 검색 문자열(앞에 `/` 제외)
+            cmd: 명령 이름(예: `'/help'`).
+            desc: 명령 설명 텍스트입니다.
+            keywords: 일치를 위한 공백으로 구분된 숨겨진 키워드입니다.
 
         Returns:
-            Score value where higher indicates better match quality.
+            점수 값이 높을수록 더 나은 일치 품질을 나타냅니다.
+
         """
         if not search:
             return 0.0
@@ -196,7 +201,7 @@ class SlashCommandController:
         return best if best >= _MIN_SLASH_FUZZY_SCORE else 0.0
 
     def on_text_changed(self, text: str, cursor_index: int) -> None:
-        """Update suggestions when text changes."""
+        """텍스트가 변경되면 제안을 업데이트합니다."""
         if cursor_index < 0 or cursor_index > len(text):
             self.reset()
             return
@@ -235,10 +240,11 @@ class SlashCommandController:
     def on_key(
         self, event: events.Key, _text: str, cursor_index: int
     ) -> CompletionResult:
-        """Handle key events for navigation and selection.
+        """탐색 및 선택을 위한 주요 이벤트를 처리합니다.
 
         Returns:
-            CompletionResult indicating how the key was handled.
+            키가 처리된 방법을 나타내는 CompletionResult입니다.
+
         """
         if not self._suggestions:
             return CompletionResult.IGNORED
@@ -265,7 +271,7 @@ class SlashCommandController:
                 return CompletionResult.IGNORED
 
     def _move_selection(self, delta: int) -> None:
-        """Move selection up or down."""
+        """선택 항목을 위나 아래로 이동합니다."""
         if not self._suggestions:
             return
         count = len(self._suggestions)
@@ -275,10 +281,11 @@ class SlashCommandController:
         )
 
     def _apply_selected_completion(self, cursor_index: int) -> bool:
-        """Apply the currently selected completion.
+        """현재 선택한 완성을 적용합니다.
 
         Returns:
-            True if completion was applied, False if no suggestions.
+            완성이 적용되면 True이고, 제안이 없으면 False입니다.
+
         """
         if not self._suggestions:
             return False
@@ -296,20 +303,21 @@ class SlashCommandController:
 
 # Constants for fuzzy file completion
 _MAX_FALLBACK_FILES = 1000
-"""Hard cap on files returned by the non-git glob fallback."""
+"""git이 아닌 glob 대체에 의해 반환된 파일에 대한 하드 캡입니다."""
 
 _MIN_FUZZY_SCORE = 15
-"""Minimum score to include in file-completion results."""
+"""파일 완성 결과에 포함할 최소 점수입니다."""
 
 _MIN_FUZZY_RATIO = 0.4
-"""SequenceMatcher threshold for filename-only fuzzy matches."""
+"""파일 이름만 퍼지 일치하는 SequenceMatcher 임계값입니다."""
 
 
 def _get_project_files(root: Path) -> list[str]:
-    """Get project files using git ls-files or fallback to glob.
+    """git ls-files를 사용하거나 glob으로 대체하여 프로젝트 파일을 가져옵니다.
 
     Returns:
-        List of relative file paths from project root.
+        프로젝트 루트의 상대 파일 경로 목록입니다.
+
     """
     git_path = _get_git_executable()
     if git_path:
@@ -346,10 +354,11 @@ def _get_project_files(root: Path) -> list[str]:
 
 
 def _fuzzy_score(query: str, candidate: str) -> float:
-    """Score a candidate against query. Higher = better match.
+    """쿼리에 대해 후보자의 점수를 매깁니다. 높을수록 더 잘 일치합니다.
 
     Returns:
-        Score value where higher indicates better match quality.
+        점수 값이 높을수록 더 나은 일치 품질을 나타냅니다.
+
     """
     query_lower = query.lower()
     # Normalize path separators for cross-platform support
@@ -393,19 +402,21 @@ def _fuzzy_score(query: str, candidate: str) -> float:
 
 
 def _is_dotpath(path: str) -> bool:
-    """Check if path contains dotfiles/dotdirs (e.g., .github/...).
+    """경로에 dotfiles/dotdirs(예: .github/...)가 포함되어 있는지 확인하세요.
 
     Returns:
-        True if path contains hidden directories or files.
+        경로에 숨겨진 디렉터리나 파일이 포함되어 있으면 참입니다.
+
     """
     return any(part.startswith(".") for part in path.split("/"))
 
 
 def _path_depth(path: str) -> int:
-    """Get depth of path (number of / separators).
+    """경로의 깊이(/구분 기호 수)를 가져옵니다.
 
     Returns:
-        Number of path separators in the path.
+        경로의 경로 구분 기호 수입니다.
+
     """
     return path.count("/")
 
@@ -417,16 +428,17 @@ def _fuzzy_search(
     *,
     include_dotfiles: bool = False,
 ) -> list[str]:
-    """Return top matches sorted by score.
+    """점수별로 정렬된 상위 일치 항목을 반환합니다.
 
     Args:
-        query: Search query
-        candidates: List of file paths to search
-        limit: Max results to return
-        include_dotfiles: Whether to include dotfiles (default False)
+        query: 검색어
+        candidates: 검색할 파일 경로 목록
+        limit: 반환할 최대 결과
+        include_dotfiles: 도트 파일 포함 여부(기본값 False)
 
     Returns:
-        List of matching file paths sorted by relevance score.
+        관련성 점수를 기준으로 정렬된 일치하는 파일 경로 목록입니다.
+
     """
     # Filter dotfiles unless explicitly searching for them
     filtered = (
@@ -450,18 +462,19 @@ def _fuzzy_search(
 
 
 class FuzzyFileController:
-    """Controller for @ file completion with fuzzy matching from project root."""
+    """프로젝트 루트에서 퍼지 일치를 사용하여 @ 파일 완성을 위한 컨트롤러입니다."""
 
     def __init__(
         self,
         view: CompletionView,
         cwd: Path | None = None,
     ) -> None:
-        """Initialize the fuzzy file controller.
+        """퍼지 파일 컨트롤러를 초기화합니다.
 
         Args:
-            view: View to render suggestions to
-            cwd: Starting directory to find project root from
+            view: 제안을 렌더링하기 위한 보기
+            cwd: 프로젝트 루트를 찾을 시작 디렉터리
+
         """
         self._view = view
         self._cwd = cwd or Path.cwd()
@@ -471,21 +484,22 @@ class FuzzyFileController:
         self._file_cache: list[str] | None = None
 
     def _get_files(self) -> list[str]:
-        """Get cached file list or refresh.
+        """캐시된 파일 목록을 가져오거나 새로 고칩니다.
 
         Returns:
-            List of project file paths.
+            프로젝트 파일 경로 목록입니다.
+
         """
         if self._file_cache is None:
             self._file_cache = _get_project_files(self._project_root)
         return self._file_cache
 
     def refresh_cache(self) -> None:
-        """Force refresh of file cache."""
+        """파일 캐시를 강제로 새로 고칩니다."""
         self._file_cache = None
 
     async def warm_cache(self) -> None:
-        """Pre-populate the file cache off the event loop."""
+        """이벤트 루프에서 파일 캐시를 미리 채웁니다."""
         if self._file_cache is not None:
             return
         # Best-effort; _get_files() falls back to sync on failure.
@@ -496,10 +510,11 @@ class FuzzyFileController:
 
     @staticmethod
     def can_handle(text: str, cursor_index: int) -> bool:
-        """Handle input that contains @ not followed by space.
+        """뒤에 공백이 없고 @가 포함된 입력을 처리합니다.
 
         Returns:
-            True if cursor is after @ and within a file mention context.
+            커서가 @ 뒤에 있고 파일 언급 컨텍스트 내에 있으면 참입니다.
+
         """
         if cursor_index <= 0 or cursor_index > len(text):
             return False
@@ -517,14 +532,14 @@ class FuzzyFileController:
         return bool(fragment) and " " not in fragment
 
     def reset(self) -> None:
-        """Clear suggestions."""
+        """명확한 제안."""
         if self._suggestions:
             self._suggestions.clear()
             self._selected_index = 0
             self._view.clear_completion_suggestions()
 
     def on_text_changed(self, text: str, cursor_index: int) -> None:
-        """Update suggestions when text changes."""
+        """텍스트가 변경되면 제안을 업데이트합니다."""
         if not self.can_handle(text, cursor_index):
             self.reset()
             return
@@ -545,10 +560,11 @@ class FuzzyFileController:
             self.reset()
 
     def _get_fuzzy_suggestions(self, search: str) -> list[tuple[str, str]]:
-        """Get fuzzy file suggestions.
+        """퍼지 파일 제안을 받으세요.
 
         Returns:
-            List of (label, type_hint) tuples for matching files.
+            일치하는 파일에 대한 (label, type_hint) 튜플 목록입니다.
+
         """
         files = self._get_files()
         # Include dotfiles only if query starts with "."
@@ -569,10 +585,11 @@ class FuzzyFileController:
     def on_key(
         self, event: events.Key, text: str, cursor_index: int
     ) -> CompletionResult:
-        """Handle key events for navigation and selection.
+        """탐색 및 선택을 위한 주요 이벤트를 처리합니다.
 
         Returns:
-            CompletionResult indicating how the key was handled.
+            키가 처리된 방법을 나타내는 CompletionResult입니다.
+
         """
         if not self._suggestions:
             return CompletionResult.IGNORED
@@ -595,7 +612,7 @@ class FuzzyFileController:
                 return CompletionResult.IGNORED
 
     def _move_selection(self, delta: int) -> None:
-        """Move selection up or down."""
+        """선택 항목을 위나 아래로 이동합니다."""
         if not self._suggestions:
             return
         count = len(self._suggestions)
@@ -605,10 +622,11 @@ class FuzzyFileController:
         )
 
     def _apply_selected_completion(self, text: str, cursor_index: int) -> bool:
-        """Apply the currently selected completion.
+        """현재 선택한 완성을 적용합니다.
 
         Returns:
-            True if completion was applied, False if no suggestions or invalid state.
+            완성이 적용된 경우 True이고, 제안 사항이 없거나 잘못된 상태인 경우 False입니다.
+
         """
         if not self._suggestions:
             return False
@@ -636,19 +654,20 @@ PathCompletionController = FuzzyFileController
 
 
 class MultiCompletionManager:
-    """Manages multiple completion controllers, delegating to the active one."""
+    """활성 컨트롤러에 위임하여 여러 완료 컨트롤러를 관리합니다."""
 
     def __init__(self, controllers: list[CompletionController]) -> None:
-        """Initialize with a list of controllers.
+        """컨트롤러 목록으로 초기화합니다.
 
         Args:
-            controllers: List of completion controllers (checked in order)
+            controllers: 완료 컨트롤러 목록(순서대로 확인)
+
         """
         self._controllers = controllers
         self._active: CompletionController | None = None
 
     def on_text_changed(self, text: str, cursor_index: int) -> None:
-        """Handle text change, activating the appropriate controller."""
+        """적절한 컨트롤러를 활성화하여 텍스트 변경을 처리합니다."""
         # Find the first controller that can handle this input
         candidate = None
         for controller in self._controllers:
@@ -675,17 +694,18 @@ class MultiCompletionManager:
     def on_key(
         self, event: events.Key, text: str, cursor_index: int
     ) -> CompletionResult:
-        """Handle key event, delegating to active controller.
+        """활성 컨트롤러에 위임하여 키 이벤트를 처리합니다.
 
         Returns:
-            CompletionResult from active controller, or IGNORED if none active.
+            활성 컨트롤러의 CompletionResult이거나 활성 컨트롤러가 없으면 무시됩니다.
+
         """
         if self._active is None:
             return CompletionResult.IGNORED
         return self._active.on_key(event, text, cursor_index)
 
     def reset(self) -> None:
-        """Reset all controllers."""
+        """모든 컨트롤러를 재설정합니다."""
         if self._active is not None:
             self._active.reset()
             self._active = None

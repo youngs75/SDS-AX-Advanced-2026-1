@@ -1,4 +1,4 @@
-"""StoreBackend: Adapter for LangGraph's BaseStore (persistent, cross-thread)."""
+"""StoreBackend: LangGraph의 BaseStore를 사용하는 영구 저장 백엔드."""
 
 import base64
 import re
@@ -44,39 +44,39 @@ if TYPE_CHECKING:
 
 @dataclass
 class BackendContext(Generic[StateT, ContextT]):
-    """Context passed to namespace factory functions."""
+    """네임스페이스 팩토리 함수에 전달되는 컨텍스트."""
 
     state: StateT
     runtime: "Runtime[ContextT]"
 
 
-# Type alias for namespace factory functions
+# 네임스페이스 팩토리 함수의 타입 별칭
 NamespaceFactory = Callable[[BackendContext[Any, Any]], tuple[str, ...]]
 
-# Allowed characters in namespace components: alphanumeric, plus characters
-# common in user IDs (hyphen, underscore, dot, @, +, colon, tilde).
+# 네임스페이스 구성 요소에 허용되는 문자: 영숫자, 사용자 ID에
+# 흔히 쓰이는 문자 (하이픈, 언더스코어, 점, @, +, 콜론, 틸드).
 _NAMESPACE_COMPONENT_RE = re.compile(r"^[A-Za-z0-9\-_.@+:~]+$")
 
 
 def _validate_namespace(namespace: tuple[str, ...]) -> tuple[str, ...]:
-    """Validate a namespace tuple returned by a NamespaceFactory.
+    """NamespaceFactory가 반환한 네임스페이스 튜플을 검증한다.
 
-    Each component must be a non-empty string containing only safe characters:
-    alphanumeric (a-z, A-Z, 0-9), hyphen (-), underscore (_), dot (.),
-    at sign (@), plus (+), colon (:), and tilde (~).
+    각 구성 요소는 비어 있지 않은 문자열이어야 하며, 안전한 문자만
+    포함해야 한다: 영숫자 (a-z, A-Z, 0-9), 하이픈 (-), 언더스코어 (_),
+    점 (.), 골뱅이 (@), 플러스 (+), 콜론 (:), 틸드 (~).
 
-    Characters like ``*``, ``?``, ``[``, ``]``, ``{``, ``}``, etc. are
-    rejected to prevent wildcard or glob injection in store lookups.
+    ``*``, ``?``, ``[``, ``]``, ``{``, ``}`` 등의 문자는 Store 조회에서
+    와일드카드 또는 글로브 인젝션을 방지하기 위해 거부된다.
 
     Args:
-        namespace: The namespace tuple to validate.
+        namespace: 검증할 네임스페이스 튜플.
 
     Returns:
-        The validated namespace tuple (unchanged).
+        검증된 네임스페이스 튜플 (변경 없음).
 
     Raises:
-        ValueError: If the namespace is empty, contains non-string elements,
-            empty strings, or strings with disallowed characters.
+        ValueError: 네임스페이스가 비어 있거나, 문자열이 아닌 요소를 포함하거나,
+            빈 문자열이 있거나, 허용되지 않는 문자가 있을 경우.
     """
     if not namespace:
         msg = "Namespace tuple must not be empty."
@@ -100,12 +100,12 @@ def _validate_namespace(namespace: tuple[str, ...]) -> tuple[str, ...]:
 
 
 class StoreBackend(BackendProtocol):
-    """Backend that stores files in LangGraph's BaseStore (persistent).
+    """LangGraph의 BaseStore에 파일을 저장하는 영구 백엔드.
 
-    Uses LangGraph's Store for persistent, cross-conversation storage.
-    Files are organized via namespaces and persist across all threads.
+    LangGraph Store를 사용하여 대화를 초월한 영구·크로스-스레드 저장을 제공한다.
+    파일은 네임스페이스로 구분되며 모든 스레드에 걸쳐 유지된다.
 
-    The namespace can include an optional assistant_id for multi-agent isolation.
+    네임스페이스에는 멀티 에이전트 격리를 위해 선택적으로 assistant_id를 포함할 수 있다.
     """
 
     def __init__(
@@ -116,30 +116,28 @@ class StoreBackend(BackendProtocol):
         namespace: NamespaceFactory | None = None,
         file_format: FileFormat = "v2",
     ) -> None:
-        r"""Initialize StoreBackend.
+        r"""StoreBackend를 초기화한다.
 
         Args:
-            runtime: Deprecated - accepted for backward compatibility but
-                ignored.  Store and context are now obtained via
-                ``get_store()`` / ``get_runtime()``.
-            store: Optional ``BaseStore`` instance.  When provided, this store
-                is used directly.  When ``None`` (the default), the store is
-                obtained at call time via ``get_store()``, which requires
-                a LangGraph graph execution context.
-            namespace: Optional callable that takes a BackendContext and returns
-                a namespace tuple. This provides full flexibility for namespace resolution.
-                We forbid * which is a wild card for now.
-                If None, uses legacy assistant_id detection from metadata (deprecated).
+            runtime: 하위 호환성을 위해 수용하지만 무시되는 deprecated 인자.
+                Store와 컨텍스트는 이제 ``get_store()`` / ``get_runtime()`` 으로
+                획득한다.
+            store: 선택적 ``BaseStore`` 인스턴스. 제공 시 해당 Store를 직접
+                사용한다. ``None`` (기본값)이면 호출 시점에 ``get_store()``로
+                Store를 획득하며, LangGraph 그래프 실행 컨텍스트가 필요하다.
+            namespace: BackendContext를 받아 네임스페이스 튜플을 반환하는
+                선택적 callable. 네임스페이스 해석에 완전한 유연성을 제공한다.
+                현재 와일드카드인 * 는 금지된다.
+                None이면 메타데이터의 legacy assistant_id 감지를 사용한다 (deprecated).
 
                 !!! Note:
-                    This parameter will be **required** in version 0.5.0.
+                    이 파라미터는 버전 0.5.0에서 **필수**가 될 예정이다.
                 !!!! Warning:
-                    This API is subject to change in a minor version.
+                    이 API는 마이너 버전에서 변경될 수 있다.
 
-            file_format: Storage format version. `"v1"` (default) stores
-                content as `list[str]` (lines split on `\\n`) without an
-                `encoding` field.  `"v2"` stores content as a plain `str`
-                with an `encoding` field.
+            file_format: 저장 포맷 버전. `"v1"` (기본값)은 내용을 `list[str]`
+                (줄 단위 분할, `\\n` 구분)로 저장하며 `encoding` 필드가 없다.
+                `"v2"`는 내용을 평문 `str`과 `encoding` 필드로 저장한다.
 
         Example:
                     namespace=lambda ctx: ("filesystem", ctx.runtime.context.user_id)
@@ -158,10 +156,10 @@ class StoreBackend(BackendProtocol):
         self._file_format = file_format
 
     def _get_store(self) -> BaseStore:
-        """Return the store instance.
+        """Store 인스턴스를 반환한다.
 
-        Uses the store passed at init if available, otherwise falls back to
-        ``get_store()`` which reads from the LangGraph execution context.
+        초기화 시 전달된 Store가 있으면 그것을 사용하고,
+        없으면 LangGraph 실행 컨텍스트에서 ``get_store()``로 획득한다.
         """
         if self._store is not None:
             return self._store
@@ -176,10 +174,10 @@ class StoreBackend(BackendProtocol):
             raise RuntimeError(msg) from None
 
     def _get_namespace(self) -> tuple[str, ...]:
-        """Get the namespace for store operations.
+        """Store 연산에 사용할 네임스페이스를 반환한다.
 
-        If namespace was provided at init, calls it with a BackendContext.
-        Otherwise, uses legacy assistant_id detection from metadata (deprecated).
+        초기화 시 namespace가 제공된 경우 BackendContext와 함께 호출한다.
+        그렇지 않으면 메타데이터의 legacy assistant_id 감지를 사용한다 (deprecated).
         """
         if self._namespace is not None:
             try:
@@ -192,13 +190,13 @@ class StoreBackend(BackendProtocol):
         return self._get_namespace_legacy()
 
     def _get_namespace_legacy(self) -> tuple[str, ...]:
-        """Legacy namespace resolution: check metadata for assistant_id.
+        """Legacy 네임스페이스 해석: 메타데이터에서 assistant_id를 확인한다.
 
-        Uses ``get_config()`` to find assistant_id in metadata.
-        Defaults to ``("filesystem",)``.
+        ``get_config()``로 메타데이터의 assistant_id를 탐색한다.
+        기본값은 ``("filesystem",)``.
 
         .. deprecated::
-            Pass `namespace` to StoreBackend instead of relying on legacy detection.
+            레거시 감지에 의존하는 대신 StoreBackend에 `namespace`를 전달하라.
         """
         warnings.warn(
             "StoreBackend without explicit `namespace` is deprecated and will be removed in v0.7. "
@@ -210,12 +208,12 @@ class StoreBackend(BackendProtocol):
 
         try:
             cfg = get_config()
-        except Exception:  # noqa: BLE001  # Intentional for resilient config fallback
+        except Exception:  # noqa: BLE001  # 탄력적인 config 폴백을 위한 의도적 예외 처리
             return (namespace,)
 
         try:
             assistant_id = cfg.get("metadata", {}).get("assistant_id")
-        except Exception:  # noqa: BLE001  # Intentional for resilient config fallback
+        except Exception:  # noqa: BLE001  # 탄력적인 config 폴백을 위한 의도적 예외 처리
             assistant_id = None
 
         if assistant_id:
@@ -223,21 +221,21 @@ class StoreBackend(BackendProtocol):
         return (namespace,)
 
     def _convert_store_item_to_file_data(self, store_item: Item) -> FileData:
-        """Convert a store Item to FileData format.
+        """Store Item을 FileData 형식으로 변환한다.
 
         Args:
-            store_item: The store Item containing file data.
+            store_item: 파일 데이터를 담고 있는 Store Item.
 
         Returns:
-            FileData dict with content and encoding. Includes created_at and
-            modified_at when present in the store item.
+            content와 encoding을 포함하는 FileData dict.
+            Store item에 created_at과 modified_at이 있으면 함께 포함한다.
         """
         raw_content = store_item.value.get("content")
         if raw_content is None:
             msg = f"Store item does not contain valid content field. Got: {store_item.value.keys()}"
             raise ValueError(msg)
 
-        # BACKWARDS COMPAT: legacy list[str] format
+        # 하위 호환성: legacy list[str] 포맷 처리
         if isinstance(raw_content, list):
             warnings.warn(
                 "Store item with list[str] content is deprecated and will be removed in v0.7. Content should be stored as a plain str.",
@@ -262,17 +260,17 @@ class StoreBackend(BackendProtocol):
         return result
 
     def _convert_file_data_to_store_value(self, file_data: FileData) -> dict[str, Any]:
-        """Convert FileData to a dict suitable for store.put().
+        """FileData를 store.put()에 적합한 dict로 변환한다.
 
-        When `file_format="v1"`, returns the legacy format with `content`
-        as `list[str]` and no `encoding` key.
+        `file_format="v1"` 이면 `content`를 `list[str]`로,
+        `encoding` 키 없이 legacy 포맷으로 반환한다.
 
         Args:
-            file_data: The FileData to convert.
+            file_data: 변환할 FileData.
 
         Returns:
-            Dictionary with content and encoding. Includes created_at and
-            modified_at when present in the FileData.
+            content와 encoding을 포함하는 dict.
+            FileData에 created_at과 modified_at이 있으면 함께 포함한다.
         """
         if self._file_format == "v1":
             return _to_legacy_file_data(file_data)
@@ -292,20 +290,20 @@ class StoreBackend(BackendProtocol):
         namespace: tuple[str, ...],
         *,
         query: str | None = None,
-        filter: dict[str, Any] | None = None,  # noqa: A002  # Matches LangGraph BaseStore.search() API
+        filter: dict[str, Any] | None = None,  # noqa: A002  # LangGraph BaseStore.search() API와 일치
         page_size: int = 100,
     ) -> list[Item]:
-        """Search store with automatic pagination to retrieve all results.
+        """자동 페이지네이션으로 전체 결과를 조회하며 Store를 검색한다.
 
         Args:
-            store: The store to search.
-            namespace: Hierarchical path prefix to search within.
-            query: Optional query for natural language search.
-            filter: Key-value pairs to filter results.
-            page_size: Number of items to fetch per page (default: 100).
+            store: 검색할 Store.
+            namespace: 검색할 계층적 경로 접두사.
+            query: 자연어 검색을 위한 선택적 쿼리.
+            filter: 결과를 필터링할 키-값 쌍.
+            page_size: 페이지당 가져올 항목 수 (기본값: 100).
 
         Returns:
-            List of all items matching the search criteria.
+            검색 조건에 맞는 모든 항목의 리스트.
 
         Example:
             ```python
@@ -334,48 +332,48 @@ class StoreBackend(BackendProtocol):
         return all_items
 
     def ls(self, path: str) -> LsResult:
-        """List files and directories in the specified directory (non-recursive).
+        """지정된 디렉토리의 파일과 하위 디렉토리를 나열한다 (비재귀).
 
         Args:
-            path: Absolute path to directory.
+            path: 디렉토리의 절대 경로.
 
         Returns:
-            List of FileInfo-like dicts for files and directories directly in the directory.
-            Directories have a trailing / in their path and is_dir=True.
+            디렉토리 바로 아래 파일과 디렉토리에 대한 FileInfo 유사 dict 리스트.
+            디렉토리는 경로 끝에 /가 붙고 is_dir=True이다.
         """
         store = self._get_store()
         namespace = self._get_namespace()
 
-        # Retrieve all items and filter by path prefix locally to avoid
-        # coupling to store-specific filter semantics
+        # Store별 필터 의미론에 종속되지 않도록
+        # 모든 항목을 가져온 후 경로 접두사로 로컬에서 필터링한다
         items = self._search_store_paginated(store, namespace)
         infos: list[FileInfo] = []
         subdirs: set[str] = set()
 
-        # Normalize path to have trailing slash for proper prefix matching
+        # 접두사 매칭을 위해 경로 끝에 슬래시를 붙여 정규화한다
         normalized_path = path if path.endswith("/") else path + "/"
 
         for item in items:
-            # Check if file is in the specified directory or a subdirectory
+            # 지정된 디렉토리 또는 하위 디렉토리에 있는 파일인지 확인
             if not str(item.key).startswith(normalized_path):
                 continue
 
-            # Get the relative path after the directory
+            # 디렉토리 이후의 상대 경로를 추출한다
             relative = str(item.key)[len(normalized_path) :]
 
-            # If relative path contains '/', it's in a subdirectory
+            # 상대 경로에 '/'가 있으면 하위 디렉토리에 있는 파일이다
             if "/" in relative:
-                # Extract the immediate subdirectory name
+                # 바로 아래 하위 디렉토리 이름을 추출한다
                 subdir_name = relative.split("/")[0]
                 subdirs.add(normalized_path + subdir_name + "/")
                 continue
 
-            # This is a file directly in the current directory
+            # 현재 디렉토리에 직접 위치한 파일이다
             try:
                 fd = self._convert_store_item_to_file_data(item)
             except ValueError:
                 continue
-            # BACKWARDS COMPAT: handle legacy list[str] content for size computation
+            # 하위 호환성: 크기 계산을 위한 legacy list[str] content 처리
             raw = fd.get("content", "")
             size = len("\n".join(raw)) if isinstance(raw, list) else len(raw)
             infos.append(
@@ -387,7 +385,7 @@ class StoreBackend(BackendProtocol):
                 }
             )
 
-        # Add directories to the results
+        # 결과에 디렉토리를 추가한다
         infos.extend(FileInfo(path=subdir, is_dir=True, size=0, modified_at="") for subdir in sorted(subdirs))
 
         infos.sort(key=lambda x: x.get("path", ""))
@@ -399,16 +397,16 @@ class StoreBackend(BackendProtocol):
         offset: int = 0,
         limit: int = 2000,
     ) -> ReadResult:
-        """Read file content for the requested line range.
+        """요청된 줄 범위의 파일 내용을 읽는다.
 
         Args:
-            file_path: Absolute file path.
-            offset: Line offset to start reading from (0-indexed).
-            limit: Maximum number of lines to read.
+            file_path: 절대 파일 경로.
+            offset: 읽기 시작 줄 오프셋 (0 인덱스).
+            limit: 읽을 최대 줄 수.
 
         Returns:
-            ReadResult with raw (unformatted) content for the requested
-            window. Line-number formatting is applied by the middleware.
+            요청된 윈도우의 원시(미포맷) 내용이 담긴 ReadResult.
+            줄 번호 포맷팅은 미들웨어에서 적용된다.
         """
         store = self._get_store()
         namespace = self._get_namespace()
@@ -444,9 +442,9 @@ class StoreBackend(BackendProtocol):
         offset: int = 0,
         limit: int = 2000,
     ) -> ReadResult:
-        """Async version of read using native store async methods.
+        """Store 비동기 메서드를 사용하는 read의 비동기 버전.
 
-        This avoids sync calls in async context by using store.aget directly.
+        store.aget를 직접 사용하여 비동기 컨텍스트에서 동기 호출을 방지한다.
         """
         store = self._get_store()
         namespace = self._get_namespace()
@@ -481,19 +479,19 @@ class StoreBackend(BackendProtocol):
         file_path: str,
         content: str,
     ) -> WriteResult:
-        """Create a new file with content.
+        """내용을 담아 새 파일을 생성한다.
 
-        Returns WriteResult on success or error.
+        성공 또는 오류 시 WriteResult를 반환한다.
         """
         store = self._get_store()
         namespace = self._get_namespace()
 
-        # Check if file exists
+        # 파일 존재 여부 확인
         existing = store.get(namespace, file_path)
         if existing is not None:
             return WriteResult(error=f"Cannot write to {file_path} because it already exists. Read and then make an edit, or write to a new path.")
 
-        # Create new file
+        # 새 파일 생성
         file_data = create_file_data(content)
         store_value = self._convert_file_data_to_store_value(file_data)
         store.put(namespace, file_path, store_value)
@@ -504,19 +502,19 @@ class StoreBackend(BackendProtocol):
         file_path: str,
         content: str,
     ) -> WriteResult:
-        """Async version of write using native store async methods.
+        """Store 비동기 메서드를 사용하는 write의 비동기 버전.
 
-        This avoids sync calls in async context by using store.aget/aput directly.
+        store.aget/aput를 직접 사용하여 비동기 컨텍스트에서 동기 호출을 방지한다.
         """
         store = self._get_store()
         namespace = self._get_namespace()
 
-        # Check if file exists using async method
+        # 비동기 메서드로 파일 존재 여부 확인
         existing = await store.aget(namespace, file_path)
         if existing is not None:
             return WriteResult(error=f"Cannot write to {file_path} because it already exists. Read and then make an edit, or write to a new path.")
 
-        # Create new file using async method
+        # 비동기 메서드로 새 파일 생성
         file_data = create_file_data(content)
         store_value = self._convert_file_data_to_store_value(file_data)
         await store.aput(namespace, file_path, store_value)
@@ -529,14 +527,14 @@ class StoreBackend(BackendProtocol):
         new_string: str,
         replace_all: bool = False,  # noqa: FBT001, FBT002
     ) -> EditResult:
-        """Edit a file by replacing string occurrences.
+        """문자열 치환으로 파일을 편집한다.
 
-        Returns EditResult on success or error.
+        성공 또는 오류 시 EditResult를 반환한다.
         """
         store = self._get_store()
         namespace = self._get_namespace()
 
-        # Get existing file
+        # 기존 파일 가져오기
         item = store.get(namespace, file_path)
         if item is None:
             return EditResult(error=f"Error: File '{file_path}' not found")
@@ -555,7 +553,7 @@ class StoreBackend(BackendProtocol):
         new_content, occurrences = result
         new_file_data = update_file_data(file_data, new_content)
 
-        # Update file in store
+        # Store에서 파일 업데이트
         store_value = self._convert_file_data_to_store_value(new_file_data)
         store.put(namespace, file_path, store_value)
         return EditResult(path=file_path, occurrences=int(occurrences))
@@ -567,14 +565,14 @@ class StoreBackend(BackendProtocol):
         new_string: str,
         replace_all: bool = False,  # noqa: FBT001, FBT002
     ) -> EditResult:
-        """Async version of edit using native store async methods.
+        """Store 비동기 메서드를 사용하는 edit의 비동기 버전.
 
-        This avoids sync calls in async context by using store.aget/aput directly.
+        store.aget/aput를 직접 사용하여 비동기 컨텍스트에서 동기 호출을 방지한다.
         """
         store = self._get_store()
         namespace = self._get_namespace()
 
-        # Get existing file using async method
+        # 비동기 메서드로 기존 파일 가져오기
         item = await store.aget(namespace, file_path)
         if item is None:
             return EditResult(error=f"Error: File '{file_path}' not found")
@@ -593,12 +591,12 @@ class StoreBackend(BackendProtocol):
         new_content, occurrences = result
         new_file_data = update_file_data(file_data, new_content)
 
-        # Update file in store using async method
+        # 비동기 메서드로 Store에서 파일 업데이트
         store_value = self._convert_file_data_to_store_value(new_file_data)
         await store.aput(namespace, file_path, store_value)
         return EditResult(path=file_path, occurrences=int(occurrences))
 
-    # Removed legacy grep() convenience to keep lean surface
+    # legacy grep() 편의 메서드는 인터페이스를 간결하게 유지하기 위해 제거됨
 
     def grep(
         self,
@@ -606,7 +604,7 @@ class StoreBackend(BackendProtocol):
         path: str | None = None,
         glob: str | None = None,
     ) -> GrepResult:
-        """Search store files for a literal text pattern."""
+        """Store 파일에서 리터럴 텍스트 패턴을 검색한다."""
         store = self._get_store()
         namespace = self._get_namespace()
         items = self._search_store_paginated(store, namespace)
@@ -619,7 +617,7 @@ class StoreBackend(BackendProtocol):
         return grep_matches_from_files(files, pattern, path, glob)
 
     def glob(self, pattern: str, path: str = "/") -> GlobResult:
-        """Find files matching a glob pattern in the store."""
+        """Store에서 glob 패턴에 맞는 파일을 찾는다."""
         store = self._get_store()
         namespace = self._get_namespace()
         items = self._search_store_paginated(store, namespace)
@@ -637,7 +635,7 @@ class StoreBackend(BackendProtocol):
         for p in paths:
             fd = files.get(p)
             if fd:
-                # BACKWARDS COMPAT: handle legacy list[str] content for size computation
+                # 하위 호환성: 크기 계산을 위한 legacy list[str] content 처리
                 raw = fd.get("content", "")
                 size = len("\n".join(raw)) if isinstance(raw, list) else len(raw)
             else:
@@ -653,17 +651,17 @@ class StoreBackend(BackendProtocol):
         return GlobResult(matches=infos)
 
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
-        """Upload multiple files to the store.
+        """여러 파일을 Store에 업로드한다.
 
-        Binary files (images, PDFs, etc.) are stored as base64-encoded strings.
-        Text files are stored as utf-8 strings.
+        바이너리 파일 (이미지, PDF 등)은 base64 인코딩 문자열로 저장한다.
+        텍스트 파일은 utf-8 문자열로 저장한다.
 
         Args:
-            files: List of (path, content) tuples where content is bytes.
+            files: (경로, 내용) 튜플의 리스트. content는 bytes이다.
 
         Returns:
-            List of FileUploadResponse objects, one per input file.
-            Response order matches input order.
+            입력 파일별 FileUploadResponse 객체 리스트.
+            응답 순서는 입력 순서와 일치한다.
         """
         store = self._get_store()
         namespace = self._get_namespace()
@@ -686,14 +684,14 @@ class StoreBackend(BackendProtocol):
         return responses
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
-        """Download multiple files from the store.
+        """Store에서 여러 파일을 다운로드한다.
 
         Args:
-            paths: List of file paths to download.
+            paths: 다운로드할 파일 경로 리스트.
 
         Returns:
-            List of FileDownloadResponse objects, one per input path.
-            Response order matches input order.
+            입력 경로별 FileDownloadResponse 객체 리스트.
+            응답 순서는 입력 순서와 일치한다.
         """
         store = self._get_store()
         namespace = self._get_namespace()

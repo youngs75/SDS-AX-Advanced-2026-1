@@ -1,24 +1,20 @@
-"""LangChain brand colors and semantic constants for the CLI.
+"""CLI의 LangChain 브랜드 색상 및 의미 상수입니다.
 
-Single source of truth for color values used in Python code (Rich markup,
-`Content.styled`, `Content.from_markup`).  CSS-side styling should reference
-Textual CSS variables: built-in variables
-(`$primary`, `$background`, `$text-muted`, `$error-muted`, etc.) are set via
-`register_theme()` in `DeepAgentsApp.__init__`, while the few app-specific
-variables (`$mode-bash`, `$mode-command`, `$skill`, `$skill-hover`, `$tool`,
-`$tool-hover`) are backed by these constants via `App.get_theme_variable_defaults()`.
+Python 코드에 사용되는 색상 값에 대한 단일 정보 소스(Rich 마크업, `Content.styled`, `Content.from_markup`).
+CSS 측 스타일은 텍스트 CSS 변수를 참조해야 합니다. 내장 변수(`$primary`, `$background`, `$text-muted`,
+`$error-muted` 등)는 `DeepAgentsApp.__init__`의 `register_theme()`을 통해 설정되는 반면, 몇 가지 앱 관련
+변수(`$mode-bash`, `$mode-command`, `$skill`, `$skill-hover`, `$tool`, `$tool-hover`)는
+`App.get_theme_variable_defaults()`을 통해 이러한 상수로 뒷받침됩니다.
 
-Code that needs custom CSS variable values should call
-`get_css_variable_defaults(dark=...)`. For the full semantic color palette, look
-up the `ThemeColors` instance via `ThemeEntry.REGISTRY`.
+사용자 정의 CSS 변수 값이 필요한 코드는 `get_css_variable_defaults(dark=...)`을 호출해야 합니다. 전체 의미 색상 팔레트를
+보려면 `ThemeEntry.REGISTRY`를 통해 `ThemeColors` 인스턴스를 검색하세요.
 
-Users can define custom themes in `~/.deepagents/config.toml` under
-`[themes.<name>]` sections. Each new theme section must include `label` (str);
-`dark` (bool) defaults to `False` if omitted (set to `True` for dark themes).
-Color fields are optional and fall back to the built-in dark/light palette based
-on the `dark` flag. Sections whose name matches a built-in theme override its
-colors without replacing it. See `_load_user_themes()` for details.
+사용자는 `[themes.<name>]` 섹션 아래의 `~/.deepagents/config.toml`에서 사용자 정의 테마를 정의할 수 있습니다. 각각의 새
+테마 섹션에는 `label`(str)이 포함되어야 합니다. `dark`(부울) 생략된 경우 기본값은 `False`입니다(어두운 테마의 경우 `True`로
+설정). 색상 필드는 선택 사항이며 `dark` 플래그를 기반으로 내장된 어두운/밝은 팔레트로 대체됩니다. 이름이 내장 테마와 일치하는 섹션은 색상을 바꾸지
+않고 해당 색상을 재정의합니다. 자세한 내용은 `_load_user_themes()`을 참조하세요.
 """
+
 
 from __future__ import annotations
 
@@ -40,116 +36,128 @@ logger = logging.getLogger(__name__)
 # Brand palette — dark  (originally tokyonight-inspired, LangChain blue primary)
 # ---------------------------------------------------------------------------
 LC_DARK = "#11121D"
-"""Background — visible blue tint, distinguishable from pure black."""
-
+"""배경 - 눈에 보이는 파란색 색조로 순수한 검정색과 구별됩니다."""
 LC_CARD = "#1A1B2E"
-"""Surface / card — clearly elevated above background."""
-
+"""표면/카드 — 배경보다 확실히 높아졌습니다."""
 LC_BORDER_DK = "#25283B"
-"""Borders on dark backgrounds."""
+"""어두운 배경의 테두리입니다."""
+
 
 LC_BORDER_LT = "#3A3E57"
-"""Borders on lighter / hovered backgrounds."""
+"""더 밝거나 호버링된 배경의 테두리."""
+
 
 LC_BODY = "#C0CAF5"
-"""Body text — high contrast on dark backgrounds."""
-
+"""본문 텍스트 - 어두운 배경에 고대비가 표시됩니다."""
 LC_BLUE = "#7AA2F7"
-"""Primary accent blue."""
+"""기본 액센트 파란색."""
+
 
 LC_PURPLE = "#BB9AF7"
-"""Secondary accent / badges / labels."""
+"""보조 악센트/배지/레이블."""
+
 
 LC_GREEN = "#9ECE6A"
-"""Success / positive indicator."""
+"""성공/긍정적 지표."""
+
 
 LC_AMBER = "#EB8B46"
-"""Warning / caution indicator."""
+"""경고/주의 표시."""
+
 
 LC_PINK = "#F7768E"
-"""Error / destructive actions."""
+"""오류/파괴적인 행동."""
+
 
 LC_MUTED = "#545C7E"
-"""Muted / secondary text."""
+"""음소거/보조 텍스트."""
+
 
 LC_GREEN_BG = "#1C2A38"
-"""Subtle green-tinted background for diff additions."""
+"""차이점 추가를 위한 미묘한 녹색 색조의 배경."""
+
 
 LC_PINK_BG = "#2A1F32"
-"""Subtle pink-tinted background for diff removals / errors."""
+"""차이점 제거/오류를 위한 미묘한 분홍색 배경입니다."""
+
 
 LC_PANEL = "#25283B"
-"""Panel — differentiated section background (above surface)."""
-
+"""패널 — 차별화된 섹션 배경(표면 위)"""
 LC_SKILL = "#A78BFA"
-"""Skill invocation accent — border and header text."""
-
+"""스킬 호출 액센트 — 테두리 및 헤더 텍스트."""
 LC_SKILL_HOVER = "#C4B5FD"
-"""Skill invocation hover — lighter variant for interactive feedback."""
-
+"""스킬 호출 호버 — 대화형 피드백을 위한 더 가벼운 변형입니다."""
 LC_TOOL = LC_AMBER
-"""Tool call accent — border and header text."""
-
+"""도구 호출 강조 — 테두리 및 헤더 텍스트."""
 LC_TOOL_HOVER = "#FFCB91"
-"""Tool call hover — lighter variant for interactive feedback."""
-
+"""도구 호출 호버 — 대화형 피드백을 위한 더 가벼운 변형입니다."""
 
 # ---------------------------------------------------------------------------
 # Brand palette — light
 # ---------------------------------------------------------------------------
 LC_LIGHT_BG = "#F5F5F7"
-"""Background — warm neutral white."""
-
+"""배경 - 따뜻한 중간색 흰색."""
 LC_LIGHT_SURFACE = "#EAEAEE"
-"""Surface / card — slightly darker than background."""
-
+"""표면/카드 — 배경보다 약간 어둡습니다."""
 LC_LIGHT_BORDER = "#C8CAD0"
-"""Borders on light backgrounds."""
+"""밝은 배경의 테두리."""
+
 
 LC_LIGHT_BORDER_HVR = "#A0A4B0"
-"""Borders on hovered / focused surfaces."""
+"""호버/포커스 표면의 테두리."""
+
 
 LC_LIGHT_BODY = "#24283B"
-"""Body text — high contrast on light backgrounds."""
-
+"""본문 텍스트 — 밝은 배경에 고대비가 표시됩니다."""
 LC_LIGHT_BLUE = "#2E5EAA"
-"""Primary accent blue (darkened for light bg contrast)."""
+"""기본 강조 파란색(밝은 배경 대비를 위해 어두워짐)"""
+
 
 LC_LIGHT_PURPLE = "#7C3AED"
-"""Secondary accent (darkened for light bg contrast)."""
+"""보조 악센트(밝은 배경 대비를 위해 어둡게)."""
+
 
 LC_LIGHT_GREEN = "#3A7D0A"
-"""Success / positive (darkened for light bg contrast)."""
+"""성공/양성(밝은 배경 대비를 위해 어두워짐)."""
+
 
 LC_LIGHT_AMBER = "#B45309"
-"""Warning / caution (darkened for light bg contrast)."""
+"""경고/주의(밝은 배경 대비를 위해 어둡게 표시됨)"""
+
 
 LC_LIGHT_PINK = "#BE185D"
-"""Error / destructive (darkened for light bg contrast)."""
+"""오류/파괴적입니다(밝은 배경 대비를 위해 어두워짐)."""
+
 
 LC_LIGHT_MUTED = "#6B7280"
-"""Muted / secondary text on light backgrounds."""
+"""밝은 배경의 음소거/보조 텍스트입니다."""
+
 
 LC_LIGHT_GREEN_BG = "#DCFCE7"
-"""Subtle green-tinted background for diff additions."""
+"""차이점 추가를 위한 미묘한 녹색 색조의 배경."""
+
 
 LC_LIGHT_PINK_BG = "#FEE2E2"
-"""Subtle pink-tinted background for diff removals / errors."""
+"""차이점 제거/오류를 위한 미묘한 분홍색 배경입니다."""
+
 
 LC_LIGHT_PANEL = "#E0E1E6"
-"""Panel for light theme — differentiated section background."""
-
+"""밝은 테마를 위한 패널 - 차별화된 섹션 배경."""
 LC_LIGHT_SKILL = "#7C3AED"
-"""Skill invocation accent (darkened for light bg contrast)."""
+"""스킬 호출 액센트(밝은 배경 대비를 위해 어둡게)."""
+
 
 LC_LIGHT_SKILL_HOVER = "#6D28D9"
-"""Skill invocation hover (darkened for light bg contrast)."""
+"""스킬 호출 호버(밝은 배경 대비를 위해 어두워짐)"""
+
 
 LC_LIGHT_TOOL = LC_LIGHT_AMBER
-"""Tool call accent (darkened for light bg contrast)."""
+"""도구 호출 강조(밝은 배경 대비를 위해 어둡게)."""
+
 
 LC_LIGHT_TOOL_HOVER = "#78350F"
-"""Tool call hover (darkened for light bg contrast)."""
+"""도구 호출 호버(밝은 배경 대비를 위해 어두워짐)"""
+
 
 
 # ---------------------------------------------------------------------------
@@ -165,61 +173,69 @@ LC_LIGHT_TOOL_HOVER = "#78350F"
 # (hex values), or reference CSS variables (`$primary`, `$muted`, etc.).
 # ---------------------------------------------------------------------------
 PRIMARY = "blue"
-"""Default accent for headings, borders, links, and active elements."""
+"""제목, 테두리, 링크 및 활성 요소에 대한 기본 악센트입니다."""
+
 
 PRIMARY_DEV = "bright_red"
-"""Accent used when running from an editable (dev) install."""
+"""편집 가능한(개발) 설치에서 실행할 때 사용되는 악센트입니다."""
+
 
 SUCCESS = "green"
-"""Positive outcomes — tool success, approved actions."""
-
+"""긍정적인 결과 - 도구 성공, 승인된 조치."""
 WARNING = "yellow"
-"""Caution and notice states — auto-approve off, pending tool calls, notices."""
-
+"""주의 및 알림 상태 — 자동 승인 꺼짐, 도구 호출 보류 중, 알림."""
 MUTED = "bright_black"
-"""De-emphasized text — timestamps, secondary labels."""
-
+"""강조되지 않은 텍스트 — 타임스탬프, 보조 라벨."""
 MODE_BASH = "red"
-"""Shell mode indicator — borders, prompts, and message prefixes."""
-
+"""셸 모드 표시기 - 테두리, 프롬프트 및 메시지 접두사."""
 MODE_COMMAND = "magenta"
-"""Command mode indicator — borders, prompts, and message prefixes."""
-
+"""명령 모드 표시기 - 테두리, 프롬프트 및 메시지 접두사."""
 # Diff colors
 DIFF_ADD_FG = "green"
-"""Added-line foreground in inline diffs."""
+"""인라인 diff에 추가된 라인 전경."""
+
 
 DIFF_ADD_BG = "green"
-"""Added-line background in inline diffs."""
+"""인라인 diff에 라인 배경을 추가했습니다."""
+
 
 DIFF_REMOVE_FG = "red"
-"""Removed-line foreground in inline diffs."""
+"""인라인 diff에서 제거된 라인 전경."""
+
 
 DIFF_REMOVE_BG = "red"
-"""Removed-line background in inline diffs."""
+"""인라인 diff에서 제거된 라인 배경."""
+
 
 DIFF_CONTEXT = "bright_black"
-"""Unchanged context lines in inline diffs."""
+"""인라인 diff의 변경되지 않은 컨텍스트 줄."""
+
 
 # Tool call widget
 TOOL_BORDER = "bright_black"
-"""Tool call card border."""
+"""도구 호출 카드 테두리."""
+
 
 TOOL_HEADER = "yellow"
-"""Tool call headers, slash-command tokens, and approval-menu commands."""
+"""도구 호출 헤더, 슬래시 명령 토큰 및 승인 메뉴 명령."""
+
 
 # File listing colors
 FILE_PYTHON = "blue"
-"""Python files in tool-call file listings."""
+"""도구 호출 파일 목록의 Python 파일."""
+
 
 FILE_CONFIG = "yellow"
-"""Config / data files in tool-call file listings."""
+"""도구 호출 파일 목록의 구성/데이터 파일."""
+
 
 FILE_DIR = "green"
-"""Directories in tool-call file listings."""
+"""도구 호출 파일 목록의 디렉터리입니다."""
+
 
 SPINNER = "blue"
-"""Loading spinner color."""
+"""스피너 색상을 로드 중입니다."""
+
 
 
 # ---------------------------------------------------------------------------
@@ -228,77 +244,81 @@ SPINNER = "blue"
 
 
 _HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
-"""Matches a 7-character hex color string like `#7AA2F7`.
+"""`#7AA2F7`과 같은 7자리 16진수 색상 문자열과 일치합니다.
 
-Textual's `Color.parse` could also validate, but importing it here would pull
-Textual into `theme.py` which is otherwise pure Python with zero framework deps.
+Textual의 `Color.parse`도 검증할 수 있지만 여기로 가져오면 Textual을 `theme.py`로 끌어오는데, 그렇지 않으면 프레임워크 깊이가
+0인 순수 Python입니다.
 """
+
 
 
 @dataclass(frozen=True, slots=True)
 class ThemeColors:
-    """Complete set of semantic colors for one theme variant.
+    """하나의 테마 변형에 대한 의미 색상의 전체 세트입니다.
 
-    Every field must be a 7-character hex color string (e.g., `'#7AA2F7'`).
+    모든 필드는 7자의 16진수 색상 문자열(예: `'#7AA2F7'`)이어야 합니다.
+
     """
 
+
     primary: str
-    """Accent for headings, borders, links, and active elements."""
+    """제목, 테두리, 링크 및 활성 요소에 악센트를 줍니다."""
+
 
     secondary: str
-    """Secondary accent for badges, labels, and decorative highlights."""
+    """배지, 라벨 및 장식 하이라이트에 대한 보조 악센트입니다."""
+
 
     accent: str
-    """Attention-drawing contrast accent, distinct from primary/secondary."""
+    """주목을 끄는 대비 액센트는 기본/보조와 구별됩니다."""
+
 
     panel: str
-    """Differentiated section background (above surface)."""
+    """차별화된 단면 배경(표면 위)"""
+
 
     success: str
-    """Positive outcomes — tool success, approved actions."""
-
+    """긍정적인 결과 - 도구 성공, 승인된 조치."""
     warning: str
-    """Caution and notice states — pending tool calls, notices."""
-
+    """주의 및 알림 상태 - 보류 중인 도구 호출, 알림입니다."""
     error: str
-    """Error and destructive-action indicator."""
+    """오류 및 파괴적인 조치 표시기."""
+
 
     muted: str
-    """De-emphasized text — timestamps, secondary labels."""
-
+    """강조되지 않은 텍스트 — 타임스탬프, 보조 라벨."""
     mode_bash: str
-    """Shell mode indicator — borders, prompts, and message prefixes."""
-
+    """셸 모드 표시기 - 테두리, 프롬프트 및 메시지 접두사."""
     mode_command: str
-    """Command mode indicator — borders, prompts, and message prefixes."""
-
+    """명령 모드 표시기 - 테두리, 프롬프트 및 메시지 접두사."""
     skill: str
-    """Skill invocation accent — border and header text."""
-
+    """스킬 호출 액센트 — 테두리 및 헤더 텍스트."""
     skill_hover: str
-    """Skill invocation hover — contrasting variant for interactive feedback."""
-
+    """스킬 호출 호버 - 대화형 피드백을 위한 대조 변형입니다."""
     tool: str
-    """Tool call accent — border and header text."""
-
+    """도구 호출 강조 — 테두리 및 헤더 텍스트."""
     tool_hover: str
-    """Tool call hover — contrasting variant for interactive feedback."""
-
+    """도구 호출 호버 — 대화형 피드백을 위한 대조 변형입니다."""
     foreground: str
-    """Primary body text."""
+    """기본 본문 텍스트입니다."""
+
 
     background: str
-    """Base application background."""
+    """기본 애플리케이션 배경."""
+
 
     surface: str
-    """Elevated card / panel background."""
+    """높은 카드/패널 배경."""
+
 
     def __post_init__(self) -> None:
-        """Validate that every field is a valid hex color.
+        """모든 필드가 유효한 16진수 색상인지 확인하세요.
 
         Raises:
-            ValueError: If any field is not a 7-character hex color string.
+            ValueError: 필드가 7자의 16진수 색상 문자열이 아닌 경우.
+
         """
+
         for f in fields(self):
             val = getattr(self, f.name)
             if not _HEX_RE.match(val):
@@ -310,20 +330,20 @@ class ThemeColors:
 
     @classmethod
     def merged(cls, base: ThemeColors, overrides: dict[str, str]) -> ThemeColors:
-        """Create a new `ThemeColors` by overlaying overrides onto a base.
+        """베이스에 재정의를 오버레이하여 새 `ThemeColors`을(를) 만듭니다.
 
-        Fields present in `overrides` replace the corresponding base value;
-        missing fields inherit from `base`. This lets users specify only the
-        colors they want to customize.
+        `overrides`에 있는 필드는 해당 기본 값을 대체합니다. 누락된 필드는 `base`에서 상속됩니다. 이를 통해 사용자는 사용자 정의하려는
+        색상만 지정할 수 있습니다.
 
         Args:
-            base: Fallback color set for any field not in `overrides`.
-            overrides: Field-name to hex-color mapping. Unknown keys are
-                silently ignored.
+            base: `overrides`에 없는 모든 필드에 대해 대체 색상이 설정되었습니다.
+            overrides: 필드 이름을 16진수 색상으로 매핑합니다. 알 수 없는 키는 자동으로 무시됩니다.
 
         Returns:
-            New `ThemeColors` with merged values.
+            값이 병합된 새로운 `ThemeColors`입니다.
+
         """
+
         valid_names = {f.name for f in fields(cls)}
         kwargs = {f.name: getattr(base, f.name) for f in fields(cls)}
         kwargs.update({k: v for k, v in overrides.items() if k in valid_names})
@@ -353,7 +373,8 @@ DARK_COLORS = ThemeColors(
     background=LC_DARK,
     surface=LC_CARD,
 )
-"""Color set for the dark LangChain theme."""
+"""어두운 LangChain 테마에 대한 색상 세트입니다."""
+
 
 LIGHT_COLORS = ThemeColors(
     primary=LC_LIGHT_BLUE,
@@ -374,7 +395,8 @@ LIGHT_COLORS = ThemeColors(
     background=LC_LIGHT_BG,
     surface=LC_LIGHT_SURFACE,
 )
-"""Color set for the light LangChain theme."""
+"""밝은 LangChain 테마에 대한 색상 세트입니다."""
+
 
 
 # ---------------------------------------------------------------------------
@@ -384,47 +406,59 @@ LIGHT_COLORS = ThemeColors(
 
 @dataclass(frozen=True, slots=True)
 class ThemeEntry:
-    """Metadata for a registered theme."""
+    """등록된 테마의 메타데이터입니다."""
+
 
     label: str
-    """Human-readable label shown in the theme picker."""
+    """테마 선택기에 사람이 읽을 수 있는 라벨이 표시됩니다."""
+
 
     dark: bool
-    """Whether this is a dark theme variant."""
+    """이것이 어두운 테마 변형인지 여부입니다."""
+
 
     colors: ThemeColors
-    """Resolved color set."""
+    """색상 세트가 해결되었습니다."""
+
 
     custom: bool = True
-    """Whether this theme must be registered with Textual via `register_theme()`.
+    """이 테마를 `register_theme()`을 통해 Textual에 등록해야 하는지 여부입니다.
 
-    `True` for LangChain-branded themes and user-defined themes.
-    `False` for Textual built-in themes that Textual already knows about.
+    LangChain 브랜드 테마 및 사용자 정의 테마의 경우 `True`입니다. `False` Textual이 이미 알고 있는 Textual 내장
+    테마입니다.
+
     """
+
 
     REGISTRY: ClassVar[Mapping[str, ThemeEntry]]
-    """All registered theme entries, keyed by Textual theme name.
+    """등록된 모든 테마 항목은 텍스트 테마 이름으로 입력됩니다.
 
-    Read-only after module load (`MappingProxyType`).
+    모듈 로드 후 읽기 전용입니다(`MappingProxyType`).
+
     """
 
+
     def __post_init__(self) -> None:
-        """Validate that the label is a non-empty string.
+        """레이블이 비어 있지 않은 문자열인지 확인하십시오.
 
         Raises:
-            ValueError: If `label` is empty or whitespace-only.
+            ValueError: `label`이 비어 있거나 공백만 있는 경우.
+
         """
+
         if not self.label.strip():
             msg = "ThemeEntry.label must be a non-empty string"
             raise ValueError(msg)
 
 
 def _builtin_themes() -> dict[str, ThemeEntry]:
-    """Return the built-in theme entries as a mutable dict.
+    """내장 테마 항목을 변경 가능한 사전으로 반환합니다.
 
     Returns:
-        Dict of built-in theme names to `ThemeEntry` instances.
+        `ThemeEntry` 인스턴스에 내장된 테마 이름의 사전입니다.
+
     """
+
     r: dict[str, ThemeEntry] = {}
     r["langchain"] = ThemeEntry(
         label="LangChain Dark",
@@ -476,12 +510,12 @@ def _builtin_themes() -> dict[str, ThemeEntry]:
 
 
 _BUILTIN_NAMES: frozenset[str] = frozenset(_builtin_themes())
-"""Names of built-in themes.
+"""내장 테마의 이름입니다.
 
-User `[themes.<name>]` sections matching a built-in name override its colors
-rather than creating a new theme. Derived from `_builtin_themes()` to stay in
-sync automatically.
+기본 제공 이름과 일치하는 사용자 `[themes.<name>]` 섹션은 새 테마를 생성하는 대신 색상을 재정의합니다. 자동으로 동기화를 유지하기 위해
+`_builtin_themes()`에서 파생되었습니다.
 """
+
 
 
 def _load_user_themes(
@@ -489,28 +523,25 @@ def _load_user_themes(
     *,
     config_path: Path | None = None,
 ) -> None:
-    """Load user-defined themes from `config.toml` into `builtins` (mutated).
+    """`config.toml`에서 `builtins`(변형됨)로 사용자 정의 테마를 로드합니다.
 
-    **New themes** — each `[themes.<name>]` section (where `<name>` is not a
-    built-in) must have:
+    **새 테마** — 각 `[themes.<name>]` 섹션(`<name>`은 기본 제공되지 않음)에는 다음이 있어야 합니다.
 
-    - `label` (str) — human-readable name shown in the theme picker.
-    - `dark` (bool, optional) — whether this is a dark-mode variant.
+    - `label` (str) — 테마 선택기에 표시되는 사람이 읽을 수 있는 이름입니다. - `dark` (부울, 선택 사항) — 다크 모드 변형인지
+    여부.
 
-        Defaults to `False` (light).
+        기본값은 `False`(밝음)입니다.
 
-    **Built-in overrides** — if `<name>` matches a built-in theme, only color
-    fields are read; `label` and `dark` are inherited from the built-in.
+    **내장 재정의** — `<name>`이 내장 테마와 일치하면 색상 필드만 읽혀집니다. `label` 및 `dark`은 내장에서 상속됩니다.
 
-    All `ThemeColors` fields are optional. For new themes, omitted fields
-    fall back to the built-in dark or light palette based on the `dark` flag.
+    모든 `ThemeColors` 필드는 선택 사항입니다. 새 테마의 경우 생략된 필드는 `dark` 플래그를 기반으로 내장된 어둡거나 밝은 팔레트로
+    대체됩니다.
 
-    For built-in overrides, omitted fields retain the existing built-in colors.
+    기본 제공 재정의의 경우 생략된 필드는 기존 기본 제공 색상을 유지합니다.
 
-    Invalid themes (bad hex, missing required keys) are logged as warnings
-    and skipped — they never crash startup.
+    잘못된 테마(잘못된 16진수, 필수 키 누락)는 경고로 기록되고 건너뛰어지며 시작 시 충돌이 발생하지 않습니다.
 
-    Example `config.toml` snippet:
+    예 `config.toml` 조각:
 
     ```toml
     # New custom theme
@@ -526,10 +557,11 @@ def _load_user_themes(
     ```
 
     Args:
-        builtins: Mutable dict to update (new themes are added, built-in
-            overrides replace existing entries).
-        config_path: Override for the config file path (testing).
+        builtins: 업데이트할 변경 가능한 사전(새 테마가 추가되고 기본 제공 재정의가 기존 항목을 대체함)
+        config_path: 구성 파일 경로를 재정의합니다(테스트).
+
     """
+
     if config_path is None:
         try:
             config_path = Path.home() / ".deepagents" / "config.toml"
@@ -657,40 +689,45 @@ def _load_user_themes(
 def _build_registry(
     *, config_path: Path | None = None
 ) -> MappingProxyType[str, ThemeEntry]:
-    """Build and freeze the theme registry (built-in + user themes).
+    """테마 레지스트리(내장 + 사용자 테마)를 빌드하고 고정합니다.
 
     Args:
-        config_path: Override for the config file path (testing).
+        config_path: 구성 파일 경로를 재정의합니다(테스트).
 
     Returns:
-        Read-only mapping of theme names to `ThemeEntry` instances.
+        `ThemeEntry` 인스턴스에 대한 테마 이름의 읽기 전용 매핑입니다.
+
     """
+
     r = _builtin_themes()
     _load_user_themes(r, config_path=config_path)
     return MappingProxyType(r)
 
 
 ThemeEntry.REGISTRY = _build_registry()
-"""Read-only mapping of Textual theme names to `ThemeEntry` instances.
+"""`ThemeEntry` 인스턴스에 대한 텍스트 테마 이름의 읽기 전용 매핑입니다.
 
-Built via `_build_registry()` so the mutable staging dict is scoped to a
-function call and cannot be mutated after freeze. The `ClassVar` declaration on
-`ThemeEntry` provides the type; this assignment supplies the value.
+`_build_registry()`을 통해 구축되었으므로 변경 가능한 스테이징 dict의 범위는 함수 호출로 지정되며 동결 후에는 변경할 수 없습니다.
+`ThemeEntry`의 `ClassVar` 선언은 유형을 제공합니다. 이 할당은 값을 제공합니다.
 """
 
+
 DEFAULT_THEME = "langchain"
-"""Theme name used when no preference is saved."""
+"""기본 설정이 저장되지 않은 경우 사용되는 테마 이름입니다."""
+
 
 
 def reload_registry() -> MappingProxyType[str, ThemeEntry]:
-    """Rebuild the theme registry from disk and update `ThemeEntry.REGISTRY`.
+    """디스크에서 테마 레지스트리를 다시 빌드하고 `ThemeEntry.REGISTRY`을 업데이트하세요.
 
-    Re-reads `~/.deepagents/config.toml` for user-defined themes so that
-    `/reload` can pick up config changes without restarting the app.
+    `/reload`이 앱을 다시 시작하지 않고도 구성 변경 사항을 선택할 수 있도록 사용자 정의 테마에 대해
+    `~/.deepagents/config.toml`을 다시 읽습니다.
 
     Returns:
-        The new frozen registry.
+        새로운 고정된 레지스트리.
+
     """
+
     ThemeEntry.REGISTRY = _build_registry()
     return ThemeEntry.REGISTRY
 
@@ -698,19 +735,20 @@ def reload_registry() -> MappingProxyType[str, ThemeEntry]:
 def get_css_variable_defaults(
     *, dark: bool = True, colors: ThemeColors | None = None
 ) -> dict[str, str]:
-    """Return custom CSS variable defaults for the given mode.
+    """해당 모드에 대한 사용자 정의 CSS 변수 기본값을 반환합니다.
 
-    Most styling is handled by Textual's built-in CSS variables (`$primary`,
-    `$text-muted`, `$error-muted`, etc.).  This function only returns
-    app-specific semantic variables that have no Textual equivalent.
+    대부분의 스타일은 Textual의 내장 CSS 변수(`$primary`, `$text-muted`, `$error-muted` 등)에 의해 처리됩니다.
+    이 함수는 상응하는 텍스트가 없는 앱별 의미 변수만 반환합니다.
 
     Args:
-        dark: Selects `DARK_COLORS` or `LIGHT_COLORS` when `colors` is None.
-        colors: Explicit color set to use. Takes precedence over `dark`.
+        dark: `colors`이 없음인 경우 `DARK_COLORS` 또는 `LIGHT_COLORS`을 선택합니다.
+        colors: 명시적 색상을 사용하도록 설정되었습니다. `dark`보다 우선합니다.
 
     Returns:
-        Dict of CSS variable names to hex color values.
+        16진수 색상 값에 대한 CSS 변수 이름의 사전입니다.
+
     """
+
     c = colors if colors is not None else (DARK_COLORS if dark else LIGHT_COLORS)
     return {
         "mode-bash": c.mode_bash,
@@ -723,14 +761,16 @@ def get_css_variable_defaults(
 
 
 def _resolve_app(widget_or_app: object) -> object:
-    """Resolve a widget or App to the App instance.
+    """위젯이나 앱을 앱 인스턴스로 해결합니다.
 
     Args:
-        widget_or_app: Textual `App` or a mounted widget.
+        widget_or_app: 텍스트 `App` 또는 탑재된 위젯.
 
     Returns:
-        The resolved App instance.
+        해결된 앱 인스턴스입니다.
+
     """
+
     return (
         widget_or_app.app  # type: ignore[attr-defined]
         if hasattr(type(widget_or_app), "app")
@@ -739,38 +779,38 @@ def _resolve_app(widget_or_app: object) -> object:
 
 
 def _colors_from_textual_theme(app: object) -> ThemeColors:
-    """Construct `ThemeColors` from the app's active Textual theme.
+    """앱의 활성 텍스트 테마에서 `ThemeColors`을(를) 구성합니다.
 
-    Reads standard properties (primary, secondary, etc.) from the resolved
-    theme so Python-side styling matches CSS.  `muted` falls back to the
-    dark/light base unconditionally (no Textual equivalent).
-    `mode_bash` is derived from the theme's `error` color, and `mode_command`
-    from `secondary`, falling back to the base palette when non-hex.
+    Python 측 스타일이 CSS와 일치하도록 해결된 테마에서 표준 속성(기본, 보조 등)을 읽습니다.  `muted`은 무조건 어둡거나 밝은 기반으로
+    돌아갑니다(텍스트와 동일하지 않음). `mode_bash`은 테마의 `error` 색상에서 파생되고 `mode_command`은
+    `secondary`에서 파생되며, 16진수가 아닌 경우 기본 팔레트로 돌아갑니다.
 
-    Non-hex values (e.g. `ansi_blue` in the ANSI theme) are detected and fall
-    back to the base palette automatically.
+    16진수가 아닌 값(예: ANSI 테마의 `ansi_blue`)이 감지되어 자동으로 기본 팔레트로 대체됩니다.
 
     Args:
-        app: The Textual App instance.
+        app: 텍스트 앱 인스턴스.
 
     Returns:
-        `ThemeColors` derived from the active theme.
+        `ThemeColors`은 활성 테마에서 파생되었습니다.
+
     """
+
     ct = app.current_theme  # type: ignore[attr-defined]
     dark: bool = ct.dark
     base = DARK_COLORS if dark else LIGHT_COLORS
 
     def _hex_or(val: str | None, fallback: str) -> str:
-        """Return `val` if it is a valid `#RRGGBB` hex color, else `fallback`.
+        """유효한 `#RRGGBB` 16진수 색상이면 `val`을 반환하고, 그렇지 않으면 `fallback`을 반환합니다.
 
         Args:
-            val: Color string from the active Textual theme (may be `None` or
-                a non-hex name like `ansi_blue`).
-            fallback: Guaranteed-hex value from our base palette.
+            val: 활성 텍스트 테마의 색상 문자열(`None` 또는 `ansi_blue`과 같은 16진수가 아닌 이름일 수 있음)
+            fallback: 기본 팔레트의 16진수 값이 보장됩니다.
 
         Returns:
-            `val` if it matches `#RRGGBB`, otherwise `fallback`.
+            `#RRGGBB`과 일치하면 `val`, 그렇지 않으면 `fallback`입니다.
+
         """
+
         if val is not None and _HEX_RE.match(val):
             return val
         return fallback
@@ -801,22 +841,21 @@ def _colors_from_textual_theme(app: object) -> ThemeColors:
 
 
 def get_theme_colors(widget_or_app: App | object | None = None) -> ThemeColors:
-    """Return the `ThemeColors` for the active Textual theme.
+    """활성 텍스트 테마에 대해 `ThemeColors`을 반환합니다.
 
-    For custom themes (LangChain-branded and user-defined), the pre-built
-    `ThemeColors` from the registry is returned directly.  For Textual built-in
-    themes, colors are resolved dynamically from the actual theme properties so
-    Python-side styling stays in sync with CSS variables.
+    사용자 정의 테마(LangChain 브랜드 및 사용자 정의)의 경우 레지스트리에서 미리 빌드된 `ThemeColors`이 직접 반환됩니다.  텍스트
+    내장 테마의 경우 색상이 실제 테마 속성에서 동적으로 확인되므로 Python 측 스타일이 CSS 변수와 동기화됩니다.
 
-    Textual widget code should call this instead of reading the module-level
-    ANSI constants, which are intended for Rich console output only.
+    텍스트 위젯 코드는 리치 콘솔 출력 전용인 모듈 수준 ANSI 상수를 읽는 대신 이를 호출해야 합니다.
 
     Args:
-        widget_or_app: Textual `App`, a mounted widget, or `None`.
+        widget_or_app: 텍스트 `App`, 마운트된 위젯 또는 `None`.
 
     Returns:
-        `ThemeColors` for the active theme.
+        활성 테마의 경우 `ThemeColors`입니다.
+
     """
+
     if widget_or_app is None:
         # Fall back to the active Textual app context var when no explicit
         # widget/app is passed (e.g. from @staticmethod helpers).

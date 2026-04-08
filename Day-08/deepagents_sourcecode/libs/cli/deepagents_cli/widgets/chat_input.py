@@ -1,7 +1,6 @@
-"""Provide the main chat input area used by the Textual app.
+"""Textual 앱에서 사용하는 기본 채팅 입력 영역을 제공합니다.
 
-This module coordinates multiline editing, slash-command and file completion,
-history navigation, mode prefixes, and pasted media placeholders.
+이 모듈은 여러 줄 편집, 슬래시 명령 및 파일 완성, 기록 탐색, 모드 접두사 및 붙여넣은 미디어 자리 표시자를 조정합니다.
 """
 
 from __future__ import annotations
@@ -42,32 +41,30 @@ logger = logging.getLogger(__name__)
 
 
 def _default_history_path() -> Path:
-    """Return the default history file path.
+    """기본 기록 파일 경로를 반환합니다.
 
-    Extracted as a function so tests can monkeypatch it to a temp path,
-    preventing test runs from polluting `~/.deepagents/history.jsonl`.
+    테스트가 이를 임시 경로에 패치할 수 있도록 함수로 추출되어 테스트 실행이 `~/.deepagents/history.jsonl`을 오염시키는 것을
+    방지합니다.
+
     """
     return Path.home() / ".deepagents" / "history.jsonl"
 
 
 _PASTE_BURST_CHAR_GAP_SECONDS = 0.03
-"""Maximum time between chars to treat input as a paste-like burst."""
+"""입력을 페이스트 같은 버스트로 처리하는 문자 사이의 최대 시간입니다."""
 
 _PASTE_BURST_FLUSH_DELAY_SECONDS = 0.08
-"""Idle timeout before flushing buffered burst text."""
+"""버퍼링된 버스트 텍스트를 플러시하기 전 유휴 시간 초과입니다."""
 
 _PASTE_BURST_START_CHARS = {"'", '"'}
-"""Characters that can start dropped-path payloads."""
+"""삭제된 경로 페이로드를 시작할 수 있는 문자입니다."""
 
 _BACKSLASH_ENTER_GAP_SECONDS = 0.15
-"""Maximum gap between a `\\` key and a following `enter` key to treat the
-pair as a terminal-emitted shift+enter sequence.
+"""`\\` 키와 다음 `enter` 키 사이의 최대 간격은 쌍을 터미널에서 방출되는 Shift+Enter 시퀀스로 처리합니다.
 
-Some terminals (e.g. VSCode's built-in terminal) send a literal backslash
-followed by enter when the user presses shift+enter.  The gap is
-generous (150 ms) because the terminal emits both characters nearly
-simultaneously; a human deliberately typing `\\` then pressing Enter would
-have a much larger gap."""
+일부 터미널(예: VSCode의 내장 터미널)은 사용자가 Shift+Enter를 누를 때 문자 그대로 백슬래시와 Enter를 보냅니다.  터미널이 두 문자를
+거의 동시에 내보내므로 간격이 넉넉합니다(150ms). 사람이 의도적으로 `\\`을 입력한 다음 Enter를 누르면 간격이 훨씬 더 커집니다.
+"""
 
 if TYPE_CHECKING:
     from textual import events
@@ -83,7 +80,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 class CompletionOption(Static):
-    """A clickable completion option in the autocomplete popup."""
+    """자동 완성 팝업에서 클릭 가능한 완성 옵션입니다."""
 
     DEFAULT_CSS = """
     CompletionOption {
@@ -107,10 +104,10 @@ class CompletionOption(Static):
     """
 
     class Clicked(Message):
-        """Message sent when a completion option is clicked."""
+        """완료 옵션을 클릭하면 전송되는 메시지입니다."""
 
         def __init__(self, index: int) -> None:
-            """Initialize with the clicked option index."""
+            """클릭한 옵션 인덱스로 초기화합니다."""
             super().__init__()
             self.index = index
 
@@ -122,14 +119,15 @@ class CompletionOption(Static):
         is_selected: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize the completion option.
+        """완료 옵션을 초기화합니다.
 
         Args:
-            label: The main label text (e.g., command name or file path)
-            description: Secondary description text
-            index: Index of this option in the suggestions list
-            is_selected: Whether this option is currently selected
-            **kwargs: Additional arguments for parent
+            label: 기본 레이블 텍스트(예: 명령 이름 또는 파일 경로)
+            description: 보조 설명 텍스트
+            index: 제안 목록에 있는 이 옵션의 색인
+            is_selected: 이 옵션이 현재 선택되어 있는지 여부
+            **kwargs: 부모에 대한 추가 인수
+
         """
         super().__init__(**kwargs)
         self._label = label
@@ -138,11 +136,11 @@ class CompletionOption(Static):
         self._is_selected = is_selected
 
     def on_mount(self) -> None:
-        """Set up the option display on mount."""
+        """마운트 시 옵션 표시를 설정합니다."""
         self._update_display()
 
     def _update_display(self) -> None:
-        """Update the display text and styling."""
+        """표시 텍스트와 스타일을 업데이트합니다."""
         display_label = self._label.removeprefix("/")
         if self._description:
             content = Content.from_markup(
@@ -161,7 +159,7 @@ class CompletionOption(Static):
             self.remove_class("completion-option-selected")
 
     def set_selected(self, *, selected: bool) -> None:
-        """Update the selected state of this option."""
+        """이 옵션의 선택된 상태를 업데이트합니다."""
         if self._is_selected != selected:
             self._is_selected = selected
             self._update_display()
@@ -169,7 +167,7 @@ class CompletionOption(Static):
     def set_content(
         self, label: str, description: str, index: int, *, is_selected: bool
     ) -> None:
-        """Replace label, description, index, and selection in-place."""
+        """레이블, 설명, 색인 및 선택 항목을 제자리에서 바꿉니다."""
         self._label = label
         self._description = description
         self._index = index
@@ -177,13 +175,13 @@ class CompletionOption(Static):
         self._update_display()
 
     def on_click(self, event: Click) -> None:
-        """Handle click on this option."""
+        """이 옵션을 클릭하세요."""
         event.stop()
         self.post_message(self.Clicked(self._index))
 
 
 class CompletionPopup(VerticalScroll):
-    """Popup widget that displays completion suggestions as clickable options."""
+    """클릭 가능한 옵션으로 완성 제안을 표시하는 팝업 위젯입니다."""
 
     DEFAULT_CSS = """
     CompletionPopup {
@@ -194,15 +192,15 @@ class CompletionPopup(VerticalScroll):
     """
 
     class OptionClicked(Message):
-        """Message sent when a completion option is clicked."""
+        """완료 옵션을 클릭하면 전송되는 메시지입니다."""
 
         def __init__(self, index: int) -> None:
-            """Initialize with the clicked option index."""
+            """클릭한 옵션 인덱스로 초기화합니다."""
             super().__init__()
             self.index = index
 
     def __init__(self, **kwargs: Any) -> None:
-        """Initialize the completion popup."""
+        """완료 팝업을 초기화합니다."""
         super().__init__(**kwargs)
         self.can_focus = False
         self._options: list[CompletionOption] = []
@@ -214,7 +212,7 @@ class CompletionPopup(VerticalScroll):
     def update_suggestions(
         self, suggestions: list[tuple[str, str]], selected_index: int
     ) -> None:
-        """Update the popup with new suggestions."""
+        """새로운 제안으로 팝업을 업데이트하세요."""
         if not suggestions:
             self.hide()
             return
@@ -229,13 +227,13 @@ class CompletionPopup(VerticalScroll):
         self.call_after_refresh(lambda: self._rebuild_options(gen))
 
     async def _rebuild_options(self, generation: int) -> None:
-        """Rebuild option widgets from pending suggestions.
+        """보류 중인 제안에서 옵션 위젯을 다시 빌드합니다.
 
-        Reuses existing DOM nodes where possible to avoid flicker from
-        a full teardown/mount cycle while the popup is visible.
+        팝업이 표시되는 동안 전체 분해/마운트 주기로 인한 깜박임을 방지하기 위해 가능한 경우 기존 DOM 노드를 재사용합니다.
 
         Args:
-            generation: Caller's generation counter; skipped if superseded.
+            generation: 발신자의 생성 카운터; 대체된 경우 건너뜁니다.
+
         """
         if generation != self._rebuild_generation:
             return
@@ -291,7 +289,7 @@ class CompletionPopup(VerticalScroll):
             self._options[selected_index].scroll_visible()
 
     def update_selection(self, selected_index: int) -> None:
-        """Update which option is selected without rebuilding the list."""
+        """목록을 다시 작성하지 않고 어떤 옵션이 선택되었는지 업데이트합니다."""
         # Keep pending state in sync so an in-flight _rebuild_options uses
         # the latest selection.
         self._pending_selected = selected_index
@@ -310,18 +308,18 @@ class CompletionPopup(VerticalScroll):
             self._options[selected_index].scroll_visible()
 
     def on_completion_option_clicked(self, event: CompletionOption.Clicked) -> None:
-        """Handle click on a completion option."""
+        """완료 옵션을 클릭하여 처리합니다."""
         event.stop()
         self.post_message(self.OptionClicked(event.index))
 
     def hide(self) -> None:
-        """Hide the popup."""
+        """팝업을 숨깁니다."""
         self._pending_suggestions = []
         self._rebuild_generation += 1  # Cancel any in-flight rebuild
         self.styles.display = "none"  # type: ignore[assignment]  # Textual accepts string display values at runtime
 
     def show(self) -> None:
-        """Show the popup."""
+        """팝업을 표시합니다."""
         self.styles.display = "block"
 
 
@@ -330,7 +328,7 @@ class CompletionPopup(VerticalScroll):
 # ---------------------------------------------------------------------------
 
 class ChatTextArea(TextArea):
-    """TextArea subclass with custom key handling for chat input."""
+    """채팅 입력을 위한 사용자 정의 키 처리가 포함된 TextArea 하위 클래스입니다."""
 
     BINDINGS: ClassVar[list[Binding]] = [
         Binding(
@@ -341,10 +339,11 @@ class ChatTextArea(TextArea):
             priority=True,
         ),
     ]
-    """Key bindings for the chat text area.
+    """채팅 텍스트 영역에 대한 키 바인딩입니다.
 
-    These are the single source of truth for shortcut keys. `_NEWLINE_KEYS`
-    is derived from this list so that `_on_key` stays in sync automatically.
+    이는 바로 가기 키에 대한 단일 정보 소스입니다. `_NEWLINE_KEYS`은(는) 이 목록에서 파생되므로 `_on_key`은(는) 자동으로 동기화
+    상태를 유지합니다.
+
     """
 
     _NEWLINE_KEYS: ClassVar[frozenset[str]] = frozenset(
@@ -353,62 +352,61 @@ class ChatTextArea(TextArea):
         if b.action == "insert_newline"
         for key in b.key.split(",")
     )
-    """Flattened set of keys that insert a newline, derived from `BINDINGS`."""
+    """`BINDINGS`에서 파생된 개행을 삽입하는 평면화된 키 세트입니다."""
 
     _skip_history_change_events: int
-    """Counter incremented before a history-driven text replacement so the
-    resulting `TextArea.Changed` event (which fires on the next message-loop
-    iteration) can be suppressed.  `ChatInput.on_text_area_changed` decrements
-    the counter.
+    """기록 기반 텍스트 교체 전에 카운터가 증가하므로
+    결과 `TextArea.Changed` 이벤트(다음 메시지 루프 반복 시 발생)가 억제될 수 있습니다.
+    `ChatInput.on_text_area_changed`은 카운터를 감소시킵니다.
+
     """
 
     _in_history: bool
-    """Persistent flag that stays `True` while the user is browsing history.
+    """사용자가 검색 기록을 보는 동안 `True`을 유지하는 영구 플래그입니다.
 
-    Relaxes cursor-boundary checks so Up/Down work from either end of
-    the text.
+    위쪽/아래쪽 작업이 텍스트의 양쪽 끝에서 작동하도록 커서 경계 검사를 완화합니다.
 
-    Reset to `False` when navigating past the newest entry, submitting,
-    or clearing.
+    최신 항목을 지나 탐색하거나 제출하거나 삭제할 때 `False`로 재설정하세요.
+
     """
 
     class Submitted(Message):
-        """Message sent when text is submitted."""
+        """텍스트가 제출되면 전송되는 메시지입니다."""
 
         def __init__(self, value: str) -> None:
-            """Initialize with submitted value."""
+            """제출된 값으로 초기화합니다."""
             self.value = value
             super().__init__()
 
     class HistoryPrevious(Message):
-        """Request previous history entry."""
+        """이전 이력 항목을 요청합니다."""
 
         def __init__(self, current_text: str) -> None:
-            """Initialize with current text for saving."""
+            """저장을 위해 현재 텍스트로 초기화합니다."""
             self.current_text = current_text
             super().__init__()
 
     class HistoryNext(Message):
-        """Request next history entry."""
+        """다음 기록 항목을 요청합니다."""
 
     class PastedPaths(Message):
-        """Message sent when paste payload resolves to file paths."""
+        """붙여넣기 페이로드가 파일 경로로 확인될 때 전송되는 메시지입니다."""
 
         def __init__(self, raw_text: str, paths: list[Path]) -> None:
-            """Initialize with raw pasted text and parsed file paths."""
+            """원시 붙여넣은 텍스트와 구문 분석된 파일 경로로 초기화합니다."""
             self.raw_text = raw_text
             self.paths = paths
             super().__init__()
 
     class Typing(Message):
-        """Posted when the user presses a printable key or backspace.
+        """사용자가 인쇄 가능한 키나 백스페이스를 누를 때 게시됩니다.
 
-        Relayed by `ChatInput` as `ChatInput.Typing` for the app to track
-        typing activity.
+        앱이 타이핑 활동을 추적하기 위해 `ChatInput`에 의해 `ChatInput.Typing`로 전달됩니다.
+
         """
 
     def __init__(self, **kwargs: Any) -> None:
-        """Initialize the chat text area."""
+        """채팅 텍스트 영역을 초기화합니다."""
         # Remove placeholder if passed, TextArea doesn't support it the same way
         kwargs.pop("placeholder", None)
         super().__init__(**kwargs)
@@ -425,45 +423,46 @@ class ChatTextArea(TextArea):
         self._backslash_pending_time: float | None = None
 
     def set_app_focus(self, *, has_focus: bool) -> None:
-        """Set whether the app should show the cursor as active.
+        """앱이 커서를 활성 상태로 표시할지 여부를 설정합니다.
 
         Args:
-            has_focus: Whether the app input should be focused.
+            has_focus: 앱 입력에 집중해야 하는지 여부입니다.
+
         """
         self._backslash_pending_time = None
         if has_focus and not self.has_focus:
             self.call_after_refresh(self.focus)
 
     def set_completion_active(self, *, active: bool) -> None:
-        """Set whether completion suggestions are visible."""
+        """완료 제안 표시 여부를 설정합니다."""
         self._completion_active = active
 
     def action_insert_newline(self) -> None:
-        """Insert a newline character."""
+        """개행 문자를 삽입합니다."""
         self.insert("\n")
 
     def _cancel_paste_burst_timer(self) -> None:
-        """Cancel any scheduled paste-burst flush timer."""
+        """예약된 페이스트-버스트 플러시 타이머를 취소합니다."""
         if self._paste_burst_timer is None:
             return
         self._paste_burst_timer.stop()
         self._paste_burst_timer = None
 
     def _schedule_paste_burst_flush(self) -> None:
-        """Schedule idle-time flush for buffered paste-burst text."""
+        """버퍼링된 붙여넣기 버스트 텍스트에 대한 유휴 시간 플러시를 예약합니다."""
         self._cancel_paste_burst_timer()
         self._paste_burst_timer = self.set_timer(
             _PASTE_BURST_FLUSH_DELAY_SECONDS, self._flush_paste_burst
         )
 
     def _start_paste_burst(self, char: str, now: float) -> None:
-        """Start buffering a paste-like keystroke burst."""
+        """붙여넣기와 같은 키 입력 버스트 버퍼링을 시작합니다."""
         self._paste_burst_buffer = char
         self._paste_burst_last_char_time = now
         self._schedule_paste_burst_flush()
 
     def _append_paste_burst(self, text: str, now: float) -> None:
-        """Append text to an active paste-burst buffer."""
+        """활성 붙여넣기-버스트 버퍼에 텍스트를 추가합니다."""
         if not self._paste_burst_buffer:
             self._start_paste_burst(text, now)
             return
@@ -472,10 +471,10 @@ class ChatTextArea(TextArea):
         self._schedule_paste_burst_flush()
 
     def _should_start_paste_burst(self, char: str) -> bool:
-        """Return whether a keypress should start paste-burst buffering.
+        """키 누르기가 붙여넣기-버스트 버퍼링을 시작해야 하는지 여부를 반환합니다.
 
-        Restricting to quote-prefixed input at an empty cursor reduces false
-        positives for normal typing and slash-command entry.
+        빈 커서에서 따옴표가 붙은 입력으로 제한하면 일반 입력 및 슬래시 명령 입력에 대한 거짓 긍정이 줄어듭니다.
+
         """
         if char not in _PASTE_BURST_START_CHARS:
             return False
@@ -485,10 +484,10 @@ class ChatTextArea(TextArea):
         return row == 0 and col == 0
 
     async def _flush_paste_burst(self) -> None:
-        """Flush buffered burst text through dropped-path parsing.
+        """삭제된 경로 구문 분석을 통해 버퍼링된 버스트 텍스트를 플러시합니다.
 
-        When parsing fails, the buffered text is inserted unchanged so regular
-        typing behavior is preserved.
+        구문 분석에 실패하면 버퍼링된 텍스트가 변경되지 않고 삽입되므로 일반 입력 동작이 유지됩니다.
+
         """
         payload = self._paste_burst_buffer
         self._paste_burst_buffer = ""
@@ -510,13 +509,13 @@ class ChatTextArea(TextArea):
         self.insert(payload)
 
     def _delete_preceding_backslash(self) -> bool:
-        """Delete the backslash character immediately before the cursor.
+        """커서 바로 앞의 백슬래시 문자를 삭제합니다.
 
-        Caller must ensure a backslash is expected at this position. The
-        method verifies the character before deleting it.
+        호출자는 이 위치에 백슬래시가 예상되는지 확인해야 합니다. 이 메서드는 문자를 삭제하기 전에 문자를 확인합니다.
 
         Returns:
-            `True` if a backslash was found and deleted, `False` otherwise.
+            백슬래시가 발견되어 삭제된 경우 `True`, 그렇지 않은 경우 `False`.
+
         """
         row, col = self.cursor_location
         if col > 0:
@@ -534,7 +533,7 @@ class ChatTextArea(TextArea):
         return False
 
     async def _on_key(self, event: events.Key) -> None:
-        """Handle key events."""
+        """주요 이벤트를 처리합니다."""
         # VS Code 1.110 incorrectly sends space as a CSI u escape code
         # (`\x1b[32u`) instead of a plain ` ` character.  Textual parses
         # this as Key(key='space', character=None, is_printable=False), so
@@ -671,14 +670,14 @@ class ChatTextArea(TextArea):
         await super()._on_key(event)
 
     def _delete_image_placeholder(self, *, backwards: bool) -> bool:
-        """Delete a full image placeholder token in one keypress.
+        """한 번의 키 누르기로 전체 이미지 자리 표시자 토큰을 삭제합니다.
 
         Args:
-            backwards: Whether the delete action is backwards (`backspace`) or
-                forwards (`delete`).
+            backwards: 삭제 작업이 뒤로(`backspace`)인지, 앞으로(`delete`)인지 여부입니다.
 
         Returns:
-            `True` when a placeholder token was deleted.
+            `True` 자리표시자 토큰이 삭제된 경우.
+
         """
         if not self.text or not self.selection.is_empty:
             return False
@@ -698,12 +697,12 @@ class ChatTextArea(TextArea):
     def _find_image_placeholder_span(
         self, cursor_offset: int, *, backwards: bool
     ) -> tuple[int, int] | None:
-        """Return placeholder span to delete for current cursor and key direction.
+        """현재 커서 및 키 방향을 삭제할 자리 표시자 범위를 반환합니다.
 
         Args:
-            cursor_offset: Character offset of the cursor from the start of text.
-            backwards: Whether the delete action is backwards (backspace) or
-                forwards (delete).
+            cursor_offset: 텍스트 시작 부분부터 커서의 문자 오프셋입니다.
+            backwards: 삭제 작업이 뒤로(백스페이스)인지 앞으로(삭제)인지 여부입니다.
+
         """
         text = self.text
         # Check both image and video placeholders
@@ -728,7 +727,7 @@ class ChatTextArea(TextArea):
         return None
 
     async def _on_paste(self, event: events.Paste) -> None:
-        """Handle paste events and detect dragged file paths."""
+        """붙여넣기 이벤트를 처리하고 드래그된 파일 경로를 감지합니다."""
         self._backslash_pending_time = None
         if self._paste_burst_buffer:
             await self._flush_paste_burst()
@@ -750,7 +749,7 @@ class ChatTextArea(TextArea):
         self.post_message(self.PastedPaths(event.text, parsed.paths))
 
     def set_text_from_history(self, text: str) -> None:
-        """Set text from history navigation."""
+        """기록 탐색에서 텍스트를 설정합니다."""
         self._paste_burst_buffer = ""
         self._paste_burst_last_char_time = None
         self._cancel_paste_burst_timer()
@@ -764,7 +763,7 @@ class ChatTextArea(TextArea):
         self.move_cursor((last_row, last_col))
 
     def clear_text(self) -> None:
-        """Clear the text area."""
+        """텍스트 영역을 지웁니다."""
         self._in_history = False
         # Increment (not reset) so any pending Changed event from a prior
         # set_text_from_history is still suppressed, plus one for the
@@ -783,24 +782,24 @@ class ChatTextArea(TextArea):
 # ---------------------------------------------------------------------------
 
 class _CompletionViewAdapter:
-    """Translate completion-space replacements to text-area coordinates."""
+    """완성 공간 대체를 텍스트 영역 좌표로 변환합니다."""
 
     def __init__(self, chat_input: ChatInput) -> None:
-        """Initialize adapter with its owning `ChatInput`."""
+        """소유한 `ChatInput`을(를) 사용하여 어댑터를 초기화합니다."""
         self._chat_input = chat_input
 
     def render_completion_suggestions(
         self, suggestions: list[tuple[str, str]], selected_index: int
     ) -> None:
-        """Delegate suggestion rendering to `ChatInput`."""
+        """제안 렌더링을 `ChatInput`에 위임하세요."""
         self._chat_input.render_completion_suggestions(suggestions, selected_index)
 
     def clear_completion_suggestions(self) -> None:
-        """Delegate completion clearing to `ChatInput`."""
+        """완료 청산을 `ChatInput`에 위임하세요."""
         self._chat_input.clear_completion_suggestions()
 
     def replace_completion_range(self, start: int, end: int, replacement: str) -> None:
-        """Map completion indices to text-area indices before replacing text."""
+        """텍스트를 바꾸기 전에 완료 인덱스를 텍스트 영역 인덱스에 매핑합니다."""
         self._chat_input.replace_completion_range(
             self._chat_input._completion_index_to_text_index(start),
             self._chat_input._completion_index_to_text_index(end),
@@ -809,13 +808,11 @@ class _CompletionViewAdapter:
 
 
 class ChatInput(Vertical):
-    """Chat input widget with prompt, multi-line text, autocomplete, and history.
+    """프롬프트, 여러 줄 텍스트, 자동 완성 및 기록이 포함된 채팅 입력 위젯입니다.
 
-    Features:
-    - Multi-line input with TextArea
-    - Enter to submit, modifier key for newlines (see `config.newline_shortcut`)
-    - Up/Down arrows for command history at input boundaries (start/end of text)
-    - Autocomplete for @ (files) and / (commands)
+    기능: - TextArea를 사용한 여러 줄 입력 - 제출하려면 Enter, 개행용 수정자 키(`config.newline_shortcut` 참조) -
+    입력 경계에서 명령 히스토리를 위한 위쪽/아래쪽 화살표(텍스트 시작/끝) - @(파일) 및 /(명령)에 대한 자동 완성
+
     """
 
     DEFAULT_CSS = """
@@ -871,31 +868,31 @@ class ChatInput(Vertical):
         border: none;
     }
     """
-    """Border and prompt glyph change color per mode for immediate visual feedback."""
+    """즉각적인 시각적 피드백을 위해 테두리 및 프롬프트 글리프 색상이 모드별로 변경됩니다."""
 
     class Submitted(Message):
-        """Message sent when input is submitted."""
+        """입력이 제출되면 전송되는 메시지입니다."""
 
         def __init__(self, value: str, mode: str = "normal") -> None:
-            """Initialize with value and mode."""
+            """값과 모드로 초기화합니다."""
             super().__init__()
             self.value = value
             self.mode = mode
 
     class ModeChanged(Message):
-        """Message sent when input mode changes."""
+        """입력 모드가 변경되면 전송되는 메시지입니다."""
 
         def __init__(self, mode: str) -> None:
-            """Initialize with new mode."""
+            """새로운 모드로 초기화하세요."""
             super().__init__()
             self.mode = mode
 
     class Typing(Message):
-        """Posted when the user presses a printable key or backspace in the input.
+        """사용자가 입력에서 인쇄 가능한 키나 백스페이스를 누를 때 게시됩니다.
 
-        The app uses this to delay approval widgets while the user is actively
-        typing, preventing accidental key presses (e.g. `y`, `n`) from
-        triggering approval decisions.
+        앱은 이를 사용하여 사용자가 적극적으로 입력하는 동안 승인 위젯을 지연시켜 실수로 키를 누르는 것(예: `y`, `n`)이 승인 결정을
+        트리거하는 것을 방지합니다.
+
         """
 
     mode: reactive[str] = reactive("normal")
@@ -907,13 +904,14 @@ class ChatInput(Vertical):
         image_tracker: MediaTracker | None = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize the chat input widget.
+        """채팅 입력 위젯을 초기화합니다.
 
         Args:
-            cwd: Current working directory for file completion
-            history_file: Path to history file (default: ~/.deepagents/history.jsonl)
-            image_tracker: Optional tracker for attached images
-            **kwargs: Additional arguments for parent
+            cwd: 파일 완성을 위한 현재 작업 디렉터리
+            history_file: 기록 파일 경로(기본값: ~/.deepagents/history.jsonl)
+            image_tracker: 첨부된 이미지에 대한 선택적 추적기
+            **kwargs: 부모에 대한 추가 인수
+
         """
         super().__init__(**kwargs)
         self._cwd = Path(cwd) if cwd else Path.cwd()
@@ -956,10 +954,11 @@ class ChatInput(Vertical):
         self._history = HistoryManager(history_file)
 
     def compose(self) -> ComposeResult:  # noqa: PLR6301  # Textual widget method convention
-        """Compose the chat input layout.
+        """채팅 입력 레이아웃을 구성합니다.
 
         Yields:
-            Widgets for the input row and completion popup.
+            입력 행 및 완료 팝업을 위한 위젯입니다.
+
         """
         with Horizontal(classes="input-row"):
             yield Static(">", classes="input-prompt", id="prompt")
@@ -968,7 +967,7 @@ class ChatInput(Vertical):
         yield CompletionPopup(id="completion-popup")
 
     def on_mount(self) -> None:
-        """Initialize components after mount."""
+        """마운트 후 구성요소를 초기화합니다."""
         if is_ascii_mode():
             colors = theme.get_theme_colors(self)
             self.styles.border = ("ascii", colors.primary)
@@ -1000,13 +999,13 @@ class ChatInput(Vertical):
         self._text_area.focus()
 
     def update_slash_commands(self, commands: list[tuple[str, str, str]]) -> None:
-        """Update the slash command controller's command list.
+        """슬래시 명령 컨트롤러의 명령 목록을 업데이트합니다.
 
-        Called by the app after discovering skills to merge static
-        commands with dynamic `/skill:` entries.
+        정적 명령을 동적 `/skill:` 항목과 병합하는 기술을 발견한 후 앱에서 호출됩니다.
 
         Args:
-            commands: Full list of `(command, description, hidden_keywords)` tuples.
+            commands: `(command, description, hidden_keywords)` 튜플의 전체 목록입니다.
+
         """
         if self._slash_controller:
             self._slash_controller.update_commands(commands)
@@ -1017,7 +1016,7 @@ class ChatInput(Vertical):
             )
 
     def on_text_area_changed(self, event: TextArea.Changed) -> None:
-        """Detect input mode and update completions."""
+        """입력 모드 및 업데이트 완료를 감지합니다."""
         text = event.text_area.text
         self._sync_media_tracker_to_text(text)
 
@@ -1087,10 +1086,11 @@ class ChatInput(Vertical):
     def _parse_dropped_path_payload(
         text: str, *, allow_leading_path: bool = False
     ) -> ParsedPastedPathPayload | None:
-        """Parse dropped-path payload text through a single parser entrypoint.
+        """단일 파서 진입점을 통해 삭제된 경로 페이로드 텍스트를 구문 분석합니다.
 
         Returns:
-            Parsed payload details, otherwise `None`.
+            파싱된 페이로드 세부정보, 그렇지 않으면 `None`.
+
         """
         from deepagents_cli.input import parse_pasted_path_payload
 
@@ -1099,14 +1099,15 @@ class ChatInput(Vertical):
     def _parse_dropped_path_payload_with_command_recovery(
         self, text: str, *, allow_leading_path: bool = False
     ) -> tuple[str, ParsedPastedPathPayload | None]:
-        """Parse payload and recover stripped leading slash in command mode.
+        """명령 모드에서 페이로드를 구문 분석하고 제거된 선행 슬래시를 복구합니다.
 
         Args:
-            text: Input text to parse.
-            allow_leading_path: Whether to parse leading path + suffix payloads.
+            text: 구문 분석할 텍스트를 입력합니다.
+            allow_leading_path: 선행 경로 + 접미사 페이로드를 구문 분석할지 여부입니다.
 
         Returns:
-            Tuple of `(candidate_text, parsed_payload)`.
+            `(candidate_text, parsed_payload)`의 튜플입니다.
+
         """
         candidate = text
         parsed = self._parse_dropped_path_payload(
@@ -1135,14 +1136,15 @@ class ChatInput(Vertical):
     def _extract_leading_dropped_path_with_command_recovery(
         self, text: str
     ) -> tuple[str, tuple[Path, int] | None]:
-        """Extract a leading dropped-path token with command-mode recovery.
+        """명령 모드 복구를 사용하여 선행 삭제 경로 토큰을 추출합니다.
 
         Args:
-            text: Input text to parse.
+            text: 구문 분석할 텍스트를 입력합니다.
 
         Returns:
-            Tuple of `(candidate_text, leading_match)`, where `leading_match` is
-            `(path, token_end)` when extraction succeeds, otherwise `None`.
+            `(candidate_text, leading_match)`의 튜플. 여기서 `leading_match`은 추출이 성공하면 `(path,
+            token_end)`이고, 그렇지 않으면 `None`입니다.
+
         """
         from deepagents_cli.input import extract_leading_pasted_file_path
 
@@ -1168,7 +1170,7 @@ class ChatInput(Vertical):
 
     @staticmethod
     def _is_existing_path_payload(text: str) -> bool:
-        """Return whether text is a dropped-path payload for existing files."""
+        """텍스트가 기존 파일에 대한 삭제된 경로 페이로드인지 여부를 반환합니다."""
         if len(text) < 2:  # noqa: PLR2004  # Need at least '/' + one char
             return False
         from deepagents_cli.input import parse_pasted_path_payload
@@ -1176,7 +1178,7 @@ class ChatInput(Vertical):
         return parse_pasted_path_payload(text, allow_leading_path=True) is not None
 
     def _is_dropped_path_payload(self, text: str) -> bool:
-        """Return whether current text looks like a dropped file-path payload."""
+        """현재 텍스트가 삭제된 파일 경로 페이로드처럼 보이는지 여부를 반환합니다."""
         if not text:
             return False
         if self._is_existing_path_payload(text):
@@ -1187,10 +1189,10 @@ class ChatInput(Vertical):
         return False
 
     def _strip_mode_prefix(self) -> None:
-        """Remove the first character (mode trigger) from the text area.
+        """텍스트 영역에서 첫 번째 문자(모드 트리거)를 제거합니다.
 
-        Sets the `_stripping_prefix` guard so the resulting text-change event is
-        not misinterpreted as new input.
+        결과 텍스트 변경 이벤트가 새 입력으로 잘못 해석되지 않도록 `_stripping_prefix` 가드를 설정합니다.
+
         """
         if not self._text_area:
             return
@@ -1210,10 +1212,11 @@ class ChatInput(Vertical):
         self._text_area.move_cursor((row, col))
 
     def _completion_text_and_cursor(self) -> tuple[str, int]:
-        """Return controller-facing text/cursor in completion space.
+        """완료 공간에 컨트롤러 쪽 텍스트/커서를 반환합니다.
 
-        Also updates `_completion_prefix_len` so that subsequent calls to
-        `_completion_index_to_text_index` use the matching offset.
+        또한 `_completion_index_to_text_index`에 대한 후속 호출이 일치하는 오프셋을 사용하도록
+        `_completion_prefix_len`을 업데이트합니다.
+
         """
         if not self._text_area:
             self._completion_prefix_len = 0
@@ -1229,13 +1232,14 @@ class ChatInput(Vertical):
         return text, cursor
 
     def _completion_index_to_text_index(self, index: int) -> int:
-        """Translate completion-space index into text-area index.
+        """완성 공간 인덱스를 텍스트 영역 인덱스로 변환합니다.
 
         Args:
-            index: Cursor/index position in completion space.
+            index: 완성 공간의 커서/인덱스 위치.
 
         Returns:
-            Clamped index in text-area space.
+            텍스트 영역 공간에 고정된 인덱스입니다.
+
         """
         if not self._text_area:
             return 0
@@ -1255,13 +1259,13 @@ class ChatInput(Vertical):
         return max(0, min(mapped, text_len))
 
     def _submit_value(self, value: str) -> None:
-        """Prepend mode prefix, save to history, post message, and reset input.
+        """모드 접두어 추가, 기록에 저장, 메시지 게시 및 입력 재설정.
 
-        This is the single path for all submission flows so the prefix-prepend +
-        history + post + clear + mode-reset logic stays in one place.
+        이는 모든 제출 흐름에 대한 단일 경로이므로 접두사 앞에 추가 + 기록 + 게시 + 지우기 + 모드 재설정 논리가 한 곳에 유지됩니다.
 
         Args:
-            value: The stripped text to submit (without mode prefix).
+            value: 제출할 제거된 텍스트입니다(모드 접두사 제외).
+
         """
         if not value:
             return
@@ -1289,10 +1293,11 @@ class ChatInput(Vertical):
         self.mode = "normal"
 
     def _sync_media_tracker_to_text(self, text: str) -> None:
-        """Keep tracked media aligned with placeholder tokens in input text.
+        """추적된 미디어를 입력 텍스트의 자리 표시자 토큰과 정렬되도록 유지합니다.
 
         Args:
-            text: Current text in the input area.
+            text: 입력 영역의 현재 텍스트입니다.
+
         """
         if not self._image_tracker:
             return
@@ -1312,21 +1317,21 @@ class ChatInput(Vertical):
         self,
         event: ChatTextArea.Typing,  # noqa: ARG002  # Textual event handler signature
     ) -> None:
-        """Relay typing activity to the app as `ChatInput.Typing`."""
+        """타이핑 활동을 앱에 `ChatInput.Typing`로 전달합니다."""
         self.post_message(self.Typing())
 
     def on_chat_text_area_submitted(self, event: ChatTextArea.Submitted) -> None:
-        """Handle text submission.
+        """텍스트 제출을 처리합니다.
 
-        Always posts the Submitted event - the app layer decides whether to
-        process immediately or queue based on agent status.
+        항상 Submitted 이벤트를 게시합니다. 앱 계층은 에이전트 상태에 따라 즉시 처리할지 아니면 대기열에 추가할지 결정합니다.
+
         """
         self._submit_value(event.value)
 
     def on_chat_text_area_history_previous(
         self, event: ChatTextArea.HistoryPrevious
     ) -> None:
-        """Handle history previous request."""
+        """이전 요청 내역을 처리합니다."""
         entry = self._history.get_previous(event.current_text, query=event.current_text)
         if entry is not None and self._text_area:
             mode, display_text = self._history_entry_mode_and_text(entry)
@@ -1342,7 +1347,7 @@ class ChatInput(Vertical):
         self,
         event: ChatTextArea.HistoryNext,  # noqa: ARG002  # Textual event handler signature
     ) -> None:
-        """Handle history next request."""
+        """다음 요청 기록을 처리합니다."""
         entry = self._history.get_next()
         if entry is not None and self._text_area:
             mode, display_text = self._history_entry_mode_and_text(entry)
@@ -1357,24 +1362,24 @@ class ChatInput(Vertical):
             self._text_area._in_history = self._history.in_history
 
     def on_chat_text_area_pasted_paths(self, event: ChatTextArea.PastedPaths) -> None:
-        """Handle paste payloads that resolve to dropped file paths."""
+        """삭제된 파일 경로를 해결하는 붙여넣기 페이로드를 처리합니다."""
         if not self._text_area:
             return
 
         self._insert_pasted_paths(event.raw_text, event.paths)
 
     def handle_external_paste(self, pasted: str) -> bool:
-        """Handle paste text from app-level routing when input is not focused.
+        """입력에 초점이 맞춰지지 않은 경우 앱 수준 라우팅에서 붙여넣은 텍스트를 처리합니다.
 
-        When the text area is mounted, the paste is always consumed: file paths
-        are attached as images, and plain text is inserted directly.
+        텍스트 영역이 마운트되면 붙여넣기가 항상 소비됩니다. 파일 경로는 이미지로 첨부되고 일반 텍스트가 직접 삽입됩니다.
 
         Args:
-            pasted: Raw pasted text payload.
+            pasted: 원시 붙여넣은 텍스트 페이로드입니다.
 
         Returns:
-            `True` when the text area is mounted and the paste was inserted,
-                `False` if the widget is not yet composed.
+            `True` 텍스트 영역이 마운트되고 붙여넣기가 삽입되었을 때,
+                `False` 위젯이 아직 구성되지 않은 경우.
+
         """
         if not self._text_area:
             return False
@@ -1389,18 +1394,17 @@ class ChatInput(Vertical):
         return True
 
     def _apply_inline_dropped_path_replacement(self, text: str) -> bool:
-        """Replace full dropped-path payload text with image placeholders.
+        """전체 삭제 경로 페이로드 텍스트를 이미지 자리 표시자로 바꿉니다.
 
-        Some terminals insert drag-and-drop payloads as plain text rather than
-        dispatching a dedicated paste event. When the current text resolves to
-        one or more file paths and at least one path is an image, rewrite the
-        text inline to `[image N]` placeholders.
+        일부 터미널에서는 전용 붙여넣기 이벤트를 전달하는 대신 드래그 앤 드롭 페이로드를 일반 텍스트로 삽입합니다. 현재 텍스트가 하나 이상의 파일
+        경로로 확인되고 하나 이상의 경로가 이미지인 경우 텍스트를 `[image N]` 자리 표시자에 인라인으로 다시 작성합니다.
 
         Args:
-            text: Current text area content.
+            text: 현재 텍스트 영역 콘텐츠입니다.
 
         Returns:
-            `True` if text was rewritten inline, otherwise `False`.
+            텍스트가 인라인으로 다시 작성된 경우 `True`, 그렇지 않은 경우 `False`.
+
         """
         if not self._text_area:
             return False
@@ -1422,11 +1426,12 @@ class ChatInput(Vertical):
         return True
 
     def _insert_pasted_paths(self, raw_text: str, paths: list[Path]) -> None:
-        """Insert pasted path payload, attaching images when possible.
+        """붙여넣은 경로 페이로드를 삽입하고 가능하면 이미지를 첨부하세요.
 
         Args:
-            raw_text: Original paste payload text.
-            paths: Resolved file paths parsed from the payload.
+            raw_text: 원본 붙여넣기 페이로드 텍스트.
+            paths: 페이로드에서 구문 분석된 파일 경로가 확인되었습니다.
+
         """
         if not self._text_area:
             return
@@ -1445,17 +1450,17 @@ class ChatInput(Vertical):
         *,
         add_trailing_space: bool,
     ) -> tuple[str, bool]:
-        """Build replacement text for dropped paths and attach any images.
+        """삭제된 경로에 대한 대체 텍스트를 작성하고 이미지를 첨부하세요.
 
         Args:
-            raw_text: Original paste payload text.
-            paths: Resolved file paths parsed from the payload.
-            add_trailing_space: Whether to append a trailing space after the
-                last token when paths are separated by spaces.
+            raw_text: 원본 붙여넣기 페이로드 텍스트.
+            paths: 페이로드에서 구문 분석된 파일 경로가 확인되었습니다.
+            add_trailing_space: 경로가 공백으로 구분된 경우 마지막 토큰 뒤에 후행 공백을 추가할지 여부입니다.
 
         Returns:
-            Tuple of `(replacement, attached)` where `attached` indicates whether
-            at least one media attachment (image or video) was created.
+            `(replacement, attached)`의 튜플 여기서 `attached`은 하나 이상의 미디어 첨부 파일(이미지 또는 비디오)이
+            생성되었는지 여부를 나타냅니다.
+
         """
         if not self._image_tracker:
             return raw_text, False
@@ -1511,18 +1516,17 @@ class ChatInput(Vertical):
         return replacement, True
 
     def _replace_submitted_paths_with_images(self, value: str) -> str:
-        """Replace dropped-path payloads in submitted text with image placeholders.
+        """제출된 텍스트의 삭제된 경로 페이로드를 이미지 자리 표시자로 바꿉니다.
 
-        Handles both full-path payloads and leading-path-with-suffix payloads
-        (for example, `'<path>' what is this?`). When command mode previously
-        stripped a leading slash, this method also retries with the slash
-        restored before giving up.
+        전체 경로 페이로드와 접미사가 있는 선행 경로 페이로드(예: `'<path>' what is this?`)를 모두 처리합니다. 명령 모드가
+        이전에 선행 슬래시를 제거한 경우 이 방법은 포기하기 전에 복원된 슬래시로 다시 시도합니다.
 
         Args:
-            value: Stripped submitted text (without mode prefix).
+            value: 제출된 텍스트를 제거했습니다(모드 접두사 없음).
 
         Returns:
-            Submitted text with image placeholders when attachment succeeded.
+            첨부가 성공하면 이미지 자리 표시자와 함께 텍스트가 제출되었습니다.
+
         """
         candidate, parsed = self._parse_dropped_path_payload_with_command_recovery(
             value, allow_leading_path=True
@@ -1560,14 +1564,15 @@ class ChatInput(Vertical):
 
     @staticmethod
     def _history_entry_mode_and_text(entry: str) -> tuple[str, str]:
-        """Return mode and stripped display text for a history entry.
+        """기록 항목에 대한 반환 모드 및 제거된 표시 텍스트입니다.
 
         Args:
-            entry: Raw entry value read from history storage.
+            entry: 기록 저장소에서 읽은 원시 항목 값입니다.
 
         Returns:
-            Tuple of `(mode, display_text)` where mode-trigger prefixes are
-                removed from `display_text`.
+            모드 트리거 접두사가 다음과 같은 `(mode, display_text)`의 튜플
+                `display_text`에서 삭제되었습니다.
+
         """
         for prefix, mode in PREFIX_TO_MODE.items():
             # Small dict; loop is fine. No need to over-engineer right now
@@ -1576,7 +1581,7 @@ class ChatInput(Vertical):
         return "normal", entry
 
     async def on_key(self, event: events.Key) -> None:
-        """Handle key events for completion navigation."""
+        """완료 탐색을 위한 주요 이벤트를 처리합니다."""
         if not self._completion_manager or not self._text_area:
             return
 
@@ -1621,10 +1626,11 @@ class ChatInput(Vertical):
                     self._submit_value(value)
 
     def _get_cursor_offset(self) -> int:
-        """Get the cursor offset as a single integer.
+        """커서 오프셋을 단일 정수로 가져옵니다.
 
         Returns:
-            Cursor position as character offset from start of text.
+            텍스트 시작 부분부터의 문자 오프셋에 따른 커서 위치입니다.
+
         """
         if not self._text_area:
             return 0
@@ -1643,11 +1649,11 @@ class ChatInput(Vertical):
         return offset + min(col, len(lines[row]))
 
     def watch_mode(self, mode: str) -> None:
-        """Post mode changed message and update prompt indicator.
+        """게시 모드가 변경된 메시지와 업데이트 프롬프트 표시기입니다.
 
-        The prompt glyph update is deferred via `call_after_refresh` so that
-        callers which also schedule deferred work (e.g. the completion popup)
-        can coalesce both visual changes into a single refresh.
+        프롬프트 글리프 업데이트는 `call_after_refresh`을 통해 지연되므로 지연된 작업(예: 완료 팝업)을 예약하는 호출자가 두 시각적
+        변경 사항을 단일 새로 고침으로 통합할 수 있습니다.
+
         """
         glyph = MODE_DISPLAY_GLYPHS.get(mode)
         if not glyph and mode != "normal":
@@ -1671,16 +1677,17 @@ class ChatInput(Vertical):
         self.post_message(self.ModeChanged(mode))
 
     def focus_input(self) -> None:
-        """Focus the input field."""
+        """입력 필드에 초점을 맞춥니다."""
         if self._text_area:
             self._text_area.focus()
 
     @property
     def value(self) -> str:
-        """Get the current input value.
+        """현재 입력 값을 가져옵니다.
 
         Returns:
-            Current text in the input field.
+            입력 필드의 현재 텍스트입니다.
+
         """
         if self._text_area:
             return self._text_area.text
@@ -1688,21 +1695,22 @@ class ChatInput(Vertical):
 
     @value.setter
     def value(self, val: str) -> None:
-        """Set the input value."""
+        """입력값을 설정합니다."""
         if self._text_area:
             self._text_area.text = val
 
     @property
     def input_widget(self) -> ChatTextArea | None:
-        """Get the underlying TextArea widget.
+        """기본 TextArea 위젯을 가져옵니다.
 
         Returns:
-            The ChatTextArea widget or None if not mounted.
+            ChatTextArea 위젯 또는 마운트되지 않은 경우 None입니다.
+
         """
         return self._text_area
 
     def set_disabled(self, *, disabled: bool) -> None:
-        """Enable or disable the input widget."""
+        """입력 위젯을 활성화하거나 비활성화합니다."""
         if self._text_area:
             self._text_area.disabled = disabled
             if disabled:
@@ -1711,19 +1719,21 @@ class ChatInput(Vertical):
                     self._completion_manager.reset()
 
     def set_cursor_active(self, *, active: bool) -> None:
-        """Toggle input focus state (e.g., unfocus while agent is working).
+        """입력 포커스 상태를 전환합니다(예: 에이전트가 작업하는 동안 포커스 해제).
 
         Args:
-            active: Whether the input should be focused and accepting input.
+            active: 입력에 집중하고 입력을 수용해야 하는지 여부입니다.
+
         """
         if self._text_area:
             self._text_area.set_app_focus(has_focus=active)
 
     def exit_mode(self) -> bool:
-        """Exit the current input mode (command/shell) back to normal.
+        """현재 입력 모드(명령어/셸)를 종료하고 다시 정상으로 돌아갑니다.
 
         Returns:
-            True if mode was non-normal and has been reset.
+            모드가 비정상이고 재설정된 경우 참입니다.
+
         """
         if self.mode == "normal":
             return False
@@ -1734,10 +1744,11 @@ class ChatInput(Vertical):
         return True
 
     def dismiss_completion(self) -> bool:
-        """Dismiss completion: clear view and reset controller state.
+        """완료 취소: 보기를 지우고 컨트롤러 상태를 재설정합니다.
 
         Returns:
-            True if completion was active and has been dismissed.
+            완료가 활성 상태이고 해제된 경우 True입니다.
+
         """
         if not self._current_suggestions:
             return False
@@ -1755,7 +1766,7 @@ class ChatInput(Vertical):
     def render_completion_suggestions(
         self, suggestions: list[tuple[str, str]], selected_index: int
     ) -> None:
-        """Render completion suggestions in the popup."""
+        """팝업에 렌더링 완료 제안이 표시됩니다."""
         prev_suggestions = self._current_suggestions
         self._current_suggestions = suggestions
         self._current_selected_index = selected_index
@@ -1771,7 +1782,7 @@ class ChatInput(Vertical):
             self._text_area.set_completion_active(active=bool(suggestions))
 
     def clear_completion_suggestions(self) -> None:
-        """Clear/hide the completion popup."""
+        """완료 팝업을 지우거나 숨깁니다."""
         self._current_suggestions = []
         self._current_selected_index = 0
 
@@ -1784,7 +1795,7 @@ class ChatInput(Vertical):
     def on_completion_popup_option_clicked(
         self, event: CompletionPopup.OptionClicked
     ) -> None:
-        """Handle click on a completion option."""
+        """완료 옵션을 클릭하여 처리합니다."""
         if not self._current_suggestions or not self._text_area:
             return
 
@@ -1823,7 +1834,7 @@ class ChatInput(Vertical):
         self._text_area.focus()
 
     def replace_completion_range(self, start: int, end: int, replacement: str) -> None:
-        """Replace text in the input field."""
+        """입력 필드의 텍스트를 바꿉니다."""
         if not self._text_area:
             return
 

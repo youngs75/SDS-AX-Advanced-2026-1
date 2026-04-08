@@ -1,7 +1,6 @@
-"""Render human-approval requests inside the Textual chat UI.
+"""텍스트 채팅 UI 내에서 사람 승인 요청을 렌더링합니다.
 
-The widgets in this module present tool previews, safety warnings, and approval
-choices for the human-in-the-loop flow used by the CLI.
+이 모듈의 위젯은 CLI에서 사용하는 Human-In-The-Loop 흐름에 대한 도구 미리보기, 안전 경고 및 승인 선택 사항을 제공합니다.
 """
 
 from __future__ import annotations
@@ -45,15 +44,12 @@ _WARNING_TEXT_TRUNCATE_LENGTH: int = 220
 
 
 class ApprovalMenu(Container):
-    """Approval menu using standard Textual patterns.
+    """표준 텍스트 패턴을 사용하는 승인 메뉴입니다.
 
-    Key design decisions (following mistral-vibe reference):
-    - Container base class with compose()
-    - BINDINGS for key handling (not on_key)
-    - can_focus_children = False to prevent focus theft
-    - Simple Static widgets for options
-    - Standard message posting
-    - Tool-specific widgets via renderer pattern
+    주요 디자인 결정(mistral-vibe 참조에 따름): - compose()가 포함된 컨테이너 기본 클래스 - 키 처리를 위한
+    BINDINGS(on_key 아님) - can_focus_children = 포커스 도난 방지를 위한 False - 옵션에 대한 간단한 정적 위젯 -
+    표준 메시지 게시 - 렌더러 패턴을 통한 도구별 위젯
+
     """
 
     can_focus = True
@@ -77,14 +73,14 @@ class ApprovalMenu(Container):
     ]
 
     class Decided(Message):
-        """Message sent when user makes a decision."""
+        """사용자가 결정을 내릴 때 전송되는 메시지입니다."""
 
         def __init__(self, decision: dict[str, str]) -> None:
-            """Initialize a Decided message with the user's decision.
+            """사용자의 결정으로 Decided 메시지를 초기화합니다.
 
             Args:
-                decision: Dictionary containing the decision type (e.g., 'approve',
-                    'reject', or 'auto_approve_all').
+                decision: 결정 유형(예: '승인', '거부' 또는 'auto_approve_all')이 포함된 사전입니다.
+
             """
             super().__init__()
             self.decision = decision
@@ -99,16 +95,15 @@ class ApprovalMenu(Container):
         id: str | None = None,  # noqa: A002  # Textual widget constructor uses `id` parameter
         **kwargs: Any,
     ) -> None:
-        """Initialize the ApprovalMenu widget.
+        """ApprovalMenu 위젯을 초기화합니다.
 
         Args:
-            action_requests: A single action request dictionary or a list of action
-                request dictionaries requiring approval. Each dictionary should
-                contain 'name' (tool name) and 'args' (tool arguments).
-            _assistant_id: Optional assistant ID (currently unused, reserved for
-                future use).
-            id: Optional widget ID. Defaults to 'approval-menu'.
-            **kwargs: Additional keyword arguments passed to the Container base class.
+            action_requests: 단일 작업 요청 사전 또는 승인이 필요한 작업 요청 사전 목록입니다. 각 사전에는 'name'(도구 이름)
+                             및 'args'(도구 인수)가 포함되어야 합니다.
+            _assistant_id: 선택적 보조자 ID(현재는 사용되지 않으며 향후 사용을 위해 예약됨).
+            id: 선택적 위젯 ID입니다. 기본값은 '승인 메뉴'입니다.
+            **kwargs: 컨테이너 기본 클래스에 전달되는 추가 키워드 인수입니다.
+
         """
         super().__init__(id=id or "approval-menu", classes="approval-menu", **kwargs)
         # Support both single request (legacy) and list of requests (batch)
@@ -132,14 +127,15 @@ class ApprovalMenu(Container):
         self._security_warnings = self._collect_security_warnings()
 
     def set_future(self, future: asyncio.Future[dict[str, str]]) -> None:
-        """Set the future to resolve when user decides."""
+        """사용자가 결정하면 해결될 미래를 설정합니다."""
         self._future = future
 
     def _check_expandable_command(self) -> bool:
-        """Check if there's a shell command that can be expanded.
+        """확장할 수 있는 쉘 명령이 있는지 확인하세요.
 
         Returns:
-            Whether the single action request is an expandable shell command.
+            단일 작업 요청이 확장 가능한 셸 명령인지 여부입니다.
+
         """
         if len(self._action_requests) != 1:
             return False
@@ -150,16 +146,17 @@ class ApprovalMenu(Container):
         return len(command) > _SHELL_COMMAND_TRUNCATE_LENGTH
 
     def _get_command_display(self, *, expanded: bool) -> Content:
-        """Get the command display content (truncated or full).
+        """명령 표시 내용(잘림 또는 전체)을 가져옵니다.
 
         Args:
-            expanded: Whether to show the full command or truncated version.
+            expanded: 전체 명령을 표시할지 아니면 잘린 버전을 표시할지 여부입니다.
 
         Returns:
-            Styled Content for the command display.
+            명령 표시에 대한 스타일이 지정된 콘텐츠입니다.
 
         Raises:
-            RuntimeError: If called with empty action_requests.
+            RuntimeError: 빈 action_requests로 호출되는 경우.
+
         """
         if not self._action_requests:
             msg = "_get_command_display called with empty action_requests"
@@ -204,13 +201,14 @@ class ApprovalMenu(Container):
         )
 
     def compose(self) -> ComposeResult:
-        """Compose the widget with Static children.
+        """정적 하위 항목으로 위젯을 구성합니다.
 
-        Layout: Tool info first (what's being approved), then options at bottom.
-        For bash/shell, skip tool info since it's already shown in tool call.
+        레이아웃: 먼저 도구 정보(승인 대상), 그 다음 하단에 옵션이 표시됩니다. bash/shell의 경우 도구 호출에 이미 표시되어 있으므로 도구
+        정보를 건너뜁니다.
 
         Yields:
-            Widgets for title, tool info, options, and help text.
+            제목, 도구 정보, 옵션 및 도움말 텍스트에 대한 위젯입니다.
+
         """
         # Title - show count if multiple tools
         count = len(self._action_requests)
@@ -277,7 +275,7 @@ class ApprovalMenu(Container):
         yield Static(help_text, classes="approval-help")
 
     async def on_mount(self) -> None:
-        """Focus self on mount and update tool info."""
+        """마운트 및 업데이트 도구 정보에 집중하세요."""
         if is_ascii_mode():
             colors = theme.get_theme_colors(self)
             self.styles.border = ("ascii", colors.warning)
@@ -288,7 +286,7 @@ class ApprovalMenu(Container):
         self.focus()
 
     async def _update_tool_info(self) -> None:
-        """Mount the tool-specific approval widgets for all tools."""
+        """모든 도구에 대해 도구별 승인 위젯을 탑재합니다."""
         if not self._tool_info_container:
             return
 
@@ -327,7 +325,7 @@ class ApprovalMenu(Container):
             await self._tool_info_container.mount(approval_widget)
 
     def _update_options(self) -> None:
-        """Update option widgets based on selection."""
+        """선택 항목에 따라 옵션 위젯을 업데이트합니다."""
         count = len(self._action_requests)
         if count == 1:
             options = [
@@ -354,39 +352,39 @@ class ApprovalMenu(Container):
                 widget.add_class("approval-option-selected")
 
     def action_move_up(self) -> None:
-        """Move selection up."""
+        """선택 항목을 위로 이동합니다."""
         self._selected = (self._selected - 1) % 3
         self._update_options()
 
     def action_move_down(self) -> None:
-        """Move selection down."""
+        """선택 항목을 아래로 이동합니다."""
         self._selected = (self._selected + 1) % 3
         self._update_options()
 
     def action_select(self) -> None:
-        """Select current option."""
+        """현재 옵션을 선택하세요."""
         self._handle_selection(self._selected)
 
     def action_select_approve(self) -> None:
-        """Select approve option."""
+        """승인 옵션을 선택하세요."""
         self._selected = 0
         self._update_options()
         self._handle_selection(0)
 
     def action_select_auto(self) -> None:
-        """Select auto-approve option."""
+        """자동 승인 옵션을 선택하세요."""
         self._selected = 1
         self._update_options()
         self._handle_selection(1)
 
     def action_select_reject(self) -> None:
-        """Select reject option."""
+        """거부 옵션을 선택하세요."""
         self._selected = 2
         self._update_options()
         self._handle_selection(2)
 
     def action_toggle_expand(self) -> None:
-        """Toggle shell command expansion."""
+        """쉘 명령 확장을 전환합니다."""
         if not self._has_expandable_command or not self._command_widget:
             return
         self._command_expanded = not self._command_expanded
@@ -395,7 +393,7 @@ class ApprovalMenu(Container):
         )
 
     def _handle_selection(self, option: int) -> None:
-        """Handle the selected option."""
+        """선택한 옵션을 처리합니다."""
         decision_map = {
             0: "approve",
             1: "auto_approve_all",
@@ -411,12 +409,13 @@ class ApprovalMenu(Container):
         self.post_message(self.Decided(decision))
 
     def _collect_security_warnings(self) -> list[str]:
-        """Collect warning strings for suspicious Unicode and URL values.
+        """의심스러운 유니코드 및 URL 값에 대한 경고 문자열을 수집합니다.
 
-        Recursively inspects all nested string values in action arguments.
+        작업 인수에 중첩된 모든 문자열 값을 재귀적으로 검사합니다.
 
         Returns:
-            Warning strings for the current action request batch.
+            현재 작업 요청 일괄 처리에 대한 경고 문자열입니다.
+
         """
         warnings: list[str] = []
         for action_request in self._action_requests:
@@ -442,5 +441,5 @@ class ApprovalMenu(Container):
         return warnings
 
     def on_blur(self, event: events.Blur) -> None:  # noqa: ARG002  # Textual event handler signature
-        """Re-focus on blur to keep focus trapped until decision is made."""
+        """결정이 내려질 때까지 초점을 가두기 위해 흐림에 다시 초점을 맞춥니다."""
         self.call_after_refresh(self.focus)

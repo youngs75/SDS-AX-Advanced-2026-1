@@ -1,7 +1,6 @@
-"""Render the heterogeneous chat transcript shown in the Textual UI.
+"""텍스트 UI에 표시된 이기종 채팅 내용을 렌더링합니다.
 
-This module contains the message widgets for user prompts, assistant replies,
-tool calls, diffs, app notices, and related formatting helpers.
+이 모듈에는 사용자 프롬프트, 보조 응답, 도구 호출, 차이점, 앱 알림 및 관련 서식 지정 도우미에 대한 메시지 위젯이 포함되어 있습니다.
 """
 
 from __future__ import annotations
@@ -49,13 +48,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def _show_timestamp_toast(widget: Static | Vertical) -> None:
-    """Show a toast with the message's creation timestamp.
+    """메시지 생성 타임스탬프와 함께 토스트를 표시합니다.
 
-    No-ops silently if the widget is not mounted or has no associated message
-    data in the store.
+    위젯이 마운트되지 않았거나 저장소에 연결된 메시지 데이터가 없는 경우 자동으로 작동하지 않습니다.
 
-    Args:
-        widget: The message widget whose timestamp to display.
+Args:
+        widget: 타임스탬프를 표시할 메시지 위젯입니다.
+
     """
     from datetime import UTC, datetime
 
@@ -75,28 +74,28 @@ def _show_timestamp_toast(widget: Static | Vertical) -> None:
 
 
 class _TimestampClickMixin:
-    """Mixin that shows a timestamp toast on click.
+    """클릭 시 타임스탬프 토스트를 표시하는 믹스인입니다.
 
-    Add to any message widget that should display its creation timestamp when
-    clicked. Widgets needing additional click behavior (e.g. `ToolCallMessage`,
-    `AppMessage`) should override `on_click` and call `_show_timestamp_toast`
-    directly instead.
+    클릭 시 생성 타임스탬프를 표시해야 하는 메시지 위젯에 추가합니다. 추가 클릭 동작이 필요한 위젯(예: `ToolCallMessage`,
+    `AppMessage`)은 `on_click`을 재정의하고 대신 `_show_timestamp_toast`을 직접 호출해야 합니다.
+
     """
 
     def on_click(self, event: Click) -> None:  # noqa: ARG002  # Textual event handler
-        """Show timestamp toast on click."""
+        """클릭 시 타임스탬프 토스트를 표시합니다."""
         _show_timestamp_toast(self)  # type: ignore[arg-type]
 
 
 def _mode_color(mode: str | None, widget_or_app: object | None = None) -> str:
-    """Return the hex color string for a mode, falling back to primary.
+    """모드에 대한 16진수 색상 문자열을 반환하고 기본으로 돌아갑니다.
 
-    Args:
-        mode: Mode name (e.g. `'shell'`, `'command'`) or `None`.
-        widget_or_app: Textual widget or `App` for theme-aware lookup.
+Args:
+        mode: 모드 이름(예: `'shell'`, `'command'`) 또는 `None`.
+        widget_or_app: 테마 인식 조회를 위한 텍스트 위젯 또는 `App`.
 
-    Returns:
-        Color string from the active theme's `ThemeColors`.
+Returns:
+        활성 테마 `ThemeColors`의 색상 문자열입니다.
+
     """
     colors = theme.get_theme_colors(widget_or_app)
     if not mode:
@@ -111,14 +110,15 @@ def _mode_color(mode: str | None, widget_or_app: object | None = None) -> str:
 
 @dataclass(frozen=True, slots=True)
 class FormattedOutput:
-    """Result of formatting tool output for display."""
+    """표시를 위한 서식 지정 도구 출력 결과입니다."""
 
     content: Content
-    """Styled `Content` for the formatted output."""
+    """형식화된 출력을 위해 `Content` 스타일이 지정되었습니다."""
 
     truncation: str | None = None
-    """Description of truncated content (e.g., "10 more lines"), or None if no
-    truncation occurred."""
+    """잘린 내용에 대한 설명(예: "10줄 더") 또는 없는 경우 없음
+    잘림이 발생했습니다.
+    """
 
 
 # Maximum number of tool arguments to display inline
@@ -150,19 +150,20 @@ _TOOLS_WITH_HEADER_INFO: set[str] = {
 
 
 _SUCCESS_EXIT_RE = re.compile(r"\n?\[Command succeeded with exit code 0\]\s*$")
-"""Strip the SDK's `[Command succeeded with exit code 0]` trailer from tool output."""
+"""도구 출력에서 ​​SDK의 `[Command succeeded with exit code 0]` 예고편을 제거합니다."""
 
 
 def _strip_success_exit_line(text: str) -> str:
-    """Remove the `[Command succeeded with exit code 0]` trailer.
+    """`[Command succeeded with exit code 0]` 트레일러를 제거하세요.
 
-    Non-zero exit codes are left intact (they come through `set_error`).
+    0이 아닌 종료 코드는 그대로 유지됩니다(`set_error`을 통해 제공됨).
 
-    Args:
-        text: Raw tool output string.
+Args:
+        text: 원시 도구 출력 문자열입니다.
 
-    Returns:
-        Text with the success exit-code trailer removed, if present.
+Returns:
+        성공 종료 코드 예고편이 있는 텍스트가 제거되었습니다(있는 경우).
+
     """
     return _SUCCESS_EXIT_RE.sub("", text)
 
@@ -172,7 +173,7 @@ def _strip_success_exit_line(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 class UserMessage(_TimestampClickMixin, Static):
-    """Widget displaying a user message."""
+    """사용자 메시지를 표시하는 위젯입니다."""
 
     DEFAULT_CSS = """
     UserMessage {
@@ -185,17 +186,18 @@ class UserMessage(_TimestampClickMixin, Static):
     """
 
     def __init__(self, content: str, **kwargs: Any) -> None:
-        """Initialize a user message.
+        """사용자 메시지를 초기화합니다.
 
-        Args:
-            content: The message content
-            **kwargs: Additional arguments passed to parent
+Args:
+            content: 메시지 내용
+            **kwargs: 부모에게 전달된 추가 인수
+
         """
         super().__init__(**kwargs)
         self._content = content
 
     def on_mount(self) -> None:
-        """Add CSS classes for mode-specific border and ASCII border type."""
+        """모드별 테두리 및 ASCII 테두리 유형에 대한 CSS 클래스를 추가합니다."""
         mode = PREFIX_TO_MODE.get(self._content[:1]) if self._content else None
         if mode:
             self.add_class(f"-mode-{mode}")
@@ -203,10 +205,11 @@ class UserMessage(_TimestampClickMixin, Static):
             self.add_class("-ascii")
 
     def render(self) -> Content:
-        """Render the styled user message.
+        """스타일이 지정된 사용자 메시지를 렌더링합니다.
 
-        Returns:
-            Styled Content with mode prefix and highlighted mentions.
+Returns:
+            모드 접두사와 강조 표시된 언급이 있는 스타일 콘텐츠입니다.
+
         """
         colors = theme.get_theme_colors(self)
         parts: list[str | tuple[str, str]] = []
@@ -256,9 +259,10 @@ class UserMessage(_TimestampClickMixin, Static):
 
 
 class QueuedUserMessage(Static):
-    """Widget displaying a queued (pending) user message in grey.
+    """대기 중인(보류 중인) 사용자 메시지를 회색으로 표시하는 위젯입니다.
 
-    This is an ephemeral widget that gets removed when the message is dequeued.
+    이는 메시지가 대기열에서 제거되면 제거되는 임시 위젯입니다.
+
     """
 
     DEFAULT_CSS = """
@@ -271,28 +275,30 @@ class QueuedUserMessage(Static):
         opacity: 0.6;
     }
     """
-    """Dimmed border + reduced opacity to distinguish queued messages from sent ones."""
+    """희미한 테두리 + 불투명도 감소로 대기열에 있는 메시지와 보낸 메시지를 구분할 수 있습니다."""
 
     def __init__(self, content: str, **kwargs: Any) -> None:
-        """Initialize a queued user message.
+        """대기 중인 사용자 메시지를 초기화합니다.
 
-        Args:
-            content: The message content
-            **kwargs: Additional arguments passed to parent
+Args:
+            content: 메시지 내용
+            **kwargs: 부모에게 전달된 추가 인수
+
         """
         super().__init__(**kwargs)
         self._content = content
 
     def on_mount(self) -> None:
-        """Add ASCII border class when in ASCII mode."""
+        """ASCII 모드에 있을 때 ASCII 테두리 클래스를 추가합니다."""
         if is_ascii_mode():
             self.add_class("-ascii")
 
     def render(self) -> Content:
-        """Render the queued user message (greyed out).
+        """대기 중인 사용자 메시지를 렌더링합니다(회색으로 표시됨).
 
-        Returns:
-            Styled Content with dimmed prefix and body.
+Returns:
+            흐리게 표시된 접두사와 본문이 있는 스타일이 지정된 콘텐츠입니다.
+
         """
         colors = theme.get_theme_colors(self)
         content = self._content
@@ -307,13 +313,14 @@ class QueuedUserMessage(Static):
 
 
 def _strip_frontmatter(text: str) -> str:
-    """Remove YAML frontmatter delimited by `---` markers.
+    """`---` 마커로 구분된 YAML 머리말을 제거합니다.
 
-    Args:
-        text: Raw `SKILL.md` content.
+Args:
+        text: 원시 `SKILL.md` 콘텐츠.
 
-    Returns:
-        Body text with frontmatter removed and leading whitespace stripped.
+Returns:
+        머리말이 제거되고 선행 공백이 제거된 본문 텍스트입니다.
+
     """
     stripped = text.lstrip()
     if not stripped.startswith("---"):
@@ -328,25 +335,22 @@ def _strip_frontmatter(text: str) -> str:
 
 
 class _SkillToggle(Static):
-    """Clickable header/hint area for toggling skill body expansion.
+    """스킬 본체 확장을 전환하기 위한 클릭 가능한 헤더/힌트 영역입니다.
 
-    Referenced by name in `SkillMessage._on_toggle_click`'s `@on(Click)`
-    CSS selector — rename with care.
+    `SkillMessage._on_toggle_click`의 `@on(Click)` CSS 선택기에서 이름으로 참조됩니다. 이름을 신중하게 바꾸세요.
+
     """
 
 
 class SkillMessage(Vertical):
-    """Widget displaying a skill invocation with collapsible body.
+    """접을 수 있는 몸체로 스킬 호출을 표시하는 위젯입니다.
 
-    Shows skill name, source badge, description, and user args as a compact
-    header. The full SKILL.md body (frontmatter stripped) is hidden behind a
-    preview/expand toggle (click or Ctrl+O).  The expanded view renders
-    markdown via Rich's `Markdown` inside a single `Static` widget.
+    스킬 이름, 소스 배지, 설명 및 사용자 인수를 압축 헤더로 표시합니다. 전체 SKILL.md 본문(머리말 제거됨)은 미리보기/확장 토글(클릭 또는
+    Ctrl+O) 뒤에 숨겨져 있습니다.  확장된 보기는 단일 `Static` 위젯 내에서 Rich의 `Markdown`을 통해 마크다운을 렌더링합니다.
 
-    Visibility is driven by a CSS class (`-expanded`) toggled via a Textual
-    reactive `var`. Click handlers are scoped to the header and hint widgets
-    (`_SkillToggle`) so clicks on the rendered markdown body do not trigger
-    expansion toggles (preserving text selection, for instance).
+    가시성은 텍스트 반응형 `var`을 통해 전환되는 CSS 클래스(`-expanded`)에 의해 결정됩니다. 클릭 핸들러의 범위는 헤더 및 힌트
+    위젯(`_SkillToggle`)으로 지정되므로 렌더링된 마크다운 본문을 클릭해도 확장 토글(예: 텍스트 선택 유지)이 트리거되지 않습니다.
+
     """
 
     DEFAULT_CSS = """
@@ -407,15 +411,16 @@ class SkillMessage(Vertical):
         args: str = "",
         **kwargs: Any,
     ) -> None:
-        """Initialize a skill message.
+        """스킬 메시지를 초기화합니다.
 
-        Args:
-            skill_name: Skill identifier.
-            description: Short description of the skill.
-            source: Origin label (e.g., `'built-in'`, `'user'`).
-            body: Full SKILL.md content (frontmatter included).
-            args: User-provided arguments.
-            **kwargs: Additional arguments passed to parent.
+Args:
+            skill_name: 스킬 식별자.
+            description: 스킬에 대한 간략한 설명입니다.
+            source: 원산지 라벨(예: `'built-in'`, `'user'`)
+            body: 전체 SKILL.md 콘텐츠(머리말 포함).
+            args: 사용자가 제공한 인수입니다.
+            **kwargs: 추가 인수가 부모에게 전달되었습니다.
+
         """
         super().__init__(**kwargs)
         self._skill_name = skill_name
@@ -430,10 +435,11 @@ class SkillMessage(Vertical):
         self._md_rendered: bool = False
 
     def compose(self) -> ComposeResult:
-        """Compose the skill message layout.
+        """스킬 메시지 레이아웃을 구성합니다.
 
-        Yields:
-            Widgets for header, description, args, and collapsible body.
+Yields:
+            헤더, 설명, 인수 및 축소 가능한 본문에 대한 위젯입니다.
+
         """
         colors = theme.get_theme_colors()
         source_tag = f" [{self._source}]" if self._source else ""
@@ -461,11 +467,11 @@ class SkillMessage(Vertical):
         yield _SkillToggle("", classes="skill-hint", id="skill-hint")
 
     def on_mount(self) -> None:
-        """Cache widget references, render initial state.
+        """위젯 참조를 캐시하고 초기 상태를 렌더링합니다.
 
-        Ordering matters: widget refs must be cached before `_prepare_body`
-        or `_deferred_expanded` assignment, because either may set
-        `_expanded` which fires `watch__expanded` synchronously.
+        순서 문제: 위젯 참조는 `_prepare_body` 또는 `_deferred_expanded` 할당 전에 캐시되어야 합니다. 둘 중 하나가
+        동기적으로 `watch__expanded`을 실행하는 `_expanded`을 설정할 수 있기 때문입니다.
+
         """
         if is_ascii_mode():
             colors = theme.get_theme_colors(self)
@@ -483,10 +489,11 @@ class SkillMessage(Vertical):
             self._deferred_expanded = False
 
     def _prepare_body(self, body: str) -> None:
-        """Set initial hint text. Full body render is deferred to first expand.
+        """초기 힌트 텍스트를 설정합니다. 전신 렌더링은 먼저 확장될 때까지 연기됩니다.
 
-        Args:
-            body: Stripped markdown body text.
+Args:
+            body: 마크다운 본문 텍스트가 제거되었습니다.
+
         """
         lines = body.split("\n")
         total_lines = len(lines)
@@ -511,10 +518,11 @@ class SkillMessage(Vertical):
             self._expanded = True
 
     def _ensure_md_rendered(self, body: str) -> None:
-        """Render markdown into the Static widget on first call, then no-op.
+        """첫 번째 호출 시 정적 위젯에 마크다운을 렌더링한 다음 작동하지 않습니다.
 
-        Args:
-            body: Stripped markdown body text.
+Args:
+            body: 마크다운 본문 텍스트가 제거되었습니다.
+
         """
         if self._md_rendered or not self._md_widget:
             return
@@ -531,13 +539,13 @@ class SkillMessage(Vertical):
         self._md_rendered = True
 
     def toggle_body(self) -> None:
-        """Toggle between preview and full body display."""
+        """미리보기와 전신 표시 사이를 전환합니다."""
         if not self._stripped_body.strip():
             return
         self._expanded = not self._expanded
 
     def watch__expanded(self, expanded: bool) -> None:
-        """Lazy-render markdown on first expand; update hint text."""
+        """첫 번째 확장 시 지연 렌더링 가격 인하; 힌트 텍스트를 업데이트하세요."""
         body = self._stripped_body.strip()
         if not body:
             return
@@ -575,7 +583,7 @@ class SkillMessage(Vertical):
 
     @on(Click, "_SkillToggle")
     def _on_toggle_click(self, event: Click) -> None:
-        """Toggle expansion when header or hint is clicked."""
+        """헤더나 힌트를 클릭하면 확장이 전환됩니다."""
         event.stop()
         if self._stripped_body.strip():
             self.toggle_body()
@@ -588,10 +596,10 @@ class SkillMessage(Vertical):
 # ---------------------------------------------------------------------------
 
 class AssistantMessage(_TimestampClickMixin, Vertical):
-    """Widget displaying an assistant message with markdown support.
+    """마크다운을 지원하는 보조 메시지를 표시하는 위젯입니다.
 
-    Uses MarkdownStream for smoother streaming instead of re-rendering
-    the full content on each update.
+    각 업데이트에서 전체 콘텐츠를 다시 렌더링하는 대신 보다 원활한 스트리밍을 위해 MarkdownStream을 사용합니다.
+
     """
 
     DEFAULT_CSS = """
@@ -608,11 +616,12 @@ class AssistantMessage(_TimestampClickMixin, Vertical):
     """
 
     def __init__(self, content: str = "", **kwargs: Any) -> None:
-        """Initialize an assistant message.
+        """보조 메시지를 초기화합니다.
 
-        Args:
-            content: Initial markdown content
-            **kwargs: Additional arguments passed to parent
+Args:
+            content: 초기 마크다운 콘텐츠
+            **kwargs: 부모에게 전달된 추가 인수
+
         """
         super().__init__(**kwargs)
         self._content = content
@@ -620,26 +629,28 @@ class AssistantMessage(_TimestampClickMixin, Vertical):
         self._stream: MarkdownStream | None = None
 
     def compose(self) -> ComposeResult:  # noqa: PLR6301  # Textual widget method convention
-        """Compose the assistant message layout.
+        """보조자 메시지 레이아웃을 구성합니다.
 
-        Yields:
-            Markdown widget for rendering assistant content.
+Yields:
+            어시스턴트 콘텐츠 렌더링을 위한 마크다운 위젯.
+
         """
         from textual.widgets import Markdown
 
         yield Markdown("", id="assistant-content")
 
     def on_mount(self) -> None:
-        """Store reference to markdown widget."""
+        """마크다운 위젯에 대한 참조를 저장합니다."""
         from textual.widgets import Markdown
 
         self._markdown = self.query_one("#assistant-content", Markdown)
 
     def _get_markdown(self) -> Markdown:
-        """Get the markdown widget, querying if not cached.
+        """캐시되지 않은 경우 쿼리하여 마크다운 위젯을 가져옵니다.
 
-        Returns:
-            The Markdown widget for this message.
+Returns:
+            이 메시지에 대한 마크다운 위젯입니다.
+
         """
         if self._markdown is None:
             from textual.widgets import Markdown
@@ -648,10 +659,11 @@ class AssistantMessage(_TimestampClickMixin, Vertical):
         return self._markdown
 
     def _ensure_stream(self) -> MarkdownStream:
-        """Ensure the markdown stream is initialized.
+        """마크다운 스트림이 초기화되었는지 확인하세요.
 
-        Returns:
-            The MarkdownStream instance for streaming content.
+Returns:
+            콘텐츠 스트리밍을 위한 MarkdownStream 인스턴스입니다.
+
         """
         if self._stream is None:
             from textual.widgets import Markdown
@@ -660,13 +672,13 @@ class AssistantMessage(_TimestampClickMixin, Vertical):
         return self._stream
 
     async def append_content(self, text: str) -> None:
-        """Append content to the message (for streaming).
+        """메시지에 콘텐츠를 추가합니다(스트리밍용).
 
-        Uses MarkdownStream for smoother rendering instead of re-rendering
-        the full content on each chunk.
+        각 청크의 전체 콘텐츠를 다시 렌더링하는 대신 더 부드러운 렌더링을 위해 MarkdownStream을 사용합니다.
 
-        Args:
-            text: Text to append
+Args:
+            text: 추가할 텍스트
+
         """
         if not text:
             return
@@ -675,24 +687,25 @@ class AssistantMessage(_TimestampClickMixin, Vertical):
         await stream.write(text)
 
     async def write_initial_content(self) -> None:
-        """Write initial content if provided at construction time."""
+        """구축 시 제공되는 경우 초기 콘텐츠를 작성합니다."""
         if self._content:
             stream = self._ensure_stream()
             await stream.write(self._content)
 
     async def stop_stream(self) -> None:
-        """Stop the streaming and finalize the content."""
+        """스트리밍을 중지하고 콘텐츠를 마무리하세요."""
         if self._stream is not None:
             await self._stream.stop()
             self._stream = None
 
     async def set_content(self, content: str) -> None:
-        """Set the full message content.
+        """전체 메시지 내용을 설정합니다.
 
-        This stops any active stream and sets content directly.
+        이렇게 하면 활성 스트림이 중지되고 콘텐츠가 직접 설정됩니다.
 
-        Args:
-            content: The markdown content to display
+Args:
+            content: 표시할 마크다운 콘텐츠
+
         """
         await self.stop_stream()
         self._content = content
@@ -701,11 +714,11 @@ class AssistantMessage(_TimestampClickMixin, Vertical):
 
 
 class ToolCallMessage(Vertical):
-    """Widget displaying a tool call with collapsible output.
+    """축소 가능한 출력으로 도구 호출을 표시하는 위젯입니다.
 
-    Tool outputs are shown as a 3-line preview by default.
-    Press Ctrl+O to expand/collapse the full output.
-    Shows an animated "Running..." indicator while the tool is executing.
+    도구 출력은 기본적으로 3줄 미리보기로 표시됩니다. 전체 출력을 확장/축소하려면 Ctrl+O를 누르세요. 도구가 실행되는 동안 애니메이션 "실행
+    중..." 표시기를 표시합니다.
+
     """
 
     DEFAULT_CSS = """
@@ -775,7 +788,7 @@ class ToolCallMessage(Vertical):
         border-left: wide $tool-hover;
     }
     """
-    """Left border tracks tool lifecycle; hover brightens for interactivity."""
+    """왼쪽 테두리는 도구 수명주기를 추적합니다. 호버는 상호 작용을 위해 밝아집니다."""
 
     # Max lines/chars to show in preview mode
     _PREVIEW_LINES = 6
@@ -787,12 +800,13 @@ class ToolCallMessage(Vertical):
         args: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
-        """Initialize a tool call message.
+        """도구 호출 메시지를 초기화합니다.
 
-        Args:
-            tool_name: Name of the tool being called
-            args: Tool arguments (optional)
-            **kwargs: Additional arguments passed to parent
+Args:
+            tool_name: 호출되는 도구의 이름
+            args: 도구 인수(선택 사항)
+            **kwargs: 부모에게 전달된 추가 인수
+
         """
         super().__init__(**kwargs)
         self._tool_name = tool_name
@@ -815,10 +829,11 @@ class ToolCallMessage(Vertical):
         self._deferred_expanded: bool = False
 
     def compose(self) -> ComposeResult:
-        """Compose the tool call message layout.
+        """도구 호출 메시지 레이아웃을 구성합니다.
 
-        Yields:
-            Widgets for header, arguments, status, and output display.
+Yields:
+            헤더, 인수, 상태 및 출력 표시용 위젯입니다.
+
         """
         tool_label = format_tool_display(self._tool_name, self._args)
         yield Static(tool_label, markup=False, classes="tool-header")
@@ -854,7 +869,7 @@ class ToolCallMessage(Vertical):
         yield Static("", classes="tool-output-hint", id="output-hint")
 
     def on_mount(self) -> None:
-        """Cache widget references and hide all status/output areas initially."""
+        """처음에는 위젯 참조를 캐시하고 모든 상태/출력 영역을 숨깁니다."""
         if is_ascii_mode():
             self.add_class("-ascii")
 
@@ -872,7 +887,7 @@ class ToolCallMessage(Vertical):
         self._restore_deferred_state()
 
     def _restore_deferred_state(self) -> None:
-        """Restore state from deferred values (used when hydrating from data)."""
+        """지연된 값에서 상태를 복원합니다(데이터를 하이드레이션할 때 사용됨)."""
         if self._deferred_status is None:
             return
 
@@ -934,9 +949,10 @@ class ToolCallMessage(Vertical):
                 pass
 
     def set_running(self) -> None:
-        """Mark the tool as running (approved and executing).
+        """도구를 실행 중(승인 및 실행 중)으로 표시합니다.
 
-        Call this when approval is granted to start the running animation.
+        실행 중인 애니메이션을 시작하기 위해 승인이 부여되면 이를 호출합니다.
+
         """
         if self._status == "running":
             return  # Already running
@@ -950,7 +966,7 @@ class ToolCallMessage(Vertical):
         self._animation_timer = self.set_interval(0.1, self._update_running_animation)
 
     def _update_running_animation(self) -> None:
-        """Update the running spinner animation."""
+        """실행 중인 스피너 애니메이션을 업데이트합니다."""
         if self._status != "running" or self._status_widget is None:
             return
 
@@ -969,16 +985,17 @@ class ToolCallMessage(Vertical):
         )
 
     def _stop_animation(self) -> None:
-        """Stop the running animation."""
+        """실행 중인 애니메이션을 중지합니다."""
         if self._animation_timer is not None:
             self._animation_timer.stop()
             self._animation_timer = None
 
     def set_success(self, result: str = "") -> None:
-        """Mark the tool call as successful.
+        """도구 호출을 성공으로 표시합니다.
 
-        Args:
-            result: Tool output/result to display
+Args:
+            result: 도구 출력/표시할 결과
+
         """
         self._stop_animation()
         self._status = "success"
@@ -991,10 +1008,11 @@ class ToolCallMessage(Vertical):
         self._update_output_display()
 
     def set_error(self, error: str) -> None:
-        """Mark the tool call as failed.
+        """도구 호출을 실패로 표시합니다.
 
-        Args:
-            error: Error message
+Args:
+            error: 오류 메시지
+
         """
         self._stop_animation()
         self._status = "error"
@@ -1022,7 +1040,7 @@ class ToolCallMessage(Vertical):
         self._update_output_display()
 
     def set_rejected(self) -> None:
-        """Mark the tool call as rejected by user."""
+        """사용자가 도구 호출을 거부한 것으로 표시합니다."""
         self._stop_animation()
         self._status = "rejected"
         if self._status_widget:
@@ -1035,7 +1053,7 @@ class ToolCallMessage(Vertical):
             self._status_widget.display = True
 
     def set_skipped(self) -> None:
-        """Mark the tool call as skipped (due to another rejection)."""
+        """도구 호출을 건너뛴 것으로 표시합니다(다른 거부로 인해)."""
         self._stop_animation()
         self._status = "skipped"
         if self._status_widget:
@@ -1045,14 +1063,14 @@ class ToolCallMessage(Vertical):
             self._status_widget.display = True
 
     def toggle_output(self) -> None:
-        """Toggle between preview and full output display."""
+        """미리보기와 전체 출력 표시 사이를 전환합니다."""
         if not self._output:
             return
         self._expanded = not self._expanded
         self._update_output_display()
 
     def on_click(self, event: Click) -> None:
-        """Toggle output expansion, or show timestamp if no output."""
+        """출력 확장을 전환하거나 출력이 없는 경우 타임스탬프를 표시합니다."""
         event.stop()  # Prevent click from bubbling up and scrolling
         if self._output:
             self.toggle_output()
@@ -1062,14 +1080,15 @@ class ToolCallMessage(Vertical):
     def _format_output(
         self, output: str, *, is_preview: bool = False
     ) -> FormattedOutput:
-        """Format tool output based on tool type for nicer display.
+        """더 나은 표시를 위해 도구 유형에 따라 도구 출력 형식을 지정합니다.
 
-        Args:
-            output: Raw output string
-            is_preview: Whether this is for preview (truncated) display
+Args:
+            output: 원시 출력 문자열
+            is_preview: 미리보기(잘림) 표시용인지 여부
 
-        Returns:
-            FormattedOutput with content and optional truncation info.
+Returns:
+            콘텐츠 및 선택적 잘림 정보가 포함된 FormattedOutput입니다.
+
         """
         output = output.strip()
         if not output:
@@ -1112,14 +1131,15 @@ class ToolCallMessage(Vertical):
         return FormattedOutput(content=Content(output))
 
     def _prefix_output(self, content: Content) -> Content:  # noqa: PLR6301  # Grouped as method for widget cohesion
-        """Prefix output with output marker and indent continuation lines.
+        """출력 표시자와 들여쓰기 연속 줄이 있는 출력 접두사.
 
-        Args:
-            content: The styled output content to prefix and indent.
+Args:
+            content: 접두어와 들여쓰기를 적용한 스타일이 지정된 출력 콘텐츠입니다.
 
-        Returns:
-            `Content` with output prefix on first line and indented
-                continuation.
+Returns:
+            `Content` 첫 번째 줄에 출력 접두사가 있고 들여쓰기됨
+                계속.
+
         """
         if not content.plain:
             return Content("")
@@ -1132,10 +1152,11 @@ class ToolCallMessage(Vertical):
     def _format_todos_output(
         self, output: str, *, is_preview: bool = False
     ) -> FormattedOutput:
-        """Format write_todos output as a checklist.
+        """write_todos 출력 형식을 체크리스트로 지정합니다.
 
-        Returns:
-            FormattedOutput with checklist content and optional truncation info.
+Returns:
+            체크리스트 콘텐츠와 선택적 잘림 정보가 포함된 FormattedOutput입니다.
+
         """
         items = self._parse_todo_items(output)
         if items is None:
@@ -1162,10 +1183,11 @@ class ToolCallMessage(Vertical):
         return FormattedOutput(content=Content("\n").join(lines), truncation=truncation)
 
     def _parse_todo_items(self, output: str) -> list | None:  # noqa: PLR6301  # Grouped as method for widget cohesion
-        """Parse todo items from output.
+        """출력에서 할 일 항목을 구문 분석합니다.
 
-        Returns:
-            List of todo items, or None if parsing fails.
+Returns:
+            할 일 항목 목록 또는 구문 분석이 실패하면 없음입니다.
+
         """
         list_match = re.search(r"\[(\{.*\})\]", output.replace("\n", " "), re.DOTALL)
         if list_match:
@@ -1180,10 +1202,11 @@ class ToolCallMessage(Vertical):
             return None
 
     def _build_todo_stats(self, items: list) -> Content:
-        """Build stats content for todo list.
+        """할 일 목록에 대한 통계 콘텐츠를 구축합니다.
 
-        Returns:
-            Styled `Content` showing active, pending, and completed counts.
+Returns:
+            활성, 대기 중, 완료된 개수를 표시하는 `Content` 스타일입니다.
+
         """
         colors = theme.get_theme_colors(self)
         completed = sum(
@@ -1204,10 +1227,11 @@ class ToolCallMessage(Vertical):
         return Content.styled(" | ", "dim").join(parts) if parts else Content("")
 
     def _format_single_todo(self, item: dict | str) -> Content:
-        """Format a single todo item.
+        """단일 할 일 항목의 형식을 지정합니다.
 
-        Returns:
-            Styled `Content` with checkbox and status styling.
+Returns:
+            체크박스와 상태 스타일을 사용하여 `Content` 스타일을 지정했습니다.
+
         """
         colors = theme.get_theme_colors(self)
         if isinstance(item, dict):
@@ -1239,10 +1263,11 @@ class ToolCallMessage(Vertical):
     def _format_ls_output(  # noqa: PLR6301  # Grouped as method for widget cohesion
         self, output: str, *, is_preview: bool = False
     ) -> FormattedOutput:
-        """Format ls output as a clean directory listing.
+        """ls 출력을 깨끗한 디렉터리 목록으로 형식화합니다.
 
-        Returns:
-            FormattedOutput with directory listing and optional truncation info.
+Returns:
+            디렉터리 목록과 선택적 잘림 정보가 포함된 FormattedOutput입니다.
+
         """
         # Try to parse as a Python list (common format)
         try:
@@ -1278,10 +1303,11 @@ class ToolCallMessage(Vertical):
     def _format_file_output(  # noqa: PLR6301  # Grouped as method for widget cohesion
         self, output: str, *, is_preview: bool = False
     ) -> FormattedOutput:
-        """Format file read/write output.
+        """파일 읽기/쓰기 출력 형식을 지정합니다.
 
-        Returns:
-            FormattedOutput with file content and optional truncation info.
+Returns:
+            파일 콘텐츠와 선택적 잘림 정보가 포함된 FormattedOutput입니다.
+
         """
         lines = output.split("\n")
         max_lines = 4 if is_preview else len(lines)
@@ -1298,10 +1324,11 @@ class ToolCallMessage(Vertical):
     def _format_search_output(  # noqa: PLR6301  # Grouped as method for widget cohesion
         self, output: str, *, is_preview: bool = False
     ) -> FormattedOutput:
-        """Format grep/glob search output.
+        """grep/glob 검색 출력 형식을 지정합니다.
 
-        Returns:
-            FormattedOutput with search results and optional truncation info.
+Returns:
+            검색 결과 및 선택적 잘림 정보가 포함된 FormattedOutput입니다.
+
         """
         # Try to parse as a Python list (glob returns list of paths)
         try:
@@ -1348,10 +1375,11 @@ class ToolCallMessage(Vertical):
     def _format_shell_output(  # noqa: PLR6301  # Grouped as method for widget cohesion
         self, output: str, *, is_preview: bool = False
     ) -> FormattedOutput:
-        """Format shell command output.
+        """쉘 명령 출력 형식을 지정합니다.
 
-        Returns:
-            FormattedOutput with shell output and optional truncation info.
+Returns:
+            셸 출력 및 선택적 잘림 정보가 포함된 FormattedOutput입니다.
+
         """
         lines = output.split("\n")
         max_lines = 4 if is_preview else len(lines)
@@ -1374,10 +1402,11 @@ class ToolCallMessage(Vertical):
     def _format_web_output(
         self, output: str, *, is_preview: bool = False
     ) -> FormattedOutput:
-        """Format web_search/fetch_url output.
+        """web_search/fetch_url 출력 형식을 지정합니다.
 
-        Returns:
-            FormattedOutput with web response and optional truncation info.
+Returns:
+            웹 응답 및 선택적 잘림 정보가 포함된 FormattedOutput입니다.
+
         """
         data = self._try_parse_web_data(output)
         if isinstance(data, dict):
@@ -1388,10 +1417,11 @@ class ToolCallMessage(Vertical):
 
     @staticmethod
     def _try_parse_web_data(output: str) -> dict | None:
-        """Try to parse web output as JSON or dict.
+        """웹 출력을 JSON 또는 dict로 구문 분석해 보세요.
 
-        Returns:
-            Parsed dict if successful, None otherwise.
+Returns:
+            성공하면 구문 분석된 dict이고, 그렇지 않으면 None입니다.
+
         """
         try:
             if output.strip().startswith("{"):
@@ -1401,10 +1431,11 @@ class ToolCallMessage(Vertical):
             return None
 
     def _format_web_dict(self, data: dict, *, is_preview: bool) -> FormattedOutput:
-        """Format a parsed web response dict.
+        """구문 분석된 웹 응답 사전의 형식을 지정합니다.
 
-        Returns:
-            FormattedOutput with web response content and optional truncation info.
+Returns:
+            웹 응답 콘텐츠와 선택적 잘림 정보가 포함된 FormattedOutput입니다.
+
         """
         # Handle web_search results
         if "results" in data:
@@ -1436,10 +1467,11 @@ class ToolCallMessage(Vertical):
     def _format_web_search_results(  # noqa: PLR6301  # Grouped as method for widget cohesion
         self, results: list, *, is_preview: bool
     ) -> FormattedOutput:
-        """Format web search results.
+        """웹 검색 결과의 형식을 지정합니다.
 
-        Returns:
-            FormattedOutput with search results and optional truncation info.
+Returns:
+            검색 결과 및 선택적 잘림 정보가 포함된 FormattedOutput입니다.
+
         """
         if not results:
             return FormattedOutput(content=Content.styled("No results", "dim"))
@@ -1462,10 +1494,11 @@ class ToolCallMessage(Vertical):
     def _format_lines_output(  # noqa: PLR6301  # Grouped as method for widget cohesion
         self, lines: list[str], *, is_preview: bool
     ) -> FormattedOutput:
-        """Format a list of lines with optional preview truncation.
+        """선택적 미리보기 잘림을 사용하여 행 목록의 형식을 지정합니다.
 
-        Returns:
-            FormattedOutput with lines content and optional truncation info.
+Returns:
+            줄 내용과 선택적 잘림 정보가 포함된 FormattedOutput입니다.
+
         """
         max_lines = 4 if is_preview else len(lines)
         parts = [Content(line) for line in lines[:max_lines]]
@@ -1478,10 +1511,11 @@ class ToolCallMessage(Vertical):
     def _format_task_output(  # noqa: PLR6301  # Grouped as method for widget cohesion
         self, output: str, *, is_preview: bool = False
     ) -> FormattedOutput:
-        """Format task (subagent) output.
+        """작업(하위 에이전트) 출력 형식을 지정합니다.
 
-        Returns:
-            FormattedOutput with task output and optional truncation info.
+Returns:
+            작업 출력 및 선택적 잘림 정보가 포함된 FormattedOutput입니다.
+
         """
         lines = output.split("\n")
         max_lines = 4 if is_preview else len(lines)
@@ -1496,7 +1530,7 @@ class ToolCallMessage(Vertical):
         return FormattedOutput(content=content, truncation=truncation)
 
     def _update_output_display(self) -> None:
-        """Update the output display based on expanded state."""
+        """확장된 상태에 따라 출력 표시를 업데이트합니다."""
         # Guard: all widgets must be initialized before updating display state
         if (
             not self._output
@@ -1561,18 +1595,20 @@ class ToolCallMessage(Vertical):
 
     @property
     def has_output(self) -> bool:
-        """Check if this tool message has output to display.
+        """이 도구 메시지에 표시할 출력이 있는지 확인하세요.
 
-        Returns:
-            True if there is output content, False otherwise.
+Returns:
+            출력 내용이 있으면 True, 그렇지 않으면 False입니다.
+
         """
         return bool(self._output)
 
     def _filtered_args(self) -> dict[str, Any]:
-        """Filter large tool args for display.
+        """표시할 대형 도구 인수를 필터링합니다.
 
-        Returns:
-            Filtered args dict with only display-relevant keys for write/edit tools.
+Returns:
+            쓰기/편집 도구에 대한 표시 관련 키만 포함된 필터링된 인수 dict입니다.
+
         """
         if self._tool_name not in {"write_file", "edit_file"}:
             return self._args
@@ -1589,7 +1625,7 @@ class ToolCallMessage(Vertical):
 # ---------------------------------------------------------------------------
 
 class DiffMessage(_TimestampClickMixin, Static):
-    """Widget displaying a diff with syntax highlighting."""
+    """구문 강조를 통해 차이점을 표시하는 위젯입니다."""
 
     DEFAULT_CSS = """
     DiffMessage {
@@ -1624,25 +1660,27 @@ class DiffMessage(_TimestampClickMixin, Static):
         text-style: bold;
     }
     """
-    """Diff syntax coloring per theme: additions, removals, muted context."""
+    """테마별 Diff 구문 색상 지정: 추가, 제거, 음소거된 컨텍스트."""
 
     def __init__(self, diff_content: str, file_path: str = "", **kwargs: Any) -> None:
-        """Initialize a diff message.
+        """diff 메시지를 초기화합니다.
 
-        Args:
-            diff_content: The unified diff content
-            file_path: Path to the file being modified
-            **kwargs: Additional arguments passed to parent
+Args:
+            diff_content: 통합된 차이점 콘텐츠
+            file_path: 수정 중인 파일의 경로
+            **kwargs: 부모에게 전달된 추가 인수
+
         """
         super().__init__(**kwargs)
         self._diff_content = diff_content
         self._file_path = file_path
 
     def compose(self) -> ComposeResult:
-        """Compose the diff message layout.
+        """diff 메시지 레이아웃을 구성합니다.
 
-        Yields:
-            Widgets displaying the diff header and formatted content.
+Yields:
+            diff 헤더와 형식이 지정된 콘텐츠를 표시하는 위젯입니다.
+
         """
         if self._file_path:
             yield Static(
@@ -1654,14 +1692,14 @@ class DiffMessage(_TimestampClickMixin, Static):
         yield from compose_diff_lines(self._diff_content, max_lines=100)
 
     def on_mount(self) -> None:
-        """Set border style based on charset mode."""
+        """문자셋 모드에 따라 테두리 스타일을 설정합니다."""
         if is_ascii_mode():
             colors = theme.get_theme_colors(self)
             self.styles.border = ("ascii", colors.primary)
 
 
 class ErrorMessage(_TimestampClickMixin, Static):
-    """Widget displaying an error message."""
+    """오류 메시지를 표시하는 위젯입니다."""
 
     DEFAULT_CSS = """
     ErrorMessage {
@@ -1673,24 +1711,26 @@ class ErrorMessage(_TimestampClickMixin, Static):
         border-left: wide $error;
     }
     """
-    """Tinted background + left border to visually separate errors from output."""
+    """색상이 지정된 배경 + 왼쪽 테두리로 출력에서 ​​오류를 시각적으로 구분합니다."""
 
     def __init__(self, error: str, **kwargs: Any) -> None:
-        """Initialize an error message.
+        """오류 메시지를 초기화합니다.
 
-        Args:
-            error: The error message
-            **kwargs: Additional arguments passed to parent
+Args:
+            error: 오류 메시지
+            **kwargs: 부모에게 전달된 추가 인수
+
         """
         # Store raw content for serialization
         self._content = error
         super().__init__(**kwargs)
 
     def render(self) -> Content:
-        """Render with theme-aware colors.
+        """테마 인식 색상으로 렌더링합니다.
 
-        Returns:
-            Styled error content with theme-appropriate color.
+Returns:
+            테마에 적합한 색상으로 오류 콘텐츠 스타일을 지정했습니다.
+
         """
         colors = theme.get_theme_colors(self)
         return Content.assemble(
@@ -1699,14 +1739,14 @@ class ErrorMessage(_TimestampClickMixin, Static):
         )
 
     def on_mount(self) -> None:
-        """Set border style based on charset mode."""
+        """문자셋 모드에 따라 테두리 스타일을 설정합니다."""
         if is_ascii_mode():
             colors = theme.get_theme_colors(self)
             self.styles.border_left = ("ascii", colors.error)
 
 
 class AppMessage(Static):
-    """Widget displaying an app message."""
+    """앱 메시지를 표시하는 위젯입니다."""
 
     # Disable Textual's auto_links to prevent a flicker cycle: Style.__add__
     # calls .copy() for linked styles, generating a fresh random _link_id on
@@ -1725,11 +1765,12 @@ class AppMessage(Static):
     """
 
     def __init__(self, message: str | Content, **kwargs: Any) -> None:
-        """Initialize a system message.
+        """시스템 메시지를 초기화합니다.
 
-        Args:
-            message: The system message as a string or pre-styled `Content`.
-            **kwargs: Additional arguments passed to parent
+Args:
+            message: 문자열 또는 미리 스타일이 지정된 `Content` 형식의 시스템 메시지입니다.
+            **kwargs: 부모에게 전달된 추가 인수
+
         """
         # Store raw content for serialization
         self._content = message
@@ -1741,13 +1782,13 @@ class AppMessage(Static):
         super().__init__(rendered, **kwargs)
 
     def on_click(self, event: Click) -> None:
-        """Open style-embedded hyperlinks on single click and show timestamp."""
+        """한 번의 클릭으로 스타일이 포함된 하이퍼링크를 열고 타임스탬프를 표시합니다."""
         open_style_link(event)
         _show_timestamp_toast(self)
 
 
 class SummarizationMessage(AppMessage):
-    """Widget displaying a summarization completion notification."""
+    """요약 완료 알림을 표시하는 위젯입니다."""
 
     DEFAULT_CSS = """
     SummarizationMessage {
@@ -1762,14 +1803,14 @@ class SummarizationMessage(AppMessage):
     """
 
     def __init__(self, message: str | Content | None = None, **kwargs: Any) -> None:
-        """Initialize a summarization notification message.
+        """요약 알림 메시지를 초기화합니다.
 
-        Args:
-            message: Optional message override used when rehydrating from the
-                message store.
+Args:
+            message: 메시지 저장소에서 복원할 때 사용되는 선택적 메시지 재정의.
 
-                Defaults to the standard summary notification.
-            **kwargs: Additional arguments passed to parent.
+                표준 요약 알림이 기본값입니다.
+            **kwargs: 추가 인수가 부모에게 전달되었습니다.
+
         """
         self._raw_message = message
         # Pass the default text to AppMessage for _content serialization;
@@ -1777,10 +1818,11 @@ class SummarizationMessage(AppMessage):
         super().__init__(message or "✓ Conversation offloaded", **kwargs)
 
     def render(self) -> Content:
-        """Render with theme-aware colors.
+        """테마 인식 색상으로 렌더링합니다.
 
-        Returns:
-            Styled summarization content with theme-appropriate color.
+Returns:
+            테마에 적합한 색상으로 스타일이 지정된 요약 콘텐츠입니다.
+
         """
         colors = theme.get_theme_colors(self)
         if self._raw_message is None:

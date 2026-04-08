@@ -1,7 +1,6 @@
-"""Persist and navigate chat input history.
+"""채팅 입력 기록을 유지하고 탐색합니다.
 
-The history manager keeps a small append-only command log on disk and exposes
-filtered previous/next navigation tailored to the chat input widget.
+히스토리 관리자는 디스크에 작은 추가 전용 명령 로그를 유지하고 채팅 입력 위젯에 맞춰 필터링된 이전/다음 탐색을 표시합니다.
 """
 
 from __future__ import annotations
@@ -17,18 +16,17 @@ logger = logging.getLogger(__name__)
 
 
 class HistoryManager:
-    """Manages command history with file persistence.
+    """파일 영속성을 통해 명령 히스토리을 관리합니다.
 
-    Uses append-only writes for concurrent safety. Multiple agents can
-    safely write to the same history file without corruption.
+        동시 안전을 위해 추가 전용 쓰기를 사용합니다. 여러 에이전트가 손상 없이 동일한 기록 파일에 안전하게 쓸 수 있습니다.
     """
 
     def __init__(self, history_file: Path, max_entries: int = 100) -> None:
-        """Initialize the history manager.
+        """히스토리 관리자를 초기화합니다.
 
         Args:
-            history_file: Path to the JSON-lines history file
-            max_entries: Maximum number of entries to keep
+                    history_file: JSON-lines 기록 파일 경로
+                    max_entries: 보관할 최대 항목 수
         """
         self.history_file = history_file
         self.max_entries = max_entries
@@ -39,7 +37,7 @@ class HistoryManager:
         self._load_history()
 
     def _load_history(self) -> None:
-        """Load history from file."""
+        """파일에서 기록을 로드합니다."""
         if not self.history_file.exists():
             return
 
@@ -65,7 +63,7 @@ class HistoryManager:
             self._entries = []
 
     def _append_to_file(self, text: str) -> None:
-        """Append a single entry to history file (concurrent-safe)."""
+        """기록 파일에 단일 항목을 추가합니다(동시 안전)."""
         try:
             self.history_file.parent.mkdir(parents=True, exist_ok=True)
             with self.history_file.open("a", encoding="utf-8") as f:
@@ -78,9 +76,9 @@ class HistoryManager:
             )
 
     def _compact_history(self) -> None:
-        """Rewrite history file to remove old entries.
+        """오래된 항목을 제거하려면 기록 파일을 다시 작성하십시오.
 
-        Only called when entries exceed 2x max_entries to minimize rewrites.
+                재작성을 최소화하기 위해 항목이 max_entries의 2배를 초과하는 경우에만 호출됩니다.
         """
         try:
             self.history_file.parent.mkdir(parents=True, exist_ok=True)
@@ -95,10 +93,10 @@ class HistoryManager:
             )
 
     def add(self, text: str) -> None:
-        """Add a command to history.
+        """기록에 명령을 추가합니다.
 
         Args:
-            text: The command text to add
+                    text: 추가할 명령 텍스트
         """
         text = text.strip()
         # Skip empty or slash commands
@@ -122,21 +120,17 @@ class HistoryManager:
         self.reset_navigation()
 
     def get_previous(self, current_input: str, *, query: str = "") -> str | None:
-        """Get the previous history entry matching a substring query.
+        """하위 문자열 쿼리와 일치하는 이전 기록 항목을 가져옵니다.
 
-        The query is captured on the first call of a navigation session
-        (when `_current_index == -1`) and reused for all subsequent calls until
-        `reset_navigation`. Passing a different value on later calls has
-        no effect.
+                쿼리는 탐색 세션의 첫 번째 호출(`_current_index == -1`인 경우)에서 캡처되고 `reset_navigation`까지 모든 후속
+                호출에 재사용됩니다. 이후 호출에서 다른 값을 전달해도 아무런 효과가 없습니다.
 
         Args:
-            current_input: Current input text. Saved only on the first call of a
-                navigation session; ignored on subsequent calls.
-            query: Substring to match against history entries.
-                Captured once on the first call of a navigation session.
+                    current_input: 현재 입력 텍스트. 탐색 세션의 첫 번째 호출에만 저장됩니다. 후속 호출에서는 무시됩니다.
+                    query: 기록 항목과 일치시킬 하위 문자열입니다. 탐색 세션의 첫 번째 호출에서 한 번 캡처됩니다.
 
         Returns:
-            Previous matching entry or `None`.
+                    이전 일치 항목 또는 `None`.
         """
         if not self._entries:
             return None
@@ -156,15 +150,15 @@ class HistoryManager:
         return None
 
     def get_next(self) -> str | None:
-        """Get the next history entry matching the stored query.
+        """저장된 쿼리와 일치하는 다음 기록 항목을 가져옵니다.
 
-        Uses the query captured by the most recent `get_previous` call.
+                가장 최근의 `get_previous` 호출로 캡처된 쿼리를 사용합니다.
 
         Returns:
-            The next matching entry, or the original input when past the newest
-                match.
+                    일치하는 다음 항목 또는 최신 항목을 지난 경우 원래 입력
+                        성냥.
 
-                `None` if not currently navigating history.
+                        `None` 현재 기록을 탐색하고 있지 않은 경우.
         """
         if self._current_index == -1:
             return None
@@ -182,11 +176,11 @@ class HistoryManager:
 
     @property
     def in_history(self) -> bool:
-        """Whether currently navigating history entries."""
+        """현재 기록 항목을 탐색하는지 여부입니다."""
         return self._current_index >= 0
 
     def reset_navigation(self) -> None:
-        """Reset navigation state."""
+        """탐색 상태를 재설정합니다."""
         self._current_index = -1
         self._temp_input = ""
         self._query = ""

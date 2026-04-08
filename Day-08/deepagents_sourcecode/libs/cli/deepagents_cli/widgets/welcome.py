@@ -1,7 +1,6 @@
-"""Initial banner and footer states shown before the first prompt.
+"""첫 번째 프롬프트 앞에 표시되는 초기 배너 및 바닥글 상태입니다.
 
-This module renders the branded welcome view, rotating tips, and the various
-footer states used while connecting, failing, or idling at startup.
+이 모듈은 시작 시 연결, 실패 또는 유휴 중에 사용되는 브랜드 시작 보기, 회전 팁 및 다양한 바닥글 상태를 렌더링합니다.
 """
 
 from __future__ import annotations
@@ -45,14 +44,14 @@ _TIPS: list[str] = [
     "Use /skill-creator to build reusable agent skills",
     "Use /auto-update to toggle automatic CLI updates",
 ]
-"""Rotating tips shown in the welcome footer.
+"""환영 바닥글에 회전 팁이 표시됩니다.
 
-One is picked per session.
+세션당 한 명씩 선택됩니다.
 """
 
 
 class WelcomeBanner(Static):
-    """Welcome banner displayed at startup."""
+    """시작 시 표시되는 환영 배너입니다."""
 
     # Disable Textual's auto_links to prevent a flicker cycle: Style.__add__
     # calls .copy() for linked styles, generating a fresh random _link_id on
@@ -78,21 +77,19 @@ class WelcomeBanner(Static):
         local_server: bool = False,
         **kwargs: Any,
     ) -> None:
-        """Initialize the welcome banner.
+        """환영 배너를 초기화합니다.
 
         Args:
-            thread_id: Optional thread ID to display in the banner.
-            mcp_tool_count: Number of MCP tools loaded at startup.
-            connecting: When `True`, show a "Connecting..." footer instead of
-                the normal ready prompt. Call `set_connected` to transition.
-            resuming: When `True`, the connecting footer says "Resuming..."
-                instead of any `'Connecting...'` variant.
-            local_server: When `True`, the connecting footer qualifies the
-                server as "local" (i.e. a server process managed by the
-                CLI).
+            thread_id: 배너에 표시할 선택적 스레드 ID입니다.
+            mcp_tool_count: 시작 시 로드된 MCP 도구 수입니다.
+            connecting: `True`인 경우 일반적인 준비 프롬프트 대신 "연결 중..." 바닥글을 표시합니다. 전환하려면
+                        `set_connected`에 전화하세요.
+            resuming: `True`인 경우 연결 바닥글에 `'Connecting...'` 변형 대신 "재개 중..."이라고 표시됩니다.
+            local_server: `True`인 경우 연결 바닥글은 서버를 "로컬"(즉, CLI에서 관리하는 서버 프로세스)로 규정합니다.
 
-                Ignored when `resuming` is `True`.
-            **kwargs: Additional arguments passed to parent.
+                `resuming`이(가) `True`이면 무시됩니다.
+            **kwargs: 추가 인수가 부모에게 전달되었습니다.
+
         """
         # Avoid collision with Widget._thread_id (Textual internal int)
         self._cli_thread_id: str | None = thread_id
@@ -109,17 +106,17 @@ class WelcomeBanner(Static):
         super().__init__(self._build_banner(), **kwargs)
 
     def on_mount(self) -> None:
-        """Kick off background fetch for LangSmith project URL."""
+        """LangSmith 프로젝트 URL에 대한 백그라운드 가져오기를 시작합니다."""
         self.watch(self.app, "theme", self._on_theme_change, init=False)
         if self._project_name:
             self.run_worker(self._fetch_and_update, exclusive=True)
 
     def _on_theme_change(self) -> None:
-        """Re-render the banner when the app theme changes."""
+        """앱 테마가 변경되면 배너를 다시 렌더링합니다."""
         self.update(self._build_banner(self._project_url))
 
     async def _fetch_and_update(self) -> None:
-        """Fetch the LangSmith URL in a thread and update the banner."""
+        """스레드에서 LangSmith URL을 가져오고 배너를 업데이트합니다."""
         if not self._project_name:
             return
         try:
@@ -134,19 +131,21 @@ class WelcomeBanner(Static):
             self.update(self._build_banner(project_url))
 
     def update_thread_id(self, thread_id: str) -> None:
-        """Update the displayed thread ID and re-render the banner.
+        """표시된 스레드 ID를 업데이트하고 배너를 다시 렌더링합니다.
 
         Args:
-            thread_id: The new thread ID to display.
+            thread_id: 표시할 새 스레드 ID입니다.
+
         """
         self._cli_thread_id = thread_id
         self.update(self._build_banner(self._project_url))
 
     def set_connected(self, mcp_tool_count: int = 0) -> None:
-        """Transition from "connecting" to "ready" state.
+        """"연결 중"에서 "준비" 상태로 전환됩니다.
 
         Args:
-            mcp_tool_count: Number of MCP tools loaded during connection.
+            mcp_tool_count: 연결 중에 로드된 MCP 도구 수입니다.
+
         """
         self._connecting = False
         self._failed = False
@@ -154,10 +153,11 @@ class WelcomeBanner(Static):
         self.update(self._build_banner(self._project_url))
 
     def set_failed(self, error: str) -> None:
-        """Transition from "connecting" to a persistent failure state.
+        """"연결 중"에서 지속적인 실패 상태로 전환됩니다.
 
         Args:
-            error: Error message describing the server startup failure.
+            error: 서버 시작 실패를 설명하는 오류 메시지입니다.
+
         """
         self._connecting = False
         self._failed = True
@@ -165,21 +165,22 @@ class WelcomeBanner(Static):
         self.update(self._build_banner(self._project_url))
 
     def on_click(self, event: Click) -> None:  # noqa: PLR6301  # Textual event handler
-        """Open style-embedded hyperlinks on single click."""
+        """한 번의 클릭으로 스타일이 포함된 하이퍼링크를 엽니다."""
         open_style_link(event)
 
     def _build_banner(self, project_url: str | None = None) -> Content:
-        """Build the banner content.
+        """배너 콘텐츠를 구축합니다.
 
-        When a `project_url` is provided and a thread ID is set, the thread ID
-        is rendered as a clickable hyperlink to the LangSmith thread view.
+        `project_url`이 제공되고 스레드 ID가 설정되면 스레드 ID는 LangSmith 스레드 보기에 대한 클릭 가능한 하이퍼링크로
+        렌더링됩니다.
 
         Args:
-            project_url: LangSmith project URL used for linking the project
-                name and thread ID. When `None`, text is rendered without links.
+            project_url: 프로젝트 이름과 스레드 ID를 연결하는 데 사용되는 LangSmith 프로젝트 URL입니다. `None`이면 링크
+                         없이 텍스트가 렌더링됩니다.
 
         Returns:
-            Content object containing the formatted banner.
+            서식이 지정된 배너가 포함된 콘텐츠 개체입니다.
+
         """
         parts: list[str | tuple[str, str | TStyle] | Content] = []
         colors = theme.get_theme_colors(self)
@@ -277,13 +278,14 @@ class WelcomeBanner(Static):
 
 
 def build_failure_footer(error: str) -> Content:
-    """Build a footer shown when the server failed to start.
+    """서버 시작에 실패했을 때 표시되는 바닥글을 작성합니다.
 
     Args:
-        error: Error message describing the failure.
+        error: 실패를 설명하는 오류 메시지입니다.
 
     Returns:
-        Content with a persistent failure message.
+        지속적인 실패 메시지가 포함된 콘텐츠입니다.
+
     """
     colors = theme.get_theme_colors()
     return Content.assemble(
@@ -296,16 +298,17 @@ def build_failure_footer(error: str) -> Content:
 def build_connecting_footer(
     *, resuming: bool = False, local_server: bool = False
 ) -> Content:
-    """Build a footer shown while waiting for the server to connect.
+    """서버 연결을 기다리는 동안 표시되는 바닥글을 작성합니다.
 
     Args:
-        resuming: Show `'Resuming...'` instead of any `'Connecting...'` variant.
-        local_server: Qualify the server as "local" in the connecting message.
+        resuming: `'Connecting...'` 변형 대신 `'Resuming...'`을 표시합니다.
+        local_server: 연결 메시지에서 서버를 "로컬"로 한정합니다.
 
-            Ignored when `resuming` is `True`.
+            `resuming`이(가) `True`이면 무시됩니다.
 
     Returns:
-        Content with a connecting status message.
+        연결 상태 메시지가 포함된 콘텐츠입니다.
+
     """
     if resuming:
         text = "\nResuming...\n"
@@ -319,21 +322,21 @@ def build_connecting_footer(
 def build_welcome_footer(
     *, primary_color: str = theme.PRIMARY, tip: str | None = None
 ) -> Content:
-    """Build the footer shown at the bottom of the welcome banner.
+    """환영 배너 하단에 표시된 바닥글을 작성합니다.
 
-    Includes a tip to help users discover features.
+    사용자가 기능을 찾는 데 도움이 되는 팁이 포함되어 있습니다.
 
     Args:
-        primary_color: Color string for the ready prompt.
+        primary_color: 준비 프롬프트의 색상 문자열입니다.
 
-            Defaults to the module-level ANSI `PRIMARY` constant; widget callers
-            should pass the active theme's hex value.
-        tip: Tip text to display. When `None`, a random tip is selected.
+            기본값은 모듈 수준 ANSI `PRIMARY` 상수입니다. 위젯 호출자는 활성 테마의 16진수 값을 전달해야 합니다.
+        tip: 표시할 팁 텍스트입니다. `None`일 때 무작위 팁이 선택됩니다.
 
-            Pass an explicit value to keep the tip stable across re-renders.
+            다시 렌더링할 때 팁을 안정적으로 유지하려면 명시적인 값을 전달하세요.
 
     Returns:
-        Content with the ready prompt and a tip.
+        준비 메시지와 팁으로 만족하세요.
+
     """
     if tip is None:
         tip = random.choice(_TIPS)  # noqa: S311

@@ -1,9 +1,7 @@
-"""MCP (Model Context Protocol) tools loader for deepagents CLI.
+"""deepagents CLI용 MCP(모델 컨텍스트 프로토콜) 도구 로더.
 
-This module provides async functions to load and manage MCP servers using
-`langchain-mcp-adapters`, supporting Claude Desktop style JSON configs.
-It also supports automatic discovery of `.mcp.json` files from user-level
-and project-level locations.
+이 모듈은 Claude Desktop 스타일 JSON 구성을 지원하는 `langchain-mcp-adapters`을 사용하여 MCP 서버를 로드하고 관리하는
+비동기 기능을 제공합니다. 또한 사용자 수준 및 프로젝트 수준 위치에서 `.mcp.json` 파일의 자동 검색을 지원합니다.
 """
 
 from __future__ import annotations
@@ -27,43 +25,44 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class MCPToolInfo:
-    """Metadata for a single MCP tool."""
+    """단일 MCP 도구에 대한 메타데이터입니다."""
 
     name: str
-    """Tool name (may include server name prefix)."""
+    """도구 이름(서버 이름 접두사를 포함할 수 있음)"""
 
     description: str
-    """Human-readable description of what the tool does."""
+    """도구의 기능에 대한 사람이 읽을 수 있는 설명입니다."""
 
 
 @dataclass
 class MCPServerInfo:
-    """Metadata for a connected MCP server and its tools."""
+    """연결된 MCP 서버 및 해당 도구에 대한 메타데이터입니다."""
 
     name: str
-    """Server name from the MCP configuration."""
+    """MCP 구성의 서버 이름입니다."""
 
     transport: str
-    """Transport type (`stdio`, `sse`, or `http`)."""
+    """전송 유형(`stdio`, `sse` 또는 `http`)."""
 
     tools: list[MCPToolInfo] = field(default_factory=list)
-    """Tools exposed by this server."""
+    """이 서버에 의해 노출되는 도구입니다."""
 
 
 _SUPPORTED_REMOTE_TYPES = {"sse", "http"}
-"""Supported transport types for remote MCP servers (SSE and HTTP)."""
+"""원격 MCP 서버(SSE 및 HTTP)에 지원되는 전송 유형입니다."""
 
 
 def _resolve_server_type(server_config: dict[str, Any]) -> str:
-    """Determine the transport type for a server config.
+    """서버 구성의 전송 유형을 결정합니다.
 
-    Supports both `type` and `transport` field names, defaulting to `stdio`.
+    `type` 및 `transport` 필드 이름을 모두 지원하며 기본값은 `stdio`입니다.
 
-    Args:
-        server_config: Server configuration dictionary.
+Args:
+        server_config: 서버 구성 사전.
 
-    Returns:
-        Transport type string (`stdio`, `sse`, or `http`).
+Returns:
+        전송 유형 문자열(`stdio`, `sse` 또는 `http`).
+
     """
     t = server_config.get("type")
     if t is not None:
@@ -72,15 +71,16 @@ def _resolve_server_type(server_config: dict[str, Any]) -> str:
 
 
 def _validate_server_config(server_name: str, server_config: dict[str, Any]) -> None:
-    """Validate a single server configuration.
+    """단일 서버 구성의 유효성을 검사합니다.
 
-    Args:
-        server_name: Name of the server.
-        server_config: Server configuration dictionary.
+Args:
+        server_name: 서버의 이름입니다.
+        server_config: 서버 구성 사전.
 
-    Raises:
-        TypeError: If config fields have wrong types.
-        ValueError: If required fields are missing or server type is unsupported.
+Raises:
+        TypeError: 구성 필드에 잘못된 유형이 있는 경우.
+        ValueError: 필수 필드가 누락되었거나 서버 유형이 지원되지 않는 경우.
+
     """
     if not isinstance(server_config, dict):
         error_msg = f"Server '{server_name}' config must be a dictionary"
@@ -125,25 +125,26 @@ def _validate_server_config(server_name: str, server_config: dict[str, Any]) -> 
 
 
 def load_mcp_config(config_path: str) -> dict[str, Any]:
-    """Load and validate MCP configuration from JSON file.
+    """JSON 파일에서 MCP 구성을 로드하고 검증합니다.
 
-    Supports multiple server types:
+    다양한 서버 유형을 지원합니다:
 
-    - stdio: Process-based servers with `command`, `args`, `env` fields (default)
-    - sse: Server-Sent Events servers with `type: "sse"`, `url`, and optional `headers`
-    - http: HTTP-based servers with `type: "http"`, `url`, and optional `headers`
+    - stdio: `command`, `args`, `env` 필드가 있는 프로세스 기반 서버(기본값) - sse: `type: "sse"`, `url`
+    및 선택적 `headers`이 있는 서버 전송 이벤트 서버 - http: `type: "http"`, `url` 및 선택적 `headers`이 있는
+    HTTP 기반 서버
 
-    Args:
-        config_path: Path to MCP JSON configuration file (Claude Desktop format).
+Args:
+        config_path: MCP JSON 구성 파일의 경로(Claude Desktop 형식)
 
-    Returns:
-        Parsed configuration dictionary.
+Returns:
+        구문 분석된 구성 사전.
 
-    Raises:
-        FileNotFoundError: If config file doesn't exist.
-        json.JSONDecodeError: If config file contains invalid JSON.
-        TypeError: If config fields have wrong types.
-        ValueError: If config is missing required fields.
+Raises:
+        FileNotFoundError: 구성 파일이 존재하지 않는 경우.
+        json.JSONDecodeError: 구성 파일에 잘못된 JSON이 포함된 경우.
+        TypeError: 구성 필드에 잘못된 유형이 있는 경우.
+        ValueError: 구성에 필수 필드가 누락된 경우.
+
     """
     path = Path(config_path)
 
@@ -182,13 +183,14 @@ def load_mcp_config(config_path: str) -> dict[str, Any]:
 
 
 def _resolve_project_config_base(project_context: ProjectContext | None) -> Path:
-    """Resolve the base directory for project-level MCP configuration lookup.
+    """프로젝트 수준 MCP 구성 조회를 위한 기본 디렉터리를 확인합니다.
 
-    Args:
-        project_context: Explicit project path context, if available.
+Args:
+        project_context: 명시적인 프로젝트 경로 컨텍스트(사용 가능한 경우)
 
-    Returns:
-        Project root when one exists, otherwise the user working directory.
+Returns:
+        존재하는 경우 프로젝트 루트이고, 그렇지 않은 경우 사용자 작업 디렉터리입니다.
+
     """
     if project_context is not None:
         return project_context.project_root or project_context.user_cwd
@@ -201,19 +203,20 @@ def _resolve_project_config_base(project_context: ProjectContext | None) -> Path
 def discover_mcp_configs(
     *, project_context: ProjectContext | None = None
 ) -> list[Path]:
-    """Find MCP config files from standard locations.
+    """표준 위치에서 MCP 구성 파일을 찾으십시오.
 
-    Checks three paths in precedence order (lowest to highest):
+    우선 순위에 따라 세 개의 경로를 확인합니다(가장 낮은 것부터 가장 높은 것까지).
 
-    1. `~/.deepagents/.mcp.json` (user-level global)
-    2. `<project-root>/.deepagents/.mcp.json` (project subdir)
-    3. `<project-root>/.mcp.json` (project root, Claude Code compat)
+    1. `~/.deepagents/.mcp.json`(사용자 수준 전역) 2.
+    `<project-root>/.deepagents/.mcp.json`(프로젝트 하위 디렉터리) 3.
+    `<project-root>/.mcp.json`(프로젝트 루트, Claude Code compat)
 
-    Project root is determined from `project_context` when provided, otherwise
-    by `find_project_root()`, falling back to CWD.
+    프로젝트 루트는 제공되면 `project_context`에서 결정되고, 그렇지 않으면 `find_project_root()`에 의해 CWD로
+    대체됩니다.
 
-    Returns:
-        List of existing config file paths, ordered lowest-to-highest precedence.
+Returns:
+        기존 구성 파일 경로 목록(우선 순위가 가장 낮은 것부터 높은 것까지).
+
     """
     user_dir = Path.home() / ".deepagents"
     project_root = _resolve_project_config_base(project_context)
@@ -237,16 +240,16 @@ def discover_mcp_configs(
 def classify_discovered_configs(
     config_paths: list[Path],
 ) -> tuple[list[Path], list[Path]]:
-    """Split discovered config paths into user-level and project-level.
+    """검색된 구성 경로를 사용자 수준과 프로젝트 수준으로 분할합니다.
 
-    User-level configs live under `~/.deepagents/`. Everything else is
-    considered project-level.
+    사용자 수준 구성은 `~/.deepagents/`에 있습니다. 다른 모든 것은 프로젝트 수준으로 간주됩니다.
 
-    Args:
-        config_paths: Paths returned by `discover_mcp_configs`.
+Args:
+        config_paths: `discover_mcp_configs`에서 반환된 경로입니다.
 
-    Returns:
-        Tuple of `(user_configs, project_configs)`.
+Returns:
+        `(user_configs, project_configs)`의 튜플입니다.
+
     """
     user_dir = Path.home() / ".deepagents"
     user: list[Path] = []
@@ -265,13 +268,14 @@ def classify_discovered_configs(
 def extract_stdio_server_commands(
     config: dict[str, Any],
 ) -> list[tuple[str, str, list[str]]]:
-    """Extract stdio server entries from a parsed MCP config.
+    """구문 분석된 MCP 구성에서 stdio 서버 항목을 추출합니다.
 
-    Args:
-        config: Parsed MCP config dict with `mcpServers` key.
+Args:
+        config: `mcpServers` 키를 사용하여 MCP 구성 사전을 구문 분석했습니다.
 
-    Returns:
-        List of `(server_name, command, args)` for each stdio server.
+Returns:
+        각 stdio 서버에 대한 `(server_name, command, args)` 목록입니다.
+
     """
     results: list[tuple[str, str, list[str]]] = []
     servers = config.get("mcpServers", {})
@@ -286,15 +290,16 @@ def extract_stdio_server_commands(
 
 
 def _filter_project_stdio_servers(config: dict[str, Any]) -> dict[str, Any]:
-    """Return a copy of *config* with stdio servers removed.
+    """stdio 서버가 제거된 *config*의 복사본을 반환합니다.
 
-    Remote (SSE/HTTP) servers are kept because they don't execute local code.
+    원격(SSE/HTTP) 서버는 로컬 코드를 실행하지 않기 때문에 유지됩니다.
 
-    Args:
-        config: Parsed MCP config dict.
+Args:
+        config: 구문 분석된 MCP 구성 dict.
 
-    Returns:
-        Filtered config dict.
+Returns:
+        필터링된 구성 사전
+
     """
     servers = config.get("mcpServers", {})
     if not isinstance(servers, dict):
@@ -308,16 +313,16 @@ def _filter_project_stdio_servers(config: dict[str, Any]) -> dict[str, Any]:
 
 
 def merge_mcp_configs(configs: list[dict[str, Any]]) -> dict[str, Any]:
-    """Merge multiple MCP config dicts by server name.
+    """서버 이름별로 여러 MCP 구성 사전을 병합합니다.
 
-    Later entries override earlier ones for the same server name
-    (simple `dict.update` on `mcpServers`).
+    이후 항목은 동일한 서버 이름(`mcpServers`의 간단한 `dict.update`)에 대해 이전 항목을 재정의합니다.
 
-    Args:
-        configs: Ordered list of parsed config dicts (each with `mcpServers` key).
+Args:
+        configs: 구문 분석된 구성 사전의 정렬된 목록입니다(각각 `mcpServers` 키 포함).
 
-    Returns:
-        Merged config with combined `mcpServers`.
+Returns:
+        `mcpServers`이(가) 결합된 구성이 병합되었습니다.
+
     """
     merged: dict[str, Any] = {}
     for cfg in configs:
@@ -328,17 +333,17 @@ def merge_mcp_configs(configs: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def load_mcp_config_lenient(config_path: Path) -> dict[str, Any] | None:
-    """Load an MCP config file, returning None on any error.
+    """MCP 구성 파일을 로드하고 오류가 발생하면 None을 반환합니다.
 
-    Wraps `load_mcp_config` with lenient error handling suitable for
-    auto-discovery. Missing files are skipped silently; parse and validation
-    errors are logged as warnings.
+    자동 검색에 적합한 관대한 오류 처리로 `load_mcp_config`을 래핑합니다. 누락된 파일은 자동으로 건너뜁니다. 구문 분석 및 유효성 검사
+    오류는 경고로 기록됩니다.
 
-    Args:
-        config_path: Path to the MCP config file.
+Args:
+        config_path: MCP 구성 파일의 경로입니다.
 
-    Returns:
-        Parsed config dict, or None if the file is missing or invalid.
+Returns:
+        구문 분석된 config dict 또는 파일이 없거나 유효하지 않은 경우 None입니다.
+
     """
     try:
         return load_mcp_config(str(config_path))
@@ -353,32 +358,33 @@ def load_mcp_config_lenient(config_path: Path) -> dict[str, Any] | None:
 
 
 class MCPSessionManager:
-    """Manages persistent MCP sessions for stateful stdio servers.
+    """상태 저장 stdio 서버에 대한 영구 MCP 세션을 관리합니다.
 
-    This manager creates and maintains persistent sessions for stdio MCP
-    servers, preventing server restarts on every tool call. Sessions are kept
-    alive until explicitly cleaned up.
+    이 관리자는 stdio MCP 서버에 대한 영구 세션을 생성하고 유지하여 모든 도구 호출에서 서버가 다시 시작되는 것을 방지합니다. 세션은 명시적으로
+    정리될 때까지 활성 상태로 유지됩니다.
+
     """
 
     def __init__(self) -> None:
-        """Initialize the session manager."""
+        """세션 관리자를 초기화합니다."""
         self.client: MultiServerMCPClient | None = None
         self.exit_stack = AsyncExitStack()
 
     async def cleanup(self) -> None:
-        """Clean up all managed sessions and close connections."""
+        """모든 관리 세션을 정리하고 연결을 닫습니다."""
         await self.exit_stack.aclose()
 
 
 def _check_stdio_server(server_name: str, server_config: dict[str, Any]) -> None:
-    """Verify that a stdio server's command exists on PATH.
+    """stdio 서버의 명령이 PATH에 있는지 확인하세요.
 
-    Args:
-        server_name: Name of the server (for error messages).
-        server_config: Server configuration dictionary with `command` key.
+Args:
+        server_name: 서버 이름(오류 메시지용)
+        server_config: `command` 키가 있는 서버 구성 사전입니다.
 
-    Raises:
-        RuntimeError: If the command is missing from config or not found on PATH.
+Raises:
+        RuntimeError: 명령이 구성에서 누락되었거나 PATH에서 찾을 수 없는 경우.
+
     """
     command = server_config.get("command")
     if command is None:
@@ -393,20 +399,18 @@ def _check_stdio_server(server_name: str, server_config: dict[str, Any]) -> None
 
 
 async def _check_remote_server(server_name: str, server_config: dict[str, Any]) -> None:
-    """Check network connectivity to a remote MCP server URL.
+    """원격 MCP 서버 URL에 대한 네트워크 연결을 확인하십시오.
 
-    Sends a lightweight HEAD request with a 2-second timeout to detect DNS
-    failures, refused connections, and network timeouts early, before the MCP
-    session handshake. HTTP error responses (4xx, 5xx) are not treated as
-    failures — only transport errors, invalid URLs, and OS-level socket
-    errors raise.
+    MCP 세션 핸드셰이크 전에 DNS 오류, 연결 거부 및 네트워크 시간 초과를 조기에 감지하기 위해 2초 시간 초과로 경량 HEAD 요청을 보냅니다.
+    HTTP 오류 응답(4xx, 5xx)은 실패로 처리되지 않습니다. 전송 오류, 잘못된 URL 및 OS 수준 소켓 오류만 발생합니다.
 
-    Args:
-        server_name: Name of the server (for error messages).
-        server_config: Server configuration dictionary with `url` key.
+Args:
+        server_name: 서버 이름(오류 메시지용)
+        server_config: `url` 키가 있는 서버 구성 사전입니다.
 
-    Raises:
-        RuntimeError: If the server URL is unreachable or invalid.
+Raises:
+        RuntimeError: 서버 URL에 연결할 수 없거나 유효하지 않은 경우.
+
     """
     import httpx
 
@@ -428,19 +432,19 @@ async def _check_remote_server(server_name: str, server_config: dict[str, Any]) 
 async def _load_tools_from_config(
     config: dict[str, Any],
 ) -> tuple[list[BaseTool], MCPSessionManager, list[MCPServerInfo]]:
-    """Build MCP connections from a validated config and load tools.
+    """검증된 구성 및 로드 도구에서 MCP 연결을 구축합니다.
 
-    This is the shared implementation used by both `get_mcp_tools` (explicit
-    path) and `resolve_and_load_mcp_tools` (auto-discovery).
+    이는 `get_mcp_tools`(명시적 경로) 및 `resolve_and_load_mcp_tools`(자동 검색)에서 사용되는 공유 구현입니다.
 
-    Args:
-        config: Validated MCP configuration dict with `mcpServers` key.
+Args:
+        config: `mcpServers` 키를 사용하여 검증된 MCP 구성 dict입니다.
 
-    Returns:
-        Tuple of `(tools_list, session_manager, server_infos)`.
+Returns:
+        `(tools_list, session_manager, server_infos)`의 튜플입니다.
 
-    Raises:
-        RuntimeError: If MCP server fails to spawn or connect.
+Raises:
+        RuntimeError: MCP 서버가 생성되거나 연결되지 않는 경우.
+
     """
     from langchain_mcp_adapters.client import MultiServerMCPClient
     from langchain_mcp_adapters.sessions import (
@@ -548,26 +552,29 @@ async def _load_tools_from_config(
 async def get_mcp_tools(
     config_path: str,
 ) -> tuple[list[BaseTool], MCPSessionManager, list[MCPServerInfo]]:
-    """Load MCP tools from configuration file with stateful sessions.
+    """상태 저장 세션을 사용하여 구성 파일에서 MCP 도구를 로드합니다.
 
-    Supports multiple server types:
-    - stdio: Spawns MCP servers as subprocesses with persistent sessions
-    - sse/http: Connects to remote MCP servers via URL
+    여러 서버 유형 지원: - stdio: 영구 세션이 있는 하위 프로세스로 MCP 서버를 생성합니다. - sse/http: URL을 통해 원격 MCP
+    서버에 연결합니다.
 
-    For stdio servers, this creates persistent sessions that remain active
-    across tool calls, avoiding server restarts. Sessions are managed by
-    `MCPSessionManager` and should be cleaned up with
-    `session_manager.cleanup()` when done.
+    stdio 서버의 경우 이는 도구 호출 전반에 걸쳐 활성 상태로 유지되는 영구 세션을 생성하여 서버가 다시 시작되지 않도록 합니다. 세션은
+    `MCPSessionManager`에 의해 관리되며 완료되면 `session_manager.cleanup()`로 정리되어야 합니다.
 
-    Args:
-        config_path: Path to MCP JSON configuration file.
+Args:
+        config_path: MCP JSON 구성 파일의 경로입니다.
 
-    Returns:
-        Tuple of `(tools_list, session_manager, server_infos)` where:
-            - tools_list: List of LangChain `BaseTool` objects
-            - session_manager: `MCPSessionManager` instance
-                (call `cleanup()` when done)
-            - server_infos: List of `MCPServerInfo` with per-server metadata
+Returns:
+        Tuple of `(tools_list, session_manager, server_infos)` where: - tools_list:
+                                                                      LangChain
+                                                                      `BaseTool` 개체 목록 -
+                                                                      session_manager:
+                                                                      `MCPSessionManager`
+                                                                      인스턴스(완료되면
+                                                                      `cleanup()` 호출) -
+                                                                      server_infos: 서버별
+                                                                      메타데이터가 포함된
+                                                                      `MCPServerInfo` 목록
+
     """
     config = load_mcp_config(config_path)
     return await _load_tools_from_config(config)
@@ -580,34 +587,29 @@ async def resolve_and_load_mcp_tools(
     trust_project_mcp: bool | None = None,
     project_context: ProjectContext | None = None,
 ) -> tuple[list[BaseTool], MCPSessionManager | None, list[MCPServerInfo]]:
-    """Resolve MCP config and load tools.
+    """MCP 구성 및 로드 도구를 해결합니다.
 
-    Auto-discovers configs from standard locations and merges them.
-    When `explicit_config_path` is provided it is added as the
-    highest-precedence source (errors in that file are fatal).
+    표준 위치에서 구성을 자동으로 검색하고 병합합니다. `explicit_config_path`이 제공되면 가장 높은 우선 순위의 소스로 추가됩니다(해당
+    파일의 오류는 치명적임).
 
-    Args:
-        explicit_config_path: Extra config file to layer on top of
-            auto-discovered configs (highest precedence). Errors are
-            fatal.
-        no_mcp: If True, disable all MCP loading.
-        trust_project_mcp: Controls project-level stdio server trust:
+Args:
+        explicit_config_path: 자동 검색된 구성 위에 추가할 추가 구성 파일입니다(가장 높은 우선순위). 오류는 치명적입니다.
+        no_mcp: True인 경우 모든 MCP 로딩을 비활성화합니다.
+        trust_project_mcp: 프로젝트 수준 stdio 서버 신뢰를 제어합니다.
 
-            - `True`: allow all project stdio servers (flag/prompt approved).
-            - `False`: filter out project stdio servers, log warning.
-            - `None` (default): check the persistent trust store; if the
-                fingerprint matches, allow; otherwise filter + warn.
-        project_context: Explicit project path context for config discovery
-            and trust resolution.
+            - `True`: 모든 프로젝트 stdio 서버를 허용합니다(플래그/프롬프트 승인).
+            - `False`: 프로젝트 stdio 서버를 필터링하고 경고를 기록합니다.
+            - `None` (default): 영구 신뢰 저장소를 확인하십시오. 지문이 일치하면 허용합니다. 그렇지 않으면 필터링 + 경고합니다.
+        project_context: 구성 검색 및 신뢰 확인을 위한 명시적 프로젝트 경로 컨텍스트입니다.
 
-    Returns:
-        Tuple of `(tools_list, session_manager, server_infos)`.
+Returns:
+        `(tools_list, session_manager, server_infos)`의 튜플입니다.
 
-            When no tools are loaded, returns `([], None, [])`.
+            도구가 로드되지 않으면 `([], None, [])`을 반환합니다.
 
-    Raises:
-        RuntimeError: If an MCP server config is invalid or fails to
-            spawn/connect.
+Raises:
+        RuntimeError: MCP 서버 구성이 유효하지 않거나 생성/연결에 실패한 경우.
+
     """
     if no_mcp:
         return [], None, []

@@ -1,7 +1,6 @@
-"""LangGraph server lifecycle management for the CLI.
+"""CLI를 위한 LangGraph 서버 수명주기 관리.
 
-Handles starting/stopping a `langgraph dev` server process and generating the
-required `langgraph.json` configuration file.
+`langgraph dev` 서버 프로세스 시작/중지 및 필수 `langgraph.json` 구성 파일 생성을 처리합니다.
 """
 
 from __future__ import annotations
@@ -33,14 +32,15 @@ _SHUTDOWN_TIMEOUT = 5
 
 
 def _port_in_use(host: str, port: int) -> bool:
-    """Check if a port is already in use.
+    """포트가 이미 사용 중인지 확인하세요.
 
     Args:
-        host: Host to check.
-        port: Port to check.
+        host: 확인해야 할 호스트입니다.
+        port: 확인할 포트입니다.
 
     Returns:
-        `True` if the port is in use.
+
+
     """
     import socket
 
@@ -54,13 +54,14 @@ def _port_in_use(host: str, port: int) -> bool:
 
 
 def _find_free_port(host: str) -> int:
-    """Find a free port on the given host.
+    """해당 호스트에서 사용 가능한 포트를 찾습니다.
 
     Args:
-        host: Host to bind to.
+        host: 바인딩할 호스트입니다.
 
     Returns:
-        An available port number.
+        사용 가능한 포트 번호입니다.
+
     """
     import socket
 
@@ -70,14 +71,15 @@ def _find_free_port(host: str) -> int:
 
 
 def get_server_url(host: str = _DEFAULT_HOST, port: int = _DEFAULT_PORT) -> str:
-    """Build the server base URL.
+    """서버 기본 URL을 구축합니다.
 
     Args:
-        host: Server host.
-        port: Server port.
+        host: 서버 호스트.
+        port: 서버 포트.
 
     Returns:
-        Base URL string.
+        기본 URL 문자열.
+
     """
     return f"http://{host}:{port}"
 
@@ -89,18 +91,18 @@ def generate_langgraph_json(
     env_file: str | None = None,
     checkpointer_path: str | None = None,
 ) -> Path:
-    """Generate a `langgraph.json` config file for `langgraph dev`.
+    """`langgraph dev`에 대한 `langgraph.json` 구성 파일을 생성합니다.
 
     Args:
-        output_dir: Directory to write the config file.
-        graph_ref: Python module:variable reference to the graph.
-        env_file: Optional path to an env file.
-        checkpointer_path: Import path to an async context manager that yields a
-            `BaseCheckpointSaver`. When set, the server persists checkpoint data
-            to disk instead of in-memory.
+        output_dir: 구성 파일을 쓸 디렉터리입니다.
+        graph_ref: Python 모듈:그래프에 대한 변수 참조.
+        env_file: env 파일의 선택적 경로입니다.
+        checkpointer_path: `BaseCheckpointSaver`을 생성하는 비동기 컨텍스트 관리자에 대한 경로를 가져옵니다. 설정되면
+                           서버는 체크포인트 데이터를 메모리 내 대신 디스크에 유지합니다.
 
     Returns:
-        Path to the generated config file.
+        생성된 구성 파일의 경로입니다.
+
     """
     config: dict[str, Any] = {
         "dependencies": ["."],
@@ -127,20 +129,19 @@ def generate_langgraph_json(
 def _scoped_env_overrides(
     overrides: dict[str, str],
 ) -> Iterator[None]:
-    """Apply env-var overrides, rolling back only on exception.
+    """env-var 재정의를 적용하고 예외가 발생한 경우에만 롤백합니다.
 
-    Separates the concern of temporary `os.environ` mutations from subprocess
-    management, making both independently testable.
+    일시적인 `os.environ` 변형에 대한 우려를 하위 프로세스 관리에서 분리하여 둘 다 독립적으로 테스트할 수 있도록 합니다.
 
-    On normal exit the overrides are left in place (the caller "keeps"
-    them). On exception the previous values are restored so the next attempt
-    starts from a known-good state.
+    일반 종료 시 재정의는 그대로 유지됩니다(호출자가 이를 "유지"합니다). 예외적으로 이전 값이 복원되므로 다음 시도는 알려진 양호한 상태에서
+    시작됩니다.
 
     Args:
-        overrides: Key/value pairs to set in `os.environ`.
+        overrides: `os.environ`에 설정할 키/값 쌍입니다.
 
     Yields:
-        Control to the caller.
+        발신자에게 제어합니다.
+
     """
     prev: dict[str, str | None] = {}
     for key, val in overrides.items():
@@ -170,19 +171,18 @@ async def wait_for_server_healthy(
     read_log: Callable[[], str] | None = None,
     local: bool = False,
 ) -> None:
-    """Poll a LangGraph server health endpoint until it responds.
+    """응답할 때까지 LangGraph 서버 상태 엔드포인트를 폴링합니다.
 
     Args:
-        url: Server base URL (health endpoint is `{url}/ok`).
-        timeout: Max seconds to wait.
-        process: Optional subprocess handle; if the process exits early
-            we fail fast instead of waiting for the timeout.
-        read_log: Optional callable returning log file contents (for
-            error messages on early exit).
-        local: Use a shorter poll interval for local servers.
+        url: 서버 기본 URL(상태 끝점은 `{url}/ok`)입니다.
+        timeout: 최대 대기 시간(초)입니다.
+        process: 선택적 하위 프로세스 핸들. 프로세스가 일찍 종료되면 시간 초과를 기다리는 대신 빠르게 실패합니다.
+        read_log: 로그 파일 내용을 반환하는 선택적 호출 가능(초기 종료 시 오류 메시지용).
+        local: 로컬 서버에는 더 짧은 폴링 간격을 사용하십시오.
 
     Raises:
-        RuntimeError: If the server doesn't become healthy in time.
+        RuntimeError: 서버가 시간 내에 정상화되지 않는 경우.
+
     """
     import httpx
 
@@ -230,15 +230,16 @@ async def wait_for_server_healthy(
 
 
 def _build_server_cmd(config_path: Path, *, host: str, port: int) -> list[str]:
-    """Build the `langgraph dev` command line.
+    """`langgraph dev` 명령줄을 작성하세요.
 
     Args:
-        config_path: Path to the `langgraph.json` config file.
-        host: Host to bind.
-        port: Port to bind.
+        config_path: `langgraph.json` 구성 파일의 경로입니다.
+        host: 바인딩할 호스트입니다.
+        port: 바인딩할 포트입니다.
 
     Returns:
-        Command argv list.
+        명령 argv 목록.
+
     """
     return [
         sys.executable,
@@ -257,13 +258,13 @@ def _build_server_cmd(config_path: Path, *, host: str, port: int) -> list[str]:
 
 
 def _build_server_env() -> dict[str, str]:
-    """Build the environment dict for the server subprocess.
+    """서버 하위 프로세스에 대한 환경 사전을 빌드합니다.
 
-    Copies `os.environ`, sets required flags, and strips auth-related variables
-    that are not needed (and could interfere) for the local dev server.
+    `os.environ`을 복사하고, 필수 플래그를 설정하고, 로컬 개발 서버에 필요하지 않은(방해할 수 있는) 인증 관련 변수를 제거합니다.
 
     Returns:
-        Environment dict for `subprocess.Popen`.
+        `subprocess.Popen`에 대한 환경 사전입니다.
+
     """
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -284,12 +285,11 @@ def _build_server_env() -> dict[str, str]:
 
 
 class ServerProcess:
-    """Manages a `langgraph dev` server subprocess.
+    """`langgraph dev` 서버 하위 프로세스를 관리합니다.
 
-    Focuses on subprocess lifecycle (start, stop, restart) and health checking.
-    Env-var management for restarts (e.g. configuration changes requiring a full
-    restart) is handled by `_scoped_env_overrides`, keeping this class focused
-    on process management.
+    하위 프로세스 수명 주기(시작, 중지, 다시 시작) 및 상태 확인에 중점을 둡니다. 다시 시작을 위한 Env-var 관리(예: 전체 다시 시작이 필요한
+    구성 변경)는 `_scoped_env_overrides`에서 처리되므로 이 클래스는 프로세스 관리에 중점을 둡니다.
+
     """
 
     def __init__(
@@ -300,17 +300,16 @@ class ServerProcess:
         config_dir: str | Path | None = None,
         owns_config_dir: bool = False,
     ) -> None:
-        """Initialize server process manager.
+        """서버 프로세스 관리자를 초기화합니다.
 
         Args:
-            host: Host to bind the server to.
-            port: Initial port to bind the server to.
+            host: 서버를 바인딩할 호스트입니다.
+            port: 서버를 바인딩할 초기 포트입니다.
 
-                May be reassigned automatically by `start()` if the port is
-                already in use.
-            config_dir: Directory containing `langgraph.json`.
-            owns_config_dir: When `True`, the server will delete `config_dir`
-                on `stop()`.
+                포트가 이미 사용 중인 경우 `start()`에 의해 자동으로 재할당될 수 있습니다.
+            config_dir: `langgraph.json`을(를) 포함하는 디렉터리입니다.
+            owns_config_dir: `True`일 때 서버는 `stop()`에서 `config_dir`을(를) 삭제합니다.
+
         """
         self.host = host
         self.port = port
@@ -323,19 +322,20 @@ class ServerProcess:
 
     @property
     def url(self) -> str:
-        """Server base URL."""
+        """서버 기본 URL."""
         return get_server_url(self.host, self.port)
 
     @property
     def running(self) -> bool:
-        """Whether the server process is running."""
+        """서버 프로세스가 실행 중인지 여부입니다."""
         return self._process is not None and self._process.poll() is None
 
     def _read_log_file(self) -> str:
-        """Read the server log file contents.
+        """서버 로그 파일 내용을 읽습니다.
 
         Returns:
-            Log file contents as a string (may be empty).
+            파일 내용을 문자열로 기록합니다(비어 있을 수 있음).
+
         """
         if self._log_file is None:
             return ""
@@ -357,13 +357,14 @@ class ServerProcess:
         *,
         timeout: float = _HEALTH_TIMEOUT,  # noqa: ASYNC109
     ) -> None:
-        """Start the `langgraph dev` server and wait for it to be healthy.
+        """`langgraph dev` 서버를 시작하고 정상 상태가 될 때까지 기다립니다.
 
         Args:
-            timeout: Max seconds to wait for the server to become healthy.
+            timeout: 서버가 정상 상태가 될 때까지 기다리는 최대 시간(초)입니다.
 
         Raises:
-            RuntimeError: If the server fails to start or become healthy.
+            RuntimeError: 서버가 시작되지 않거나 정상 상태가 되는 경우.
+
         """
         if self.running:
             return
@@ -417,10 +418,10 @@ class ServerProcess:
             raise
 
     def _stop_process(self) -> None:
-        """Stop only the server subprocess and its log file.
+        """서버 하위 프로세스와 해당 로그 파일만 중지하십시오.
 
-        Unlike `stop()`, this does NOT clean up the config directory or temp
-        directory, so the server can be restarted with the same config.
+        `stop()`과 달리 이는 구성 디렉터리나 임시 디렉터리를 정리하지 않으므로 동일한 구성으로 서버를 다시 시작할 수 있습니다.
+
         """
         if self._process is None:
             return
@@ -454,7 +455,7 @@ class ServerProcess:
             self._log_file = None
 
     def stop(self) -> None:
-        """Stop the server process and clean up all resources."""
+        """서버 프로세스를 중지하고 모든 리소스를 정리합니다."""
         self._stop_process()
 
         if self._temp_dir is not None:
@@ -476,27 +477,27 @@ class ServerProcess:
             self._owns_config_dir = False
 
     def update_env(self, **overrides: str) -> None:
-        """Stage env var overrides to apply on the next `restart()`.
+        """스테이지 환경 변수는 다음 `restart()`에 적용되도록 재정의됩니다.
 
-        These are applied to `os.environ` immediately before the subprocess
-        starts, keeping mutation scoped to the restart call.
+        이는 하위 프로세스가 시작되기 직전에 `os.environ`에 적용되며 변형 범위는 다시 시작 호출로 유지됩니다.
 
         Args:
-            **overrides: Key/value env var pairs
-                (e.g., `DEEPAGENTS_CLI_SERVER_MODEL="anthropic:claude-sonnet-4-6"`).
+            **overrides: 키/값 환경 변수 쌍(예:
+                         `DEEPAGENTS_CLI_SERVER_MODEL="anthropic:claude-sonnet-4-6"`).
+
         """
         self._env_overrides.update(overrides)
 
     async def restart(self, *, timeout: float = _HEALTH_TIMEOUT) -> None:  # noqa: ASYNC109
-        """Restart the server process, reusing the existing config directory.
+        """기존 구성 디렉터리를 재사용하여 서버 프로세스를 다시 시작합니다.
 
-        Stops the subprocess, then starts a new one. Any env overrides staged
-        via `update_env()` are applied within a `_scoped_env_overrides` context
-        manager so that failures automatically roll back the environment to the
-        last known-good state.
+        하위 프로세스를 중지한 다음 새 프로세스를 시작합니다. `update_env()`을 통해 준비된 모든 환경 재정의는
+        `_scoped_env_overrides` 컨텍스트 관리자 내에 적용되므로 오류가 발생하면 자동으로 환경이 마지막으로 알려진 양호한 상태로
+        롤백됩니다.
 
         Args:
-            timeout: Max seconds to wait for the server to become healthy.
+            timeout: 서버가 정상 상태가 될 때까지 기다리는 최대 시간(초)입니다.
+
         """
         logger.info("Restarting langgraph dev server")
         self._stop_process()
@@ -507,14 +508,15 @@ class ServerProcess:
         self._env_overrides.clear()
 
     async def __aenter__(self) -> Self:
-        """Async context manager entry.
+        """비동기 컨텍스트 관리자 항목.
 
         Returns:
-            The server process instance.
+            서버 프로세스 인스턴스입니다.
+
         """
         await self.start()
         return self
 
     async def __aexit__(self, *args: object) -> None:
-        """Async context manager exit."""
+        """비동기 컨텍스트 관리자 종료."""
         self.stop()

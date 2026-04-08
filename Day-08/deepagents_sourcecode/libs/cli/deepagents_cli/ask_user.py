@@ -1,7 +1,6 @@
-"""Bridge `ask_user` tool calls into interactive CLI interruptions.
+"""`ask_user` 도구 호출을 대화형 CLI 중단으로 연결합니다.
 
-This module defines the tool schema, validates agent-authored questions, and
-translates the answers collected by the CLI back into graph updates.
+이 모듈은 도구 스키마를 정의하고, 에이전트가 작성한 질문을 검증하고, CLI에서 수집한 답변을 다시 그래프 업데이트로 변환합니다.
 """
 
 from __future__ import annotations
@@ -65,13 +64,14 @@ When using `ask_user`:
 
 
 def _validate_questions(questions: list[Question]) -> None:
-    """Validate ask_user question structure before interrupting.
+    """중단하기 전에 Ask_user 질문 구조를 확인하세요.
 
-    Args:
-        questions: Question definitions provided to the `ask_user` tool.
+Args:
+        questions: `ask_user` 도구에 제공되는 질문 정의입니다.
 
-    Raises:
-        ValueError: If the questions list or an individual question is invalid.
+Raises:
+        ValueError: 질문 목록 또는 개별 질문이 유효하지 않은 경우.
+
     """
     if not questions:
         msg = "ask_user requires at least one question"
@@ -106,24 +106,23 @@ def _parse_answers(
     questions: list[Question],
     tool_call_id: str,
 ) -> Command[Any]:
-    """Parse an interrupt response into a `Command` with a `ToolMessage`.
+    """`ToolMessage`을 사용하여 인터럽트 응답을 `Command`로 구문 분석합니다.
 
-    Supports explicit status signaling from the adapter:
+    어댑터의 명시적 상태 신호를 지원합니다.
 
-    - `answered` (default): consume provided `answers`
-    - `cancelled`: synthesize `(cancelled)` answers
-    - `error`: synthesize `(error: ...)` answers
+    - `answered`(기본값): 제공된 `answers` 사용 - `cancelled`: `(cancelled)` 답변 종합 - `error`:
+    `(error: ...)` 답변 종합
 
-    Malformed payloads are converted into explicit error answers instead of
-    silently defaulting to `(no answer)`.
+    잘못된 페이로드는 자동으로 `(no answer)`을 기본값으로 설정하는 대신 명시적인 오류 답변으로 변환됩니다.
 
-    Args:
-        response: Raw value returned by `interrupt()`.
-        questions: The questions that were asked.
-        tool_call_id: Originating tool call ID for the `ToolMessage`.
+Args:
+        response: `interrupt()`에서 반환된 원시 값입니다.
+        questions: 받은 질문.
+        tool_call_id: `ToolMessage`에 대한 원래 도구 호출 ID입니다.
 
-    Returns:
-        `Command` containing a formatted `ToolMessage` with Q&A pairs.
+Returns:
+        `Command`에는 Q&A 쌍이 포함된 형식화된 `ToolMessage`이 포함되어 있습니다.
+
     """
     status: str = "answered"
     error_text: str | None = None
@@ -207,11 +206,11 @@ def _parse_answers(
 
 
 class AskUserMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
-    """Middleware that provides an ask_user tool for interactive questioning.
+    """대화형 질문을 위한 Ask_user 도구를 제공하는 미들웨어입니다.
 
-    This middleware adds an `ask_user` tool that allows agents to ask the user
-    questions during execution. Questions can be free-form text or multiple choice.
-    The tool uses LangGraph interrupts to pause execution and wait for user input.
+    이 미들웨어는 에이전트가 실행 중에 사용자에게 질문할 수 있는 `ask_user` 도구를 추가합니다. 질문은 자유 형식 텍스트이거나 객관식일 수
+    있습니다. 이 도구는 LangGraph 인터럽트를 사용하여 실행을 일시 중지하고 사용자 입력을 기다립니다.
+
     """
 
     def __init__(
@@ -220,13 +219,12 @@ class AskUserMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
         system_prompt: str = ASK_USER_SYSTEM_PROMPT,
         tool_description: str = ASK_USER_TOOL_DESCRIPTION,
     ) -> None:
-        """Initialize AskUserMiddleware.
+        """AskUserMiddleware를 초기화합니다.
 
-        Args:
-            system_prompt: System-level instructions injected into every LLM
-                request to guide `ask_user` usage.
-            tool_description: Description string passed to the `ask_user` tool
-                decorator, visible to the LLM in the tool schema.
+Args:
+            system_prompt: `ask_user` 사용법을 안내하기 위해 모든 LLM 요청에 시스템 수준 지침이 삽입되었습니다.
+            tool_description: 도구 스키마의 LLM에 표시되는 `ask_user` 도구 데코레이터에 전달된 설명 문자열입니다.
+
         """
         super().__init__()
         self.system_prompt = system_prompt
@@ -237,14 +235,15 @@ class AskUserMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
             questions: list[Question],
             tool_call_id: Annotated[str, InjectedToolCallId],
         ) -> Command[Any]:
-            """Ask the user one or more questions.
+            """사용자에게 하나 이상의 질문을 하십시오.
 
-            Args:
-                questions: Questions to present to the user.
-                tool_call_id: Tool call identifier injected by LangChain.
+Args:
+                questions: 사용자에게 제시할 질문입니다.
+                tool_call_id: LangChain이 주입한 도구 호출 식별자입니다.
 
-            Returns:
-                `Command` containing the parsed user answers as a `ToolMessage`.
+Returns:
+                구문 분석된 사용자 응답을 `ToolMessage`로 포함하는 `Command`.
+
             """
             _validate_questions(questions)
             ask_request = AskUserRequest(
@@ -263,10 +262,11 @@ class AskUserMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
         request: ModelRequest[ContextT],
         handler: Callable[[ModelRequest[ContextT]], ModelResponse[ResponseT]],
     ) -> ModelResponse[ResponseT] | AIMessage:
-        """Inject the ask_user system prompt.
+        """Ask_user 시스템 프롬프트를 삽입합니다.
 
-        Returns:
-            Model response from the wrapped handler.
+Returns:
+            래핑된 핸들러의 모델 응답입니다.
+
         """
         if request.system_message is not None:
             new_system_content = [
@@ -287,10 +287,11 @@ class AskUserMiddleware(AgentMiddleware[Any, ContextT, ResponseT]):
             [ModelRequest[ContextT]], Awaitable[ModelResponse[ResponseT]]
         ],
     ) -> ModelResponse[ResponseT] | AIMessage:
-        """Inject the ask_user system prompt (async).
+        """Ask_user 시스템 프롬프트(비동기)를 삽입합니다.
 
-        Returns:
-            Model response from the wrapped handler.
+Returns:
+            래핑된 핸들러의 모델 응답입니다.
+
         """
         if request.system_message is not None:
             new_system_content = [

@@ -1,11 +1,9 @@
-"""Trust store for project-level MCP server configurations.
+"""프로젝트 수준 MCP 서버 구성을 위한 신뢰 저장소입니다.
 
-Manages persistent approval of project-level MCP configs that contain stdio
-servers (which execute local commands). Trust is fingerprint-based: if the
-config content changes, the user must re-approve.
+stdio 서버(로컬 명령 실행)가 포함된 프로젝트 수준 MCP 구성의 지속적인 승인을 관리합니다. 신뢰는 지문 기반입니다. 구성 콘텐츠가 변경되면 사용자가
+다시 승인해야 합니다.
 
-Trust entries are stored in `~/.deepagents/config.toml` under
-`[mcp_trust.projects]`.
+신뢰 항목은 `[mcp_trust.projects]` 아래의 `~/.deepagents/config.toml`에 저장됩니다.
 """
 
 from __future__ import annotations
@@ -25,13 +23,14 @@ _DEFAULT_CONFIG_PATH = _DEFAULT_CONFIG_DIR / "config.toml"
 
 
 def compute_config_fingerprint(config_paths: list[Path]) -> str:
-    """Compute a SHA-256 fingerprint over sorted, concatenated config contents.
+    """정렬되고 연결된 구성 콘텐츠에 대해 SHA-256 지문을 계산합니다.
 
-    Args:
-        config_paths: Paths to config files to fingerprint.
+Args:
+        config_paths: 지문을 생성할 구성 파일의 경로입니다.
 
-    Returns:
-        Fingerprint string in the form `sha256:<hex>`.
+Returns:
+        Fingerprint string in the form `sha256: <16진수>`.
+
     """
     hasher = hashlib.sha256()
     for path in sorted(config_paths):
@@ -43,10 +42,11 @@ def compute_config_fingerprint(config_paths: list[Path]) -> str:
 
 
 def _load_config(config_path: Path) -> dict[str, Any]:
-    """Read the TOML config file.
+    """TOML 구성 파일을 읽습니다.
 
-    Returns:
-        Parsed TOML data, or an empty dict on failure.
+Returns:
+        구문 분석된 TOML 데이터 또는 실패 시 빈 사전입니다.
+
     """
     import tomllib
 
@@ -61,16 +61,17 @@ def _load_config(config_path: Path) -> dict[str, Any]:
 
 
 def _save_config(data: dict[str, Any], config_path: Path) -> bool:
-    """Atomic write of TOML data to config_path.
+    """config_path에 TOML 데이터를 원자적으로 기록합니다.
 
-    Uses `tempfile.mkstemp` + `Path.replace` for crash safety.
+    충돌 안전을 위해 `tempfile.mkstemp` + `Path.replace`을 사용합니다.
 
-    Args:
-        data: Full TOML data dict to write.
-        config_path: Destination path.
+Args:
+        data: 전체 TOML 데이터 딕셔너리를 작성합니다.
+        config_path: 대상 경로.
 
-    Returns:
-        `True` on success, `False` on I/O failure.
+Returns:
+        성공 시 `True`, I/O 실패 시 `False`.
+
     """
     import tomli_w
 
@@ -97,15 +98,16 @@ def is_project_mcp_trusted(
     *,
     config_path: Path | None = None,
 ) -> bool:
-    """Check whether a project's MCP config is trusted with the given fingerprint.
+    """프로젝트의 MCP 구성이 지정된 지문으로 신뢰되는지 확인하세요.
 
-    Args:
-        project_root: Absolute path to the project root.
-        fingerprint: Expected fingerprint string (`sha256:<hex>`).
-        config_path: Path to the trust config file.
+Args:
+        project_root: 프로젝트 루트의 절대 경로입니다.
+        fingerprint: 예상되는 지문 문자열(`sha256:<hex>`)입니다.
+        config_path: 신뢰 구성 파일의 경로입니다.
 
-    Returns:
-        `True` if the stored fingerprint matches.
+Returns:
+        `True` 저장된 지문이 일치하는 경우.
+
     """
     if config_path is None:
         config_path = _DEFAULT_CONFIG_PATH
@@ -121,15 +123,16 @@ def trust_project_mcp(
     *,
     config_path: Path | None = None,
 ) -> bool:
-    """Persist trust for a project's MCP config.
+    """프로젝트의 MCP 구성에 대한 신뢰를 유지합니다.
 
-    Args:
-        project_root: Absolute path to the project root.
-        fingerprint: Fingerprint to store (`sha256:<hex>`).
-        config_path: Path to the trust config file.
+Args:
+        project_root: 프로젝트 루트의 절대 경로입니다.
+        fingerprint: 저장할 지문(`sha256:<hex>`).
+        config_path: 신뢰 구성 파일의 경로입니다.
 
-    Returns:
-        `True` if the entry was saved successfully.
+Returns:
+        `True` 항목이 성공적으로 저장된 경우.
+
     """
     if config_path is None:
         config_path = _DEFAULT_CONFIG_PATH
@@ -148,14 +151,15 @@ def revoke_project_mcp_trust(
     *,
     config_path: Path | None = None,
 ) -> bool:
-    """Remove trust for a project's MCP config.
+    """프로젝트의 MCP 구성에 대한 신뢰를 제거합니다.
 
-    Args:
-        project_root: Absolute path to the project root.
-        config_path: Path to the trust config file.
+Args:
+        project_root: 프로젝트 루트의 절대 경로입니다.
+        config_path: 신뢰 구성 파일의 경로입니다.
 
-    Returns:
-        `True` if the entry was removed (or didn't exist).
+Returns:
+        `True` 항목이 제거된 경우(또는 존재하지 않는 경우)
+
     """
     if config_path is None:
         config_path = _DEFAULT_CONFIG_PATH

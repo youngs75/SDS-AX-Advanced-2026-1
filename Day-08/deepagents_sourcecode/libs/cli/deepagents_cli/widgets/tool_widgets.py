@@ -1,7 +1,6 @@
-"""Specialized Textual widgets used for HITL tool previews.
+"""HITL 도구 미리보기에 사용되는 특수 텍스트 위젯입니다.
 
-These widgets render generic argument lists as well as richer write/edit-file
-previews that include truncated content and diff statistics.
+이러한 위젯은 일반 인수 목록뿐만 아니라 잘린 콘텐츠 및 차이점 통계를 포함하는 보다 풍부한 쓰기/편집 파일 미리 보기를 렌더링합니다.
 """
 
 from __future__ import annotations
@@ -25,14 +24,15 @@ _MAX_PREVIEW_LINES = 20
 
 
 def _format_stats(additions: int, deletions: int) -> Content:
-    """Format addition/deletion stats as styled Content.
+    """추가/삭제 통계를 스타일이 지정된 콘텐츠로 포맷합니다.
 
     Args:
-        additions: Number of added lines.
-        deletions: Number of removed lines.
+        additions: 추가된 줄 수입니다.
+        deletions: 제거된 줄 수입니다.
 
     Returns:
-        Styled Content showing additions and deletions.
+        추가 및 삭제를 표시하는 스타일 콘텐츠입니다.
+
     """
     colors = theme.get_theme_colors()
     parts: list[str | tuple[str, str] | Content] = []
@@ -48,15 +48,16 @@ def _format_stats(additions: int, deletions: int) -> Content:
 def _file_header(
     file_path: str, additions: int = 0, deletions: int = 0
 ) -> ComposeResult:
-    """Yield the `File:` path header with optional `+N -M` stats.
+    """선택적 `+N -M` 통계를 사용하여 `File:` 경로 헤더를 생성합니다.
 
     Args:
-        file_path: Path to the file being modified.
-        additions: Number of added lines.
-        deletions: Number of removed lines.
+        file_path: 수정 중인 파일의 경로입니다.
+        additions: 추가된 줄 수입니다.
+        deletions: 제거된 줄 수입니다.
 
     Yields:
-        Static widgets for the file path header and a spacer line.
+        파일 경로 헤더 및 공백 줄에 대한 정적 위젯입니다.
+
     """
     stats = _format_stats(additions, deletions)
     yield Static(
@@ -71,15 +72,16 @@ def _file_header(
 def _count_diff_stats(
     diff_lines: list[str], old_string: str, new_string: str
 ) -> tuple[int, int]:
-    """Count additions and deletions from diff data.
+    """diff 데이터의 추가 및 삭제 횟수를 계산합니다.
 
     Args:
-        diff_lines: Unified diff output lines.
-        old_string: Original text being replaced (fallback when no diff).
-        new_string: Replacement text (fallback when no diff).
+        diff_lines: 통합된 diff 출력 라인.
+        old_string: 원본 텍스트가 대체됩니다(차이가 없는 경우 대체).
+        new_string: 대체 텍스트(차이가 없는 경우 대체)
 
     Returns:
-        Tuple of (additions count, deletions count).
+        (추가 개수, 삭제 개수)의 튜플입니다.
+
     """
     if diff_lines:
         additions = sum(
@@ -99,30 +101,32 @@ def _count_diff_stats(
 
 
 class ToolApprovalWidget(Vertical):
-    """Base class for tool approval widgets."""
+    """도구 승인 위젯의 기본 클래스입니다."""
 
     def __init__(self, data: dict[str, Any]) -> None:
-        """Initialize the tool approval widget with data."""
+        """데이터로 도구 승인 위젯을 초기화합니다."""
         super().__init__(classes="tool-approval-widget")
         self.data = data
 
     def compose(self) -> ComposeResult:  # noqa: PLR6301  # Textual widget method convention
-        """Default compose - override in subclasses.
+        """기본 작성 - 서브클래스에서 재정의됩니다.
 
         Yields:
-            Static widget with placeholder message.
+            자리 표시자 메시지가 포함된 정적 위젯입니다.
+
         """
         yield Static("Tool details not available", classes="approval-description")
 
 
 class GenericApprovalWidget(ToolApprovalWidget):
-    """Generic approval widget for unknown tools."""
+    """알 수 없는 도구에 대한 일반 승인 위젯입니다."""
 
     def compose(self) -> ComposeResult:
-        """Compose the generic tool display.
+        """일반 도구 디스플레이를 구성합니다.
 
         Yields:
-            Static widgets displaying each key-value pair from tool data.
+            도구 데이터의 각 키-값 쌍을 표시하는 정적 위젯입니다.
+
         """
         for key, value in self.data.items():
             if value is None:
@@ -137,13 +141,14 @@ class GenericApprovalWidget(ToolApprovalWidget):
 
 
 class WriteFileApprovalWidget(ToolApprovalWidget):
-    """Approval widget for write_file - shows file content with syntax highlighting."""
+    """write_file에 대한 승인 위젯 - 구문 강조를 사용하여 파일 콘텐츠를 표시합니다."""
 
     def compose(self) -> ComposeResult:
-        """Compose the file content display with syntax highlighting.
+        """구문 강조를 사용하여 파일 내용 표시를 구성합니다.
 
         Yields:
-            Widgets displaying file path header and syntax-highlighted content.
+            파일 경로 헤더와 구문 강조 콘텐츠를 표시하는 위젯입니다.
+
         """
         file_path = self.data.get("file_path", "")
         content = self.data.get("content", "")
@@ -169,13 +174,14 @@ class WriteFileApprovalWidget(ToolApprovalWidget):
 
 
 class EditFileApprovalWidget(ToolApprovalWidget):
-    """Approval widget for edit_file - shows clean diff with colors."""
+    """edit_file에 대한 승인 위젯 - 색상과 함께 깔끔한 차이점을 표시합니다."""
 
     def compose(self) -> ComposeResult:
-        """Compose the diff display with colored additions and deletions.
+        """색상 추가 및 삭제로 diff 디스플레이를 구성합니다.
 
         Yields:
-            Widgets displaying file path, stats, and colored diff lines.
+            파일 경로, 통계, 색상 차이 선을 표시하는 위젯입니다.
+
         """
         file_path = self.data.get("file_path", "")
         diff_lines = self.data.get("diff_lines", [])
@@ -194,10 +200,11 @@ class EditFileApprovalWidget(ToolApprovalWidget):
             yield from self._render_strings_only(old_string, new_string)
 
     def _render_diff_lines_only(self, diff_lines: list[str]) -> ComposeResult:
-        """Render unified diff lines without returning stats.
+        """통계를 반환하지 않고 통합 diff 라인을 렌더링합니다.
 
         Yields:
-            Static widgets for each diff line with appropriate styling.
+            적절한 스타일을 적용한 각 차이점 줄에 대한 정적 위젯.
+
         """
         lines_shown = 0
 
@@ -219,10 +226,11 @@ class EditFileApprovalWidget(ToolApprovalWidget):
                 lines_shown += 1
 
     def _render_strings_only(self, old_string: str, new_string: str) -> ComposeResult:
-        """Render old/new strings without returning stats.
+        """통계를 반환하지 않고 이전/새 문자열을 렌더링합니다.
 
         Yields:
-            Static widgets showing removed and added content with styling.
+            스타일을 적용하여 제거 및 추가된 콘텐츠를 보여주는 정적 위젯입니다.
+
         """
         colors = theme.get_theme_colors()
         if old_string:
@@ -236,10 +244,11 @@ class EditFileApprovalWidget(ToolApprovalWidget):
 
     @staticmethod
     def _render_diff_line(line: str) -> Static | None:
-        """Render a single diff line with appropriate styling.
+        """적절한 스타일로 단일 차이점 라인을 렌더링합니다.
 
         Returns:
-            Static widget with styled diff line, or None for empty/skipped lines.
+            스타일이 지정된 diff 라인이 있는 정적 위젯 또는 비어 있거나 건너뛴 라인의 경우 None입니다.
+
         """
         raw = line[1:] if len(line) > 1 else ""
 
@@ -261,10 +270,11 @@ class EditFileApprovalWidget(ToolApprovalWidget):
 
     @staticmethod
     def _render_string_lines(text: str, *, is_addition: bool) -> ComposeResult:
-        """Render lines from a string with appropriate styling.
+        """적절한 스타일을 사용하여 문자열에서 선을 렌더링합니다.
 
         Yields:
-            Static widgets for each line with addition or deletion styling.
+            추가 또는 삭제 스타일이 포함된 각 줄의 정적 위젯.
+
         """
         lines = text.split("\n")
         sign = "+" if is_addition else "-"

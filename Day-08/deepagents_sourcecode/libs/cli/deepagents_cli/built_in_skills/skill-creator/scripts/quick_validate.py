@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Quick validation script for skills - minimal version.
+"""기술에 대한 빠른 검증 스크립트 - 최소 버전.
 
-For deepagents CLI, skills are located at:
-~/.deepagents/<agent>/skills/<skill-name>/
+deepagents CLI의 경우 기술은 ~/.deepagents/<agent>/skills/<skill-name>/에 있습니다.
 
 Example:
 ```python
@@ -18,11 +17,12 @@ import yaml
 
 
 def validate_skill(skill_path):
-    """Basic validation of a skill.
+    """기술의 기본 검증.
 
-    Returns:
-        Tuple of (is_valid, message) where is_valid is bool and message
-            describes result.
+Returns:
+        is_valid가 bool이고 message인 경우 (is_valid, message)의 튜플
+            결과를 설명합니다.
+
     """
     skill_path = Path(skill_path)
 

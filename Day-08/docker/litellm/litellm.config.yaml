@@ -8,14 +8,13 @@
 # - LiteLLM forwards to the instructor-provided vLLM OpenAI-compatible endpoint
 
 model_list:
-  - model_name: os.environ/LITELLM_MODEL_ALIAS
+  - model_name: gpt-5.4-mini
     litellm_params:
-      model: os.environ/VLLM_LITELLM_MODEL
-      api_base: os.environ/VLLM_API_BASE
-      api_key: os.environ/VLLM_API_KEY
+      model: gpt-5.4-mini
+      api_key: "EMPTY"
 
 general_settings:
-  master_key: os.environ/LITELLM_MASTER_KEY
+  master_key: sds-class-123
 
 litellm_settings:
   drop_params: true

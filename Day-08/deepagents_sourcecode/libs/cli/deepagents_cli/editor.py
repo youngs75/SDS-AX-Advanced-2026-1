@@ -1,7 +1,6 @@
-"""Launch external editors for composing or revising prompts.
+"""프롬프트를 작성하거나 수정하기 위해 외부 편집기를 실행합니다.
 
-The helpers here normalize common editor conventions so the CLI can hand off
-large prompt editing to GUI or terminal editors without blocking incorrectly.
+여기의 도우미는 일반적인 편집기 규칙을 표준화하므로 CLI가 잘못 차단하지 않고 GUI 또는 터미널 편집기에 대규모 프롬프트 편집을 전달할 수 있습니다.
 """
 
 from __future__ import annotations
@@ -25,20 +24,21 @@ GUI_WAIT_FLAG: dict[str, str] = {
     "subl": "-w",
     "windsurf": "--wait",
 }
-"""Mapping of GUI editor base names to their blocking flag."""
+"""GUI 편집기 기본 이름을 차단 플래그에 매핑합니다."""
 
 VIM_EDITORS = {"vi", "vim", "nvim"}
-"""Set of vim-family editor base names that receive the `-i NONE` flag."""
+"""`-i NONE` 플래그를 받는 vim-family 편집기 기본 이름 집합입니다."""
 
 
 def resolve_editor() -> list[str] | None:
-    """Resolve editor command from environment.
+    """환경에서 편집기 명령을 해결합니다.
 
-    Checks $VISUAL, then $EDITOR, then falls back to platform default.
+    $VISUAL을 확인한 다음 $EDITOR를 확인한 다음 플랫폼 기본값으로 돌아갑니다.
 
-    Returns:
-        Tokenized command list, or `None` if the env var was set but empty after
-            tokenization.
+Returns:
+        토큰화된 명령 목록 또는 env var가 설정되었지만 이후 비어 있는 경우 `None`
+            토큰화.
+
     """
     editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
     if not editor:
@@ -50,12 +50,13 @@ def resolve_editor() -> list[str] | None:
 
 
 def _prepare_command(cmd: list[str], filepath: str) -> list[str]:
-    """Build the full command list with appropriate flags.
+    """적절한 플래그를 사용하여 전체 명령 목록을 작성하십시오.
 
-    Adds --wait/-w for GUI editors and `-i NONE` for vim-family editors.
+    GUI 편집기에는 --wait/-w를 추가하고 vim-family 편집기에는 `-i NONE`을 추가합니다.
 
-    Returns:
-        The complete command list with flags and filepath appended.
+Returns:
+        플래그와 파일 경로가 추가된 전체 명령 목록입니다.
+
     """
     cmd = list(cmd)  # copy
     exe = Path(cmd[0]).stem.lower()
@@ -75,17 +76,17 @@ def _prepare_command(cmd: list[str], filepath: str) -> list[str]:
 
 
 def open_in_editor(current_text: str) -> str | None:
-    """Open current_text in an external editor.
+    """외부 편집기에서 current_text를 엽니다.
 
-    Creates a temp .md file, launches the editor, and reads back the result.
+    임시 .md 파일을 생성하고 편집기를 시작한 다음 결과를 다시 읽습니다.
 
-    Args:
-        current_text: The text to pre-populate in the editor.
+Args:
+        current_text: 편집기에 미리 채워질 텍스트입니다.
 
-    Returns:
-        The edited text with normalized line endings, or `None` if the editor
-            exited with a non-zero status, was not found, or the result was
-            empty/whitespace-only.
+Returns:
+        정규화된 줄 끝으로 편집된 텍스트 또는 편집자의 경우 `None`
+            0이 아닌 상태로 종료되었거나 찾을 수 없거나 결과가 비어 있거나 공백만 있었습니다.
+
     """
     cmd = resolve_editor()
     if cmd is None:

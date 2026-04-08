@@ -1,7 +1,6 @@
-"""Modal theme picker with live preview behavior.
+"""실시간 미리보기 동작이 포함된 모달 테마 선택기입니다.
 
-This module lets users browse registered themes, preview them immediately, and
-either confirm or discard the visual change.
+이 모듈을 통해 사용자는 등록된 테마를 찾아보고 즉시 미리 볼 수 있으며 시각적 변경 사항을 확인하거나 취소할 수 있습니다.
 """
 
 from __future__ import annotations
@@ -25,11 +24,11 @@ logger = logging.getLogger(__name__)
 
 
 class ThemeSelectorScreen(ModalScreen[str | None]):
-    """Modal dialog for theme selection with live preview.
+    """실시간 미리보기가 포함된 테마 선택을 위한 모달 대화상자입니다.
 
-    Displays available themes in an `OptionList`. Navigating the option list
-    applies a live preview by swapping the app theme. Returns the selected
-    theme name on Enter, or `None` on Esc (restoring the original theme).
+    `OptionList`에 사용 가능한 테마를 표시합니다. 옵션 목록을 탐색하면 앱 테마를 교체하여 실시간 미리보기가 적용됩니다. Enter 키를 누르면
+    선택한 테마 이름을 반환하고 Esc 키를 누르면 `None`을 반환합니다(원래 테마 복원).
+
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -75,20 +74,22 @@ class ThemeSelectorScreen(ModalScreen[str | None]):
     """
 
     def __init__(self, current_theme: str) -> None:
-        """Initialize the ThemeSelectorScreen.
+        """ThemeSelectorScreen을 초기화합니다.
 
         Args:
-            current_theme: The currently active theme name (to highlight).
+            current_theme: 현재 활성화된 테마 이름(강조표시용)입니다.
+
         """
         super().__init__()
         self._current_theme = current_theme
         self._original_theme = current_theme
 
     def compose(self) -> ComposeResult:
-        """Compose the screen layout.
+        """화면 레이아웃을 구성합니다.
 
         Yields:
-            Widgets for the theme selector UI.
+            테마 선택기 UI용 위젯입니다.
+
         """
         glyphs = get_glyphs()
         options: list[Option] = []
@@ -114,7 +115,7 @@ class ThemeSelectorScreen(ModalScreen[str | None]):
             yield Static(help_text, classes="theme-selector-help")
 
     def on_mount(self) -> None:
-        """Apply ASCII border if needed."""
+        """필요한 경우 ASCII 테두리를 적용합니다."""
         if is_ascii_mode():
             container = self.query_one(Vertical)
             colors = theme.get_theme_colors(self)
@@ -123,10 +124,11 @@ class ThemeSelectorScreen(ModalScreen[str | None]):
     def on_option_list_option_highlighted(
         self, event: OptionList.OptionHighlighted
     ) -> None:
-        """Live-preview the highlighted theme.
+        """강조 표시된 테마를 실시간으로 미리 봅니다.
 
         Args:
-            event: The option highlighted event.
+            event: 옵션이 강조된 이벤트입니다.
+
         """
         name = event.option.id
         if name is not None and name in theme.ThemeEntry.REGISTRY:
@@ -150,10 +152,11 @@ class ThemeSelectorScreen(ModalScreen[str | None]):
                     )
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        """Commit the selected theme.
+        """선택한 테마를 커밋합니다.
 
         Args:
-            event: The option selected event.
+            event: 옵션선택 이벤트입니다.
+
         """
         name = event.option.id
         if name is not None and name in theme.ThemeEntry.REGISTRY:
@@ -163,6 +166,6 @@ class ThemeSelectorScreen(ModalScreen[str | None]):
             self.dismiss(None)
 
     def action_cancel(self) -> None:
-        """Restore the original theme and dismiss."""
+        """원래 테마를 복원하고 닫습니다."""
         self.app.theme = self._original_theme
         self.dismiss(None)

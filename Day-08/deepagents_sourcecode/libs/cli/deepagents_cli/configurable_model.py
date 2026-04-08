@@ -1,8 +1,7 @@
-"""CLI middleware for runtime model selection via LangGraph runtime context.
+"""LangGraph 런타임 컨텍스트를 통한 런타임 모델 선택을 위한 CLI 미들웨어입니다.
 
-Allows switching the model per invocation by passing a `CLIContext` via
-`context=` on `agent.astream()` / `agent.invoke()` without recompiling
-the graph.
+그래프를 다시 컴파일하지 않고 `agent.astream()` / `agent.invoke()`의 `context=`을 통해 `CLIContext`을 전달하여
+호출별로 모델을 전환할 수 있습니다.
 """
 
 from __future__ import annotations
@@ -25,12 +24,13 @@ logger = logging.getLogger(__name__)
 
 
 def _is_anthropic_model(model: object) -> bool:
-    """Check whether a resolved model reports `'anthropic'` as its provider.
+    """해결된 모델이 `'anthropic'`을(를) 공급자로 보고하는지 확인하세요.
 
-    Uses `_get_ls_params` from `BaseChatModel` to read the provider name.
+    `BaseChatModel`의 `_get_ls_params`을(를) 사용하여 공급자 이름을 읽습니다.
 
-    Returns:
-        `True` if the model's `ls_provider` is `'anthropic'`.
+Returns:
+        모델의 `ls_provider`이(가) `'anthropic'`인 경우 `True`입니다.
+
     """
     try:
         ls_params = model._get_ls_params()  # type: ignore[attr-defined]
@@ -44,17 +44,18 @@ def _is_anthropic_model(model: object) -> bool:
 
 
 _ANTHROPIC_ONLY_SETTINGS: set[str] = {"cache_control"}
-"""Keys injected by Anthropic-specific middleware (e.g.
-`AnthropicPromptCachingMiddleware`) that are not accepted by other providers and
-must be stripped on cross-provider swap."""
+"""Anthropic 특정 미들웨어(예: `AnthropicPromptCachingMiddleware`)에 의해 삽입된 키로서 다른 공급자가 허용하지 않으며
+공급자 간 스왑 시 제거해야 합니다.
+"""
 
 
 def _apply_overrides(request: ModelRequest) -> ModelRequest:
-    """Apply model/param overrides from `CLIContext` on the runtime.
+    """런타임 시 `CLIContext`의 모델/매개변수 재정의를 적용합니다.
 
-    Returns:
-        The original request unchanged when no `CLIContext` is present or it
-            contains no overrides, otherwise a new request with overrides.
+Returns:
+        `CLIContext`이 없거나 `CLIContext`이 없으면 원래 요청은 변경되지 않습니다.
+            재정의가 없습니다. 그렇지 않으면 재정의가 포함된 새 요청입니다.
+
     """
     runtime = request.runtime
     if runtime is None:
@@ -143,14 +144,14 @@ def _apply_overrides(request: ModelRequest) -> ModelRequest:
 
 
 class ConfigurableModelMiddleware(AgentMiddleware):
-    """Swap the model or per-call settings from `runtime.context`."""
+    """`runtime.context`에서 모델 또는 호출별 설정을 바꾸세요."""
 
     def wrap_model_call(  # noqa: PLR6301
         self,
         request: ModelRequest,
         handler: Callable[[ModelRequest], ModelResponse],
     ) -> ModelResponse:
-        """Apply runtime overrides and delegate to the next handler."""  # noqa: DOC201
+        """런타임 재정의를 적용하고 다음 핸들러에 위임합니다."""  # noqa: DOC201
         return handler(_apply_overrides(request))
 
     async def awrap_model_call(  # noqa: PLR6301
@@ -158,5 +159,5 @@ class ConfigurableModelMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
-        """Apply runtime overrides and delegate to the next async handler."""  # noqa: DOC201
+        """런타임 재정의를 적용하고 다음 비동기 처리기에 위임합니다."""  # noqa: DOC201
         return await handler(_apply_overrides(request))

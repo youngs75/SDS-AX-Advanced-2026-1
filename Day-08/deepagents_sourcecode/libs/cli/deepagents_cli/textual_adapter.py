@@ -1,8 +1,7 @@
-"""Bridge LangGraph execution events into Textual UI updates.
+"""LangGraph 실행 이벤트를 텍스트 UI 업데이트에 연결합니다.
 
-This adapter translates streamed model/tool events into message-store updates,
-interrupt widgets, token accounting, and status changes that the Textual app
-can render incrementally.
+이 어댑터는 스트리밍된 모델/도구 이벤트를 메시지 저장소 업데이트, 인터럽트 위젯, 토큰 계정 및 Textual 앱이 점진적으로 렌더링할 수 있는 상태
+변경으로 변환합니다.
 """
 # This module has complex streaming logic ported from execution.py
 
@@ -38,12 +37,12 @@ if TYPE_CHECKING:
     HITLDecision = ApproveDecision | EditDecision | RejectDecision
 
     class _TokensUpdateCallback(Protocol):
-        """Callback signature for `_on_tokens_update`."""
+        """`_on_tokens_update`에 대한 콜백 서명입니다."""
 
         def __call__(self, count: int, *, approximate: bool = False) -> None: ...
 
     class _TokensShowCallback(Protocol):
-        """Callback signature for `_on_tokens_show`."""
+        """`_on_tokens_show`에 대한 콜백 서명입니다."""
 
         def __call__(self, *, approximate: bool = False) -> None: ...
 
@@ -76,7 +75,7 @@ logger = logging.getLogger(__name__)
 configure_debug_logging(logger)
 
 _hitl_adapter_cache: TypeAdapter | None = None
-"""Lazy singleton for the HITL request validator."""
+"""HITL 요청 유효성 검사기에 대한 게으른 싱글톤입니다."""
 
 
 # ---------------------------------------------------------------------------
@@ -84,16 +83,16 @@ _hitl_adapter_cache: TypeAdapter | None = None
 # ---------------------------------------------------------------------------
 
 def _get_hitl_request_adapter(hitl_request_type: type) -> TypeAdapter:
-    """Return a cached `TypeAdapter(HITLRequest)`.
+    """캐시된 `TypeAdapter(HITLRequest)`을(를) 반환합니다.
 
-    Avoids re-compiling the pydantic schema on every `execute_task_textual` call.
+    `execute_task_textual` 호출마다 pydantic 스키마를 다시 컴파일하는 것을 방지합니다.
 
     Args:
-        hitl_request_type: The `HITLRequest` class (passed in because
-            it is imported locally by the caller).
+        hitl_request_type: `HITLRequest` 클래스(호출자가 로컬로 가져오기 때문에 전달됨)
 
     Returns:
-        Shared `TypeAdapter` instance.
+        `TypeAdapter` 인스턴스를 공유했습니다.
+
     """
     global _hitl_adapter_cache  # noqa: PLW0603
     if _hitl_adapter_cache is None:
@@ -108,15 +107,15 @@ def print_usage_table(
     wall_time: float,
     console: Console,
 ) -> None:
-    """Print a model-usage stats table to a Rich console.
+    """모델 사용 통계 테이블을 Rich 콘솔에 인쇄합니다.
 
-    When the session spans multiple models each gets its own row with a
-    totals row appended; single-model sessions show one row.
+    세션이 여러 모델에 걸쳐 있는 경우 각 모델에는 합계 행이 추가된 자체 행이 있습니다. 단일 모델 세션은 하나의 행을 표시합니다.
 
     Args:
-        stats: Cumulative session stats.
-        wall_time: Total wall-clock time in seconds.
-        console: Rich console for output.
+        stats: 누적 세션 통계입니다.
+        wall_time: 총 벽시계 시간(초)입니다.
+        console: 출력을 위한 풍부한 콘솔.
+
     """
     from rich.table import Table
 
@@ -175,14 +174,15 @@ def print_usage_table(
 
 
 _ask_user_adapter_cache: TypeAdapter | None = None
-"""Lazy singleton for the `ask_user` interrupt validator."""
+"""`ask_user` 인터럽트 유효성 검사기에 대한 게으른 싱글톤입니다."""
 
 
 def _get_ask_user_adapter() -> TypeAdapter:
-    """Return a cached `TypeAdapter(AskUserRequest)`.
+    """캐시된 `TypeAdapter(AskUserRequest)`을(를) 반환합니다.
 
     Returns:
-        Shared `TypeAdapter` instance.
+        `TypeAdapter` 인스턴스를 공유했습니다.
+
     """
     global _ask_user_adapter_cache  # noqa: PLW0603
     if _ask_user_adapter_cache is None:
@@ -193,18 +193,17 @@ def _get_ask_user_adapter() -> TypeAdapter:
 
 
 def _is_summarization_chunk(metadata: dict | None) -> bool:
-    """Check if a message chunk is from summarization middleware.
+    """메시지 청크가 요약 미들웨어에서 나온 것인지 확인하세요.
 
-    The summarization model is invoked with
-    `config={"metadata": {"lc_source": "summarization"}}`
-    (see `langchain.agents.middleware.summarization`), which
-    LangChain's callback system merges into the stream metadata dict.
+    요약 모델은 LangChain의 콜백 시스템이 스트림 메타데이터 사전에 병합하는 `config={"metadata": {"lc_source":
+    "summarization"}}`(`langchain.agents.middleware.summarization` 참조)으로 호출됩니다.
 
     Args:
-        metadata: The metadata dict from the stream chunk.
+        metadata: 스트림 청크의 메타데이터 dict입니다.
 
     Returns:
-        Whether the chunk is from summarization and should be filtered.
+        청크가 요약에서 나온 것이며 필터링되어야 하는지 여부입니다.
+
     """
     if metadata is None:
         return False
@@ -216,10 +215,10 @@ def _is_summarization_chunk(metadata: dict | None) -> bool:
 # ---------------------------------------------------------------------------
 
 class TextualUIAdapter:
-    """Adapter for rendering agent output to Textual widgets.
+    """에이전트 출력을 텍스트 위젯으로 렌더링하기 위한 어댑터입니다.
 
-    This adapter provides an abstraction layer between the agent execution and the
-    Textual UI, allowing streaming output to be rendered as widgets.
+    이 어댑터는 에이전트 실행과 텍스트 UI 사이에 추상화 계층을 제공하여 스트리밍 출력을 위젯으로 렌더링할 수 있도록 합니다.
+
     """
 
     def __init__(
@@ -239,61 +238,62 @@ class TextualUIAdapter:
             | None
         ) = None,
     ) -> None:
-        """Initialize the adapter."""
+        """어댑터를 초기화합니다."""
         self._mount_message = mount_message
-        """Async callback to mount a message widget to the chat."""
+        """메시지 위젯을 채팅에 마운트하기 위한 비동기 콜백."""
 
         self._update_status = update_status
-        """Callback to update the status bar text."""
+        """상태 표시줄 텍스트를 업데이트하는 콜백입니다."""
 
         self._request_approval = request_approval
-        """Async callback that returns a Future for HITL approval."""
+        """HITL 승인을 위해 Future를 반환하는 비동기 콜백입니다."""
 
         self._on_auto_approve_enabled = on_auto_approve_enabled
-        """Callback invoked when auto-approve is enabled via the HITL approval
-        menu.
+        """HITL 승인을 통해 자동 승인이 활성화되면 콜백이 호출됩니다.
+        메뉴.
 
-        Fired when the user selects "Auto-approve all" from an approval dialog,
-        allowing the app to sync its status bar and session state.
+        사용자가 승인 대화 상자에서 '모두 자동 승인'을 선택하면 실행되어 앱이 상태 표시줄과 세션 상태를 동기화할 수 있습니다.
+
         """
 
         self._set_spinner = set_spinner
-        """Callback to show/hide loading spinner."""
+        """로딩 스피너를 표시/숨기기 위한 콜백입니다."""
 
         self._set_active_message = set_active_message
-        """Callback to set the active streaming message ID (pass `None` to clear)."""
+        """활성 스트리밍 메시지 ID를 설정하기 위한 콜백(지우려면 `None` 전달)"""
 
         self._sync_message_content = sync_message_content
-        """Callback to sync final message content back to the store after streaming."""
+        """스트리밍 후 최종 메시지 콘텐츠를 스토어에 다시 동기화하기 위한 콜백입니다."""
 
         self._request_ask_user = request_ask_user
-        """Async callback for `ask_user` interrupts.
+        """`ask_user` 인터럽트에 대한 비동기 콜백.
 
-        When awaited, returns a `Future` that resolves to user answers.
+        기다렸다가 사용자 답변을 확인하는 `Future`을 반환합니다.
+
         """
 
         # State tracking
         self._current_tool_messages: dict[str, ToolCallMessage] = {}
-        """Map of tool call IDs to their message widgets."""
+        """도구 호출 ID를 해당 메시지 위젯에 매핑합니다."""
 
         # Token display callbacks (set by the app after construction)
         self._on_tokens_update: _TokensUpdateCallback | None = None
-        """Called with total context tokens after each LLM response."""
+        """각 LLM 응답 후 전체 컨텍스트 토큰으로 호출됩니다."""
 
         self._on_tokens_hide: Callable[[], None] | None = None
-        """Called to hide the token display during streaming."""
+        """스트리밍 중에 토큰 표시를 숨기기 위해 호출됩니다."""
 
         self._on_tokens_show: _TokensShowCallback | None = None
-        """Called to restore the token display with the cached value."""
+        """캐시된 값으로 토큰 표시를 복원하기 위해 호출됩니다."""
 
     def finalize_pending_tools_with_error(self, error: str) -> None:
-        """Mark all pending/running tool widgets as error and clear tracking.
+        """보류 중/실행 중인 모든 도구 위젯을 오류 및 명확한 추적으로 표시합니다.
 
-        This is used as a safety net when an unexpected exception aborts
-        streaming before matching `ToolMessage` results are received.
+        이는 일치하는 `ToolMessage` 결과가 수신되기 전에 예기치 않은 예외로 인해 스트리밍이 중단될 때 안전망으로 사용됩니다.
 
         Args:
-            error: Error text to display in each pending tool widget.
+            error: 보류 중인 각 도구 위젯에 표시할 오류 텍스트입니다.
+
         """
         for tool_msg in list(self._current_tool_messages.values()):
             tool_msg.set_error(error)
@@ -308,14 +308,15 @@ def _build_interrupted_ai_message(
     pending_text_by_namespace: dict[tuple, str],
     current_tool_messages: dict[str, Any],
 ) -> AIMessage | None:
-    """Build an AIMessage capturing interrupted state (text + tool calls).
+    """중단된 상태(텍스트 + 도구 호출)를 캡처하는 AIMessage를 빌드합니다.
 
     Args:
-        pending_text_by_namespace: Dict of accumulated text by namespace
-        current_tool_messages: Dict of tool_id -> ToolCallMessage widget
+        pending_text_by_namespace: 네임스페이스별 누적 텍스트 사전
+        current_tool_messages: tool_id 사전 -> ToolCallMessage 위젯
 
     Returns:
-        AIMessage with accumulated content and tool calls, or None if empty.
+        누적된 콘텐츠 및 도구 호출이 포함된 AIMessage 또는 비어 있는 경우 None입니다.
+
     """
     from langchain_core.messages import AIMessage
 
@@ -343,14 +344,15 @@ def _build_interrupted_ai_message(
 
 
 def _read_mentioned_file(file_path: Path, max_embed_bytes: int) -> str:
-    """Read a mentioned file for inline embedding (sync, for use with to_thread).
+    """인라인 임베딩(동기화, to_thread와 함께 사용)을 위해 언급된 파일을 읽습니다.
 
     Args:
-        file_path: Resolved path to the file.
-        max_embed_bytes: Size threshold; larger files get a reference only.
+        file_path: 파일의 확인된 경로입니다.
+        max_embed_bytes: 크기 임계값 더 큰 파일은 참조만 얻습니다.
 
     Returns:
-        Markdown snippet with the file content or a size-exceeded reference.
+        파일 콘텐츠 또는 크기 초과 참조가 포함된 마크다운 스니펫입니다.
+
     """
     file_size = file_path.stat().st_size
     if file_size > max_embed_bytes:
@@ -383,39 +385,35 @@ async def execute_task_textual(
     message_kwargs: dict[str, Any] | None = None,
     turn_stats: SessionStats | None = None,
 ) -> SessionStats:
-    """Execute a task with output directed to Textual UI.
+    """텍스트 UI로 전달되는 출력으로 작업을 실행합니다.
 
-    This is the Textual-compatible version of execute_task() that uses
-    the TextualUIAdapter for all UI operations.
+    이는 모든 UI 작업에 TextualUIAdapter를 사용하는 Execute_task()의 텍스트 호환 버전입니다.
 
     Args:
-        user_input: The user's input message
-        agent: The LangGraph agent to execute
-        assistant_id: The agent identifier
-        session_state: Session state with auto_approve flag
-        adapter: The TextualUIAdapter for UI operations
-        backend: Optional backend for file operations
-        image_tracker: Optional tracker for images
-        context: Optional `CLIContext` with model override and params, passed
-            to the graph via `context=`.
-        sandbox_type: Sandbox provider name for trace metadata, or `None`
-            if no sandbox is active.
-        message_kwargs: Extra fields merged into the stream input message
-            dict (e.g., `additional_kwargs` for persisting skill metadata
-            in the checkpoint).
-        turn_stats: Pre-created `SessionStats` to accumulate into.
+        user_input: 사용자의 입력 메시지
+        agent: 실행할 LangGraph 에이전트
+        assistant_id: 에이전트 식별자
+        session_state: auto_approve 플래그가 있는 세션 상태
+        adapter: UI 작업을 위한 TextualUIAdapter
+        backend: 파일 작업을 위한 선택적 백엔드
+        image_tracker: 이미지용 선택적 추적기
+        context: 모델 재정의 및 매개변수가 포함된 선택적 `CLIContext`은 `context=`을 통해 그래프에 전달됩니다.
+        sandbox_type: 추적 메타데이터에 대한 샌드박스 제공자 이름 또는 활성화된 샌드박스가 없는 경우 `None`입니다.
+        message_kwargs: 추가 필드가 스트림 입력 메시지 dict에 병합되었습니다(예: 체크포인트에서 기술 메타데이터를 유지하기 위한
+                        `additional_kwargs`).
+        turn_stats: 축적할 `SessionStats`이(가) 미리 생성되었습니다.
 
-            When the caller holds a reference to the same object, stats are
-            available even if this coroutine is cancelled before it can return.
+            호출자가 동일한 객체에 대한 참조를 보유하면 이 코루틴이 반환되기 전에 취소되더라도 통계를 사용할 수 있습니다.
 
-            If `None`, a new instance is created internally.
+            `None`인 경우 새 인스턴스가 내부적으로 생성됩니다.
 
     Returns:
-        Stats accumulated over this turn (request count, token counts,
-            wall-clock time).
+        이번 턴 동안 누적된 통계(요청 수, 토큰 수,
+            벽시계 시간).
 
     Raises:
-        ValidationError: If HITL request validation fails (re-raised).
+        ValidationError: HITL 요청 유효성 검사가 실패하는 경우(다시 발생)
+
     """
     from langchain.agents.middleware.human_in_the_loop import (
         ApproveDecision,
@@ -1210,17 +1208,18 @@ async def _handle_interrupt_cleanup(
     turn_stats: SessionStats,
     start_time: float,
 ) -> None:
-    """Shared cleanup for CancelledError and KeyboardInterrupt.
+    """CancelledError 및 KeyboardInterrupt에 대한 공유 정리입니다.
 
     Args:
-        adapter: UI adapter with display callbacks.
-        agent: The LangGraph agent.
-        config: Runnable config with `thread_id`.
-        pending_text_by_namespace: Accumulated text per namespace.
-        captured_input_tokens: Input tokens captured before interrupt.
-        captured_output_tokens: Output tokens captured before interrupt.
-        turn_stats: Stats for the current turn.
-        start_time: Monotonic timestamp when the turn began.
+        adapter: 디스플레이 콜백이 포함된 UI 어댑터.
+        agent: LangGraph 에이전트.
+        config: `thread_id`으로 실행 가능한 구성입니다.
+        pending_text_by_namespace: 네임스페이스당 누적된 텍스트입니다.
+        captured_input_tokens: 인터럽트 전에 캡처된 입력 토큰입니다.
+        captured_output_tokens: 인터럽트 전에 캡처된 출력 토큰입니다.
+        turn_stats: 현재 턴의 통계입니다.
+        start_time: 턴이 시작되었을 때의 단조로운 타임스탬프입니다.
+
     """
     from langchain_core.messages import HumanMessage
 
@@ -1282,12 +1281,13 @@ async def _persist_context_tokens(
     config: RunnableConfig,
     tokens: int,
 ) -> None:
-    """Best-effort persist of the context token count into graph state.
+    """컨텍스트 토큰 수를 그래프 상태로 유지하는 최선의 노력입니다.
 
     Args:
-        agent: The LangGraph agent (must support `aupdate_state`).
-        config: Runnable config with `thread_id`.
-        tokens: Total context tokens to persist.
+        agent: LangGraph 에이전트(`aupdate_state`을 지원해야 함)
+        config: `thread_id`으로 실행 가능한 구성입니다.
+        tokens: 유지할 총 컨텍스트 토큰입니다.
+
     """
     try:
         await agent.aupdate_state(config, {"_context_tokens": tokens})
@@ -1309,18 +1309,18 @@ async def _report_and_persist_tokens(
     shield: bool = False,
     approximate: bool = False,
 ) -> None:
-    """Update the token display and best-effort persist to graph state.
+    """토큰 표시를 업데이트하고 최선을 다해 그래프 상태를 유지합니다.
 
     Args:
-        adapter: UI adapter with token callbacks.
-        agent: The LangGraph agent.
-        config: Runnable config with `thread_id` in its configurable dict.
-        captured_input_tokens: Total input tokens captured during the turn.
-        captured_output_tokens: Total output tokens captured during the turn.
-        shield: When `True`, suppress exceptions and `CancelledError` from the
-            persist call so that interrupt handlers can safely await this.
-        approximate: When `True`, signal to the UI that the count is stale
-            (e.g. after an interrupted generation) by appending "+".
+        adapter: 토큰 콜백이 포함된 UI 어댑터.
+        agent: LangGraph 에이전트.
+        config: 구성 가능한 사전에 `thread_id`을 사용하여 실행 가능한 구성입니다.
+        captured_input_tokens: 해당 턴 동안 캡처된 총 입력 토큰입니다.
+        captured_output_tokens: 해당 턴 동안 캡처된 총 출력 토큰입니다.
+        shield: `True`인 경우 인터럽트 핸들러가 이를 안전하게 기다릴 수 있도록 지속 호출에서 예외 및 `CancelledError`을
+                억제합니다.
+        approximate: `True`인 경우 "+"를 추가하여 개수가 오래되었음을 UI에 알립니다(예: 생성이 중단된 후).
+
     """
     if captured_input_tokens or captured_output_tokens:
         if adapter._on_tokens_update:
@@ -1345,10 +1345,10 @@ async def _flush_assistant_text_ns(
     ns_key: tuple,
     assistant_message_by_namespace: dict[tuple, Any],
 ) -> None:
-    """Flush accumulated assistant text for a specific namespace.
+    """특정 네임스페이스에 대해 누적된 보조 텍스트를 플러시합니다.
 
-    Finalizes the streaming by stopping the MarkdownStream.
-    If no message exists yet, creates one with the full content.
+    MarkdownStream을 중지하여 스트리밍을 마무리합니다. 아직 메시지가 없으면 전체 콘텐츠가 포함된 메시지를 만듭니다.
+
     """
     if not text.strip():
         return

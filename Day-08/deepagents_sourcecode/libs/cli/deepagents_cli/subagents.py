@@ -1,23 +1,16 @@
-"""Subagent loader for CLI.
+"""CLI용 하위 에이전트 로더.
 
-Loads custom subagent definitions from the filesystem. Subagents are defined
-as markdown files with YAML frontmatter in the agents/ directory.
+파일 시스템에서 사용자 정의 하위 에이전트 정의를 로드합니다. 하위 에이전트는 Agents/ 디렉터리에 YAML 머리말이 있는 마크다운 파일로 정의됩니다.
 
-Directory structure:
+디렉토리 구조:
     .deepagents/agents/{agent_name}/AGENTS.md
 
-Example file (researcher/AGENTS.md):
-    ---
-    name: researcher
-    description: Research topics on the web before writing content
-    model: anthropic:claude-haiku-4-5-20251001
-    ---
+예제 파일(연구원/AGENTS.md):
+    --- 이름: 연구원 설명: 콘텐츠 작성 전 웹에서 조사 주제 모델: anthropic:claude-haiku-4-5-20251001 ---
 
-    You are a research assistant with access to web search.
+    당신은 웹 검색에 접근할 수 있는 연구 조교입니다.
 
-    ## Your Process
-    1. Search for relevant information
-    2. Summarize findings clearly
+    ## 프로세스 1. 관련 정보 검색 2. 결과를 명확하게 요약
 """
 
 from __future__ import annotations
@@ -32,38 +25,38 @@ if TYPE_CHECKING:
 
 
 class SubagentMetadata(TypedDict):
-    """Metadata for a custom subagent loaded from filesystem."""
+    """파일 시스템에서 로드된 사용자 정의 하위 에이전트에 대한 메타데이터입니다."""
 
     name: str
-    """Unique identifier for the subagent, used with the task tool."""
+    """작업 도구와 함께 사용되는 하위 에이전트의 고유 식별자입니다."""
 
     description: str
-    """What this subagent does. Main agent uses this to decide when to delegate."""
+    """이 하위 에이전트가 수행하는 작업입니다. 주 에이전트는 이를 사용하여 위임 시기를 결정합니다."""
 
     system_prompt: str
-    """Instructions for the subagent (body of the markdown file)."""
+    """하위 에이전트에 대한 지침(markdown 파일의 본문)"""
 
     model: str | None
-    """Optional model override in 'provider:model-name' format."""
+    """'provider:model-name' 형식의 선택적 모델 재정의."""
 
     source: str
-    """Where this subagent was loaded from ('user' or 'project')."""
+    """이 하위 에이전트가 로드된 위치('사용자' 또는 '프로젝트')입니다."""
 
     path: str
-    """Absolute path to the subagent definition file."""
+    """하위 에이전트 정의 파일의 절대 경로입니다."""
 
 
 def _parse_subagent_file(file_path: Path) -> SubagentMetadata | None:
-    """Parse a subagent markdown file with YAML frontmatter.
+    """YAML Frontmatter를 사용하여 하위 에이전트 마크다운 파일을 구문 분석합니다.
 
-    The file must have YAML frontmatter (delimited by ---) containing at minimum
-    'name' and 'description' fields. The body of the file becomes the system_prompt.
+    파일에는 최소한 '이름' 및 '설명' 필드를 포함하는 YAML 머리말(---로 구분)이 있어야 합니다. 파일 본문이 system_prompt가 됩니다.
 
     Args:
-        file_path: Path to the markdown file.
+        file_path: 마크다운 파일의 경로입니다.
 
     Returns:
-        SubagentMetadata if parsing succeeds, None otherwise.
+        구문 분석이 성공하면 SubagentMetadata이고, 그렇지 않으면 없음입니다.
+
     """
     try:
         content = file_path.read_text(encoding="utf-8")
@@ -110,16 +103,17 @@ def _parse_subagent_file(file_path: Path) -> SubagentMetadata | None:
 def _load_subagents_from_dir(
     agents_dir: Path, source: str
 ) -> dict[str, SubagentMetadata]:
-    """Load subagents from a directory.
+    """디렉터리에서 하위 에이전트를 로드합니다.
 
-    Expects structure: agents_dir/{subagent_name}/AGENTS.md
+    예상되는 구조: Agent_dir/{subagent_name}/AGENTS.md
 
     Args:
-        agents_dir: Directory containing subagent folders.
-        source: Source identifier ('user' or 'project').
+        agents_dir: 하위 에이전트 폴더가 포함된 디렉터리입니다.
+        source: 소스 식별자('사용자' 또는 '프로젝트')입니다.
 
     Returns:
-        Dict mapping subagent name to metadata.
+        하위 에이전트 이름을 메타데이터에 매핑하는 사전입니다.
+
     """
     subagents: dict[str, SubagentMetadata] = {}
 
@@ -148,17 +142,17 @@ def list_subagents(
     user_agents_dir: Path | None = None,
     project_agents_dir: Path | None = None,
 ) -> list[SubagentMetadata]:
-    """List subagents from user and/or project directories.
+    """사용자 및/또는 프로젝트 디렉터리의 하위 에이전트를 나열합니다.
 
-    Scans for subagent definitions in the provided directories.
-    Project subagents override user subagents with the same name.
+    제공된 디렉터리에서 하위 에이전트 정의를 검색합니다. 프로젝트 하위 에이전트는 동일한 이름을 가진 사용자 하위 에이전트를 재정의합니다.
 
     Args:
-        user_agents_dir: Path to user-level agents directory.
-        project_agents_dir: Path to project-level agents directory.
+        user_agents_dir: 사용자 수준 에이전트 디렉터리의 경로입니다.
+        project_agents_dir: 프로젝트 수준 에이전트 디렉터리의 경로입니다.
 
     Returns:
-        List of subagent metadata, with project subagents taking precedence.
+        프로젝트 하위 에이전트가 우선적으로 적용되는 하위 에이전트 메타데이터 목록입니다.
+
     """
     all_subagents: dict[str, SubagentMetadata] = {}
 

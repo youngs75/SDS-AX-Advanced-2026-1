@@ -1,7 +1,6 @@
-"""Browse, filter, and resume saved conversation threads.
+"""저장된 대화 스레드를 찾아보고, 필터링하고, 재개하세요.
 
-The thread selector combines cached session metadata, Textual widgets, and a
-filter/search UI so users can quickly reopen or delete existing threads.
+스레드 선택기는 캐시된 세션 메타데이터, 텍스트 위젯, 필터/검색 UI를 결합하므로 사용자는 기존 스레드를 빠르게 다시 열거나 삭제할 수 있습니다.
 """
 
 from __future__ import annotations
@@ -43,7 +42,7 @@ from deepagents_cli.widgets._links import open_style_link
 logger = logging.getLogger(__name__)
 
 _URL_FETCH_TIMEOUT = 2.0
-"""Seconds to wait for LangSmith thread-URL resolution before giving up."""
+"""포기하기 전에 LangSmith 스레드 URL 확인을 기다리는 데 걸리는 시간(초)입니다."""
 
 _column_widths_cache: (
     tuple[
@@ -54,8 +53,7 @@ _column_widths_cache: (
     ]
     | None
 ) = None
-"""Module-level cache so repeated `/threads` opens skip column-width computation
-when the inputs (thread data + config) haven't changed."""
+"""모듈 수준 캐시가 반복되므로 `/threads`은 입력(스레드 데이터 + 구성)이 변경되지 않은 경우 열 너비 계산을 건너뜁니다."""
 
 _COL_TID = 10
 _COL_AGENT = 12
@@ -117,14 +115,14 @@ _FormatFns = tuple[
     "Callable[[str | None], str]",  # format_relative_timestamp
     "Callable[[str | None], str]",  # format_timestamp
 ]
-"""Cached `(format_path, format_relative_timestamp, format_timestamp)`.
+"""`(format_path, format_relative_timestamp, format_timestamp)`에 캐시되었습니다.
 
-Resolved once on first use via `_get_format_fns()` to avoid the overhead of
-a per-call deferred import inside the hot `_format_column_value` loop.
+핫 `_format_column_value` 루프 내부의 호출별 지연 가져오기 오버헤드를 피하기 위해 `_get_format_fns()`을 통해 처음 사용할
+때 한 번 해결되었습니다.
 """
 
 _format_fns_cache: _FormatFns | None = None
-"""Cached format functions, populated on first call to `_get_format_fns()`."""
+"""`_get_format_fns()`에 대한 첫 번째 호출 시 채워지는 캐시된 형식 함수입니다."""
 
 
 # ---------------------------------------------------------------------------
@@ -132,7 +130,7 @@ _format_fns_cache: _FormatFns | None = None
 # ---------------------------------------------------------------------------
 
 def _get_format_fns() -> _FormatFns:
-    """Return cached `(format_path, format_relative_timestamp, format_timestamp)`."""
+    """캐시된 `(format_path, format_relative_timestamp, format_timestamp)`을(를) 반환합니다."""
     global _format_fns_cache  # noqa: PLW0603
     if _format_fns_cache is not None:
         return _format_fns_cache
@@ -149,12 +147,13 @@ def _get_format_fns() -> _FormatFns:
 def _apply_column_width(
     cell: Static, key: str, column_widths: Mapping[str, int | None]
 ) -> None:
-    """Apply an explicit width to a table cell when one is configured.
+    """테이블 셀이 구성되면 테이블 셀에 명시적인 너비를 적용합니다.
 
     Args:
-        cell: The cell widget to size.
-        key: Column key for the cell.
-        column_widths: Effective column widths for the current table state.
+        cell: 셀 위젯의 크기입니다.
+        key: 셀의 열 키입니다.
+        column_widths: 현재 테이블 상태에 대한 유효 열 너비입니다.
+
     """
     width = column_widths.get(key)
     if width is not None:
@@ -164,43 +163,46 @@ def _apply_column_width(
 
 
 def _active_sort_key(sort_by_updated: bool) -> str:
-    """Return the active timestamp field used for sorting."""
+    """정렬에 사용되는 활성 타임스탬프 필드를 반환합니다."""
     return "updated_at" if sort_by_updated else "created_at"
 
 
 def _visible_column_keys(columns: dict[str, bool]) -> list[str]:
-    """Return visible columns in the on-screen order.
+    """화면 순서대로 표시되는 열을 반환합니다.
 
     Args:
-        columns: Column visibility settings keyed by column name.
+        columns: 열 이름으로 키가 지정된 열 가시성 설정입니다.
 
     Returns:
-        Visible column keys in display order.
+        표시 순서대로 열 키가 표시됩니다.
+
     """
     return [key for key in _COLUMN_ORDER if columns.get(key)]
 
 
 def _collapse_whitespace(value: str) -> str:
-    """Normalize a text value onto a single display line.
+    """텍스트 값을 단일 표시 줄로 정규화합니다.
 
     Args:
-        value: Raw text to display in a single cell.
+        value: 단일 셀에 표시할 원시 텍스트입니다.
 
     Returns:
-        The input text collapsed to a single line.
+        입력 텍스트가 한 줄로 축소되었습니다.
+
     """
     return " ".join(value.split())
 
 
 def _truncate_value(value: str, width: int | None) -> str:
-    """Trim text to fit a fixed-width column.
+    """고정 너비 열에 맞게 텍스트를 자릅니다.
 
     Args:
-        value: Raw cell text.
-        width: Maximum column width, or `None` for no truncation.
+        value: 원시 셀 텍스트.
+        width: 최대 열 너비 또는 잘림이 없는 경우 `None`입니다.
 
     Returns:
-        The possibly truncated display string.
+        잘릴 수 있는 표시 문자열입니다.
+
     """
     if width is None:
         return value
@@ -219,15 +221,16 @@ def _truncate_value(value: str, width: int | None) -> str:
 def _format_column_value(
     thread: ThreadInfo, key: str, *, relative_time: bool = False
 ) -> str:
-    """Return the display text for one thread column.
+    """하나의 스레드 열에 대한 표시 텍스트를 반환합니다.
 
     Args:
-        thread: Thread metadata for the row.
-        key: Column key to format.
-        relative_time: Use relative timestamps instead of absolute.
+        thread: 행의 스레드 메타데이터입니다.
+        key: 형식을 지정할 열 키입니다.
+        relative_time: 절대값 대신 상대 타임스탬프를 사용하세요.
 
     Returns:
-        Formatted display text for the column cell.
+        열 셀의 형식화된 표시 텍스트입니다.
+
     """
     format_path, format_relative_ts, format_ts = _get_format_fns()
     fmt = format_relative_ts if relative_time else format_ts
@@ -259,19 +262,20 @@ def _format_column_value(
 
 
 def _format_header_label(key: str) -> str:
-    """Return the rendered header label for a column."""
+    """열에 대해 렌더링된 헤더 레이블을 반환합니다."""
     return _truncate_value(_COLUMN_LABELS[key], _COLUMN_WIDTHS[key])
 
 
 def _header_cell_classes(key: str, *, sort_key: str) -> str:
-    """Return CSS classes for a header cell.
+    """헤더 셀에 대한 CSS 클래스를 반환합니다.
 
     Args:
-        key: Column key for the header cell.
-        sort_key: Currently active sort column.
+        key: 머리글 셀의 열 키입니다.
+        sort_key: 현재 활성 정렬 열입니다.
 
     Returns:
-        Space-delimited classes for the header cell widget.
+        헤더 셀 위젯에 대한 공백으로 구분된 클래스입니다.
+
     """
     classes = f"thread-cell thread-cell-{key}"
     if key == sort_key:
@@ -284,7 +288,7 @@ def _header_cell_classes(key: str, *, sort_key: str) -> str:
 # ---------------------------------------------------------------------------
 
 class ThreadOption(Horizontal):
-    """A clickable thread option in the selector."""
+    """선택기에서 클릭 가능한 스레드 옵션입니다."""
 
     def __init__(
         self,
@@ -299,18 +303,19 @@ class ThreadOption(Horizontal):
         cell_text: dict[tuple[str, str], str] | None = None,
         classes: str = "",
     ) -> None:
-        """Initialize a thread option row.
+        """스레드 옵션 행을 초기화합니다.
 
         Args:
-            thread: Thread metadata for the row.
-            index: The index of this option in the filtered list.
-            columns: Column visibility settings.
-            column_widths: Effective widths for the visible columns.
-            selected: Whether the row is highlighted.
-            current: Whether the row is the active thread.
-            relative_time: Use relative timestamps.
-            cell_text: Pre-formatted cell values keyed by `(thread_id, key)`.
-            classes: CSS classes for styling.
+            thread: 행의 스레드 메타데이터입니다.
+            index: 필터링된 목록에 있는 이 옵션의 인덱스입니다.
+            columns: 열 가시성 설정.
+            column_widths: 표시되는 열의 유효 너비입니다.
+            selected: 행이 강조 표시되는지 여부입니다.
+            current: 행이 활성 스레드인지 여부입니다.
+            relative_time: 상대 타임스탬프를 사용하세요.
+            cell_text: `(thread_id, key)`으로 입력된 미리 형식화된 셀 값입니다.
+            classes: 스타일링을 위한 CSS 클래스.
+
         """
         super().__init__(classes=classes)
         self.thread = thread
@@ -324,24 +329,26 @@ class ThreadOption(Horizontal):
         self._cell_text = cell_text
 
     class Clicked(Message):
-        """Message sent when a thread option is clicked."""
+        """스레드 옵션을 클릭하면 전송되는 메시지입니다."""
 
         def __init__(self, thread_id: str, index: int) -> None:
-            """Initialize the Clicked message.
+            """Clicked 메시지를 초기화합니다.
 
             Args:
-                thread_id: The thread identifier.
-                index: The index of the clicked option.
+                thread_id: 스레드 식별자입니다.
+                index: 클릭한 옵션의 인덱스입니다.
+
             """
             super().__init__()
             self.thread_id = thread_id
             self.index = index
 
     def compose(self) -> ComposeResult:
-        """Compose the row cells.
+        """행 셀을 구성합니다.
 
         Yields:
-            Static cells for each visible column.
+            표시되는 각 열에 대한 정적 셀입니다.
+
         """
         yield Static(
             self._cursor_text(),
@@ -366,14 +373,15 @@ class ThreadOption(Horizontal):
             yield cell
 
     def _cursor_text(self) -> str:
-        """Return the cursor indicator for the row."""
+        """행에 대한 커서 표시기를 반환합니다."""
         return get_glyphs().cursor if self._selected else ""
 
     def set_selected(self, selected: bool) -> None:
-        """Update row selection styling without rebuilding the row.
+        """행을 다시 작성하지 않고 행 선택 스타일을 업데이트합니다.
 
         Args:
-            selected: Whether the row should be highlighted.
+            selected: 행을 강조 표시해야 하는지 여부입니다.
+
         """
         self._selected = selected
         if selected:
@@ -388,17 +396,18 @@ class ThreadOption(Horizontal):
         cursor.update(self._cursor_text())
 
     def on_click(self, event: Click) -> None:
-        """Handle click on this option.
+        """이 옵션을 클릭하세요.
 
         Args:
-            event: The click event.
+            event: 클릭 이벤트입니다.
+
         """
         event.stop()
         self.post_message(self.Clicked(self.thread_id, self.index))
 
 
 class DeleteThreadConfirmScreen(ModalScreen[bool]):
-    """Confirmation modal shown before deleting a thread."""
+    """스레드를 삭제하기 전에 표시되는 확인 모달입니다."""
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("enter", "confirm", "Confirm", show=False, priority=True),
@@ -431,19 +440,21 @@ class DeleteThreadConfirmScreen(ModalScreen[bool]):
     """
 
     def __init__(self, thread_id: str) -> None:
-        """Initialize the confirmation modal.
+        """확인 모달을 초기화합니다.
 
         Args:
-            thread_id: Thread ID the user is being asked to delete.
+            thread_id: 사용자에게 삭제를 요청하는 스레드 ID입니다.
+
         """
         super().__init__()
         self._delete_thread_id = thread_id
 
     def compose(self) -> ComposeResult:
-        """Compose the confirmation dialog.
+        """확인 대화 상자를 작성합니다.
 
         Yields:
-            Widgets for the delete confirmation prompt.
+            삭제 확인 프롬프트용 위젯입니다.
+
         """
         with Vertical(id="delete-confirm"):
             yield Static(
@@ -459,21 +470,21 @@ class DeleteThreadConfirmScreen(ModalScreen[bool]):
             )
 
     def action_confirm(self) -> None:
-        """Confirm deletion."""
+        """삭제를 확인하세요."""
         self.dismiss(True)
 
     def action_cancel(self) -> None:
-        """Cancel deletion."""
+        """삭제를 취소합니다."""
         self.dismiss(False)
 
 
 class ThreadSelectorScreen(ModalScreen[str | None]):
-    """Modal dialog for browsing and resuming threads.
+    """스레드 탐색 및 재개를 위한 모달 대화상자입니다.
 
-    Displays recent threads with keyboard navigation, fuzzy search,
-    configurable columns, and delete support.
+    키보드 탐색, 퍼지 검색, 구성 가능한 열 및 삭제 지원을 통해 최근 스레드를 표시합니다.
 
-    Returns a `thread_id` string on selection, or `None` on cancel.
+    선택 시 `thread_id` 문자열을 반환하고, 취소 시 `None`을 반환합니다.
+
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -674,12 +685,13 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         thread_limit: int | None = None,
         initial_threads: list[ThreadInfo] | None = None,
     ) -> None:
-        """Initialize the `ThreadSelectorScreen`.
+        """`ThreadSelectorScreen`을(를) 초기화합니다.
 
         Args:
-            current_thread: The currently active thread ID (to highlight).
-            thread_limit: Maximum number of rows to fetch when querying DB.
-            initial_threads: Optional preloaded rows to render immediately.
+            current_thread: 현재 활성 스레드 ID(강조표시용)입니다.
+            thread_limit: DB 쿼리 시 가져올 최대 행 수입니다.
+            initial_threads: 즉시 렌더링할 미리 로드된 선택적 행입니다.
+
         """
         super().__init__()
         self._current_thread = current_thread
@@ -715,25 +727,26 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
 
     @staticmethod
     def _switch_id(column_key: str) -> str:
-        """Return the DOM id for a column toggle switch."""
+        """열 토글 스위치에 대한 DOM ID를 반환합니다."""
         return f"{_SWITCH_ID_PREFIX}{column_key}"
 
     @staticmethod
     def _switch_column_key(switch_id: str | None) -> str | None:
-        """Extract the column key from a switch id.
+        """스위치 ID에서 열 키를 추출합니다.
 
         Args:
-            switch_id: Widget id for a switch in the control panel.
+            switch_id: 제어판에 있는 스위치의 위젯 ID입니다.
 
         Returns:
-            The corresponding column key, or `None` for unrelated ids.
+            해당 열 키 또는 관련되지 않은 ID의 경우 `None`입니다.
+
         """
         if not switch_id or not switch_id.startswith(_SWITCH_ID_PREFIX):
             return None
         return switch_id.removeprefix(_SWITCH_ID_PREFIX)
 
     def _sync_selected_index(self) -> None:
-        """Select the current thread when it exists in the loaded rows."""
+        """로드된 행에 현재 스레드가 있으면 선택합니다."""
         self._selected_index = 0
         for i, thread in enumerate(self._filtered_threads):
             if thread["thread_id"] == self._current_thread:
@@ -741,14 +754,14 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
                 break
 
     def _build_title(self, thread_url: str | None = None) -> str | Content:
-        """Build the title, optionally with a clickable thread ID link.
+        """선택적으로 클릭 가능한 스레드 ID 링크를 사용하여 제목을 작성합니다.
 
         Args:
-            thread_url: LangSmith thread URL. When provided, the thread ID is
-                rendered as a clickable hyperlink.
+            thread_url: LangSmith 스레드 URL. 제공된 경우 스레드 ID는 클릭 가능한 하이퍼링크로 렌더링됩니다.
 
         Returns:
-            Plain string or `Content` with an embedded hyperlink.
+            일반 문자열 또는 하이퍼링크가 포함된 `Content`입니다.
+
         """
         if not self._current_thread:
             return "Select Thread"
@@ -767,10 +780,11 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         return f"Select Thread (current: {self._current_thread})"
 
     def _build_help_text(self) -> str:
-        """Build the footer help text for the selector.
+        """선택기에 대한 바닥글 도움말 텍스트를 작성합니다.
 
         Returns:
-            Footer guidance for the active selector bindings.
+            활성 선택기 바인딩에 대한 바닥글 지침입니다.
+
         """
         glyphs = get_glyphs()
         lines = (
@@ -790,7 +804,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         return lines
 
     def _effective_thread_limit(self) -> int:
-        """Return the resolved thread limit for display purposes."""
+        """표시 목적으로 해결된 스레드 제한을 반환합니다."""
         if self._thread_limit is not None:
             return self._thread_limit
         from deepagents_cli.sessions import get_thread_limit
@@ -798,18 +812,18 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         return get_thread_limit()
 
     def _format_sort_toggle_label(self) -> str:
-        """Return the control-panel sort label for the toggle switch."""
+        """토글 스위치에 대한 제어판 정렬 레이블을 반환합니다."""
         label = "Updated At" if self._sort_by_updated else "Created At"
         return f"Sort by {label}"
 
     def _get_filter_input(self) -> Input:
-        """Return the cached search input widget."""
+        """캐시된 검색 입력 위젯을 반환합니다."""
         if self._filter_input is None:
             self._filter_input = self.query_one("#thread-filter", Input)
         return self._filter_input
 
     def _filter_focus_order(self) -> list[Input | Checkbox]:
-        """Return the cached tab order for filter controls in the side panel."""
+        """측면 패널의 필터 컨트롤에 대해 캐시된 탭 순서를 반환합니다."""
         if self._filter_controls is None:
             filter_input = self._get_filter_input()
             sort_switch = self.query_one(f"#{_SORT_SWITCH_ID}", Checkbox)
@@ -827,10 +841,11 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         return self._filter_controls
 
     def compose(self) -> ComposeResult:
-        """Compose the screen layout.
+        """화면 레이아웃을 구성합니다.
 
         Yields:
-            Widgets for the thread selector UI.
+            스레드 선택기 UI용 위젯입니다.
+
         """
         with Vertical(id="thread-selector-shell"):
             yield Static(
@@ -918,7 +933,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             )
 
     async def on_mount(self) -> None:
-        """Fetch threads, configure border for ASCII terminals, and build the list."""
+        """스레드를 가져오고, ASCII 터미널의 테두리를 구성하고, 목록을 작성합니다."""
         if is_ascii_mode():
             container = self.query_one("#thread-selector-shell", Vertical)
             colors = theme.get_theme_colors(self)
@@ -947,7 +962,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             )
 
     def _start_thread_load(self) -> None:
-        """Launch the thread-load worker after the initial layout pass."""
+        """초기 레이아웃 단계 이후 스레드 로드 작업자를 시작합니다."""
         if not self.is_attached:
             return
         self.run_worker(
@@ -955,28 +970,31 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         )
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        """Filter threads as user types.
+        """사용자 유형에 따라 스레드를 필터링합니다.
 
         Args:
-            event: The input changed event.
+            event: 입력이 변경된 이벤트입니다.
+
         """
         self._filter_text = event.value
         self._schedule_filter_and_rebuild()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Handle Enter key when filter input is focused.
+        """필터 입력이 포커스되면 Enter 키를 처리합니다.
 
         Args:
-            event: The input submitted event.
+            event: 입력이 제출된 이벤트입니다.
+
         """
         event.stop()
         self.action_select()
 
     def on_key(self, event: Key) -> None:
-        """Return focus to search when letters are typed from other controls.
+        """다른 컨트롤에서 문자를 입력할 때 검색하려면 포커스를 되돌립니다.
 
         Args:
-            event: The key event.
+            event: 핵심 이벤트.
+
         """
         if self._confirming_delete:
             return
@@ -995,17 +1013,18 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         event.stop()
 
     def _collapse_search_selection(self) -> None:
-        """Place the search cursor at the end without an active selection."""
+        """활성 선택이 없는 끝에 검색 커서를 놓습니다."""
         filter_input = self._get_filter_input()
         filter_input.selection = type(filter_input.selection).cursor(
             len(filter_input.value)
         )
 
     def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
-        """Route sort, relative-time, and column-visibility checkbox changes.
+        """경로 정렬, 상대 시간 및 열 가시성 확인란이 변경되었습니다.
 
         Args:
-            event: The checkbox change event.
+            event: 체크박스 변경 이벤트입니다.
+
         """
         if event.checkbox.id == _SORT_SWITCH_ID:
             if self._sort_by_updated == event.value:
@@ -1056,7 +1075,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         self._schedule_list_rebuild()
 
     def _update_filtered_list(self) -> None:
-        """Update filtered threads based on search text using fuzzy matching."""
+        """퍼지 일치를 사용하여 검색 텍스트를 기반으로 필터링된 스레드를 업데이트합니다."""
         query = self._filter_text.strip()
         if not query:
             self._filtered_threads = list(self._threads)
@@ -1104,16 +1123,16 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         self._column_widths = self._compute_column_widths()
 
     def _compute_column_widths(self) -> dict[str, int | None]:
-        """Return effective widths for the current table state.
+        """현재 테이블 상태에 대한 유효 너비를 반환합니다.
 
-        Textual's `width: auto` computes per-widget widths, so this method
-        derives shared widths from the visible data instead. Also populates
-        `self._cell_text` as a side effect so that `ThreadOption.compose()` can
-        reuse the formatted strings.
+        Textual의 `width: auto`은 위젯별 너비를 계산하므로 이 방법은 대신 표시되는 데이터에서 공유 너비를 파생시킵니다. 또한
+        `ThreadOption.compose()`에서 형식이 지정된 문자열을 재사용할 수 있도록 부작용으로 `self._cell_text`을
+        채웁니다.
 
         Returns:
-            Dict mapping column keys to their effective cell widths, with
-                `None` for flex columns.
+            dict는 열 키를 유효 셀 너비에 매핑합니다.
+                플렉스 열의 경우 `None`.
+
         """
         global _column_widths_cache  # noqa: PLW0603  # Module-level cache requires global statement
 
@@ -1164,18 +1183,17 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
 
     @staticmethod
     def _get_search_text(thread: ThreadInfo) -> str:
-        """Build searchable text from thread fields.
+        """스레드 필드에서 검색 가능한 텍스트를 작성합니다.
 
-        The result is capped at `_MAX_SEARCH_TEXT_LEN` characters so that
-        Textual's fuzzy `Matcher` (which uses recursive backtracking) does
-        not hit exponential performance on long initial prompts with
-        repeated characters.
+        결과는 `_MAX_SEARCH_TEXT_LEN` 문자로 제한되므로 Textual의 퍼지 `Matcher`(재귀적 역추적 사용)은 반복되는 문자가
+        포함된 긴 초기 프롬프트에서 기하급수적인 성능을 발휘하지 않습니다.
 
         Args:
-            thread: Thread metadata.
+            thread: 스레드 메타데이터.
 
         Returns:
-            Concatenated searchable string, truncated to a safe length.
+            안전한 길이로 잘린 연결된 검색 가능한 문자열입니다.
+
         """
         parts = [
             thread["thread_id"],
@@ -1187,7 +1205,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         return text[:_MAX_SEARCH_TEXT_LEN]
 
     def _schedule_filter_and_rebuild(self) -> None:
-        """Queue a filter + rebuild, coalescing rapid keystrokes."""
+        """필터 대기열에 추가하고 재구축하여 빠른 키 입력을 통합합니다."""
         self.run_worker(
             self._filter_and_build,
             exclusive=True,
@@ -1195,7 +1213,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         )
 
     async def _filter_and_build(self) -> None:
-        """Run fuzzy filtering in a thread then rebuild the list."""
+        """스레드에서 퍼지 필터링을 실행한 다음 목록을 다시 작성하십시오."""
         query = self._filter_text.strip()
         threads = list(self._threads)
         sort_by_updated = self._sort_by_updated
@@ -1217,15 +1235,16 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         threads: list[ThreadInfo],
         sort_by_updated: bool,
     ) -> list[ThreadInfo]:
-        """Compute filtered thread list off the main thread.
+        """기본 스레드에서 필터링된 스레드 목록을 계산합니다.
 
         Args:
-            query: Current search query text.
-            threads: Full thread list snapshot.
-            sort_by_updated: Whether to sort by `updated_at`.
+            query: 현재 검색어 텍스트입니다.
+            threads: 전체 스레드 목록 스냅샷.
+            sort_by_updated: `updated_at` 기준으로 정렬할지 여부입니다.
 
         Returns:
-            Filtered and sorted thread list.
+            필터링되고 정렬된 스레드 목록입니다.
+
         """
         sort_key = _active_sort_key(sort_by_updated)
 
@@ -1268,7 +1287,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         ]
 
     def _schedule_list_rebuild(self) -> None:
-        """Queue a list rebuild, coalescing rapid updates."""
+        """빠른 업데이트를 통합하여 목록 재구축을 대기열에 추가합니다."""
         self.run_worker(
             self._build_list,
             exclusive=True,
@@ -1276,7 +1295,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         )
 
     def _pending_checkpoint_fields(self) -> tuple[bool, bool]:
-        """Return which visible checkpoint-derived fields still need loading."""
+        """여전히 로드가 필요한 표시되는 체크포인트 파생 필드를 반환합니다."""
         load_counts = self._columns.get("messages", False) and any(
             "message_count" not in thread for thread in self._threads
         )
@@ -1286,10 +1305,11 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         return load_counts, load_prompts
 
     async def _populate_visible_checkpoint_details(self) -> tuple[bool, bool]:
-        """Load any still-missing checkpoint-derived fields for visible columns.
+        """표시되는 열에 대해 아직 누락된 검사점 파생 필드를 로드합니다.
 
         Returns:
-            Tuple indicating whether message counts and prompts were requested.
+            메시지 수와 프롬프트가 요청되었는지 여부를 나타내는 튜플입니다.
+
         """
         from deepagents_cli.sessions import populate_thread_checkpoint_details
 
@@ -1305,7 +1325,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         return load_counts, load_prompts
 
     def _schedule_checkpoint_enrichment(self) -> None:
-        """Schedule one checkpoint-enrichment pass for missing row fields."""
+        """누락된 행 필드에 대해 하나의 체크포인트 강화 패스를 예약합니다."""
         has_missing_counts, has_missing_prompts = self._pending_checkpoint_fields()
         if not has_missing_counts and not has_missing_prompts:
             return
@@ -1317,14 +1337,15 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
 
     @staticmethod
     def _threads_match(old: list[ThreadInfo], new: list[ThreadInfo]) -> bool:
-        """Check whether two thread lists have the same IDs and checkpoints in order.
+        """두 스레드 목록의 ID와 체크포인트가 순서대로 동일한지 확인합니다.
 
         Args:
-            old: Previous thread list.
-            new: Fresh thread list.
+            old: 이전 스레드 목록입니다.
+            new: 새로운 스레드 목록.
 
         Returns:
-            True if both lists have identical thread/checkpoint ID pairs.
+            두 목록에 동일한 스레드/체크포인트 ID 쌍이 있으면 참입니다.
+
         """
         if len(old) != len(new):
             return False
@@ -1336,7 +1357,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         return True
 
     async def _load_threads(self) -> None:
-        """Load thread rows first, then kick off background enrichment."""
+        """스레드 행을 먼저 로드한 다음 배경 보강을 시작합니다."""
         from deepagents_cli.sessions import (
             apply_cached_thread_initial_prompts,
             apply_cached_thread_message_counts,
@@ -1406,7 +1427,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             self._resolve_thread_url()
 
     async def _load_checkpoint_details(self) -> None:
-        """Populate checkpoint-derived thread fields in one background pass."""
+        """한 번의 백그라운드 패스로 체크포인트 파생 스레드 필드를 채웁니다."""
         if not self._threads:
             return
 
@@ -1444,7 +1465,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             self._refresh_cell_labels()
 
     def _refresh_cell_labels(self) -> None:
-        """Update visible cell text in-place without rebuilding the DOM."""
+        """DOM을 재구축하지 않고도 표시되는 셀 텍스트를 그 자리에서 업데이트할 수 있습니다."""
         visible_keys = _visible_column_keys(self._columns)
 
         # Recompute because thread data may have changed since
@@ -1468,13 +1489,13 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
                 cell.update(cell_text[tid, key])
 
     def _resolve_thread_url(self) -> None:
-        """Start exclusive background worker to resolve LangSmith thread URL."""
+        """LangSmith 스레드 URL을 확인하려면 단독 백그라운드 작업자를 시작하세요."""
         self.run_worker(
             self._fetch_thread_url, exclusive=True, group="thread-selector-url"
         )
 
     async def _fetch_thread_url(self) -> None:
-        """Resolve the LangSmith URL and update the title with a clickable link."""
+        """LangSmith URL을 확인하고 클릭 가능한 링크로 제목을 업데이트합니다."""
         if not self._current_thread:
             return
         try:
@@ -1507,10 +1528,11 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
                 )
 
     async def _show_mount_error(self, detail: str) -> None:
-        """Display an error message inside the thread list and refocus.
+        """스레드 목록 내부에 오류 메시지를 표시하고 다시 초점을 맞춥니다.
 
         Args:
-            detail: Human-readable error detail to show.
+            detail: 사람이 읽을 수 있는 오류 세부정보를 표시합니다.
+
         """
         try:
             async with self._render_lock:
@@ -1534,10 +1556,11 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         self.focus()
 
     async def _build_list(self, *, recompute_widths: bool = True) -> None:
-        """Build the thread option widgets.
+        """스레드 옵션 위젯을 빌드합니다.
 
         Args:
-            recompute_widths: Whether to recalculate shared column widths first.
+            recompute_widths: 공유 열 너비를 먼저 다시 계산할지 여부입니다.
+
         """
         async with self._render_lock:
             try:
@@ -1568,10 +1591,11 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
                 self.call_after_refresh(self._scroll_selected_into_view)
 
     def _create_option_widgets(self) -> tuple[list[ThreadOption], ThreadOption | None]:
-        """Build option widgets from filtered threads without mounting.
+        """마운트하지 않고 필터링된 스레드에서 옵션 위젯을 빌드합니다.
 
         Returns:
-            Tuple of all option widgets and the currently selected widget.
+            모든 옵션 위젯과 현재 선택된 위젯의 튜플입니다.
+
         """
         widgets: list[ThreadOption] = []
         selected_widget: ThreadOption | None = None
@@ -1604,7 +1628,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         return widgets, selected_widget
 
     def _scroll_selected_into_view(self) -> None:
-        """Scroll selected option into view without animation."""
+        """선택한 옵션을 애니메이션 없이 보기로 스크롤합니다."""
         if not self._option_widgets:
             return
         if self._selected_index >= len(self._option_widgets):
@@ -1620,7 +1644,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             self._option_widgets[self._selected_index].scroll_visible(animate=False)
 
     def _update_help_widgets(self) -> None:
-        """Update visible header and help text after state changes."""
+        """상태 변경 후 표시되는 헤더와 도움말 텍스트를 업데이트합니다."""
         self._schedule_header_rebuild()
 
         try:
@@ -1636,7 +1660,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
                 sort_checkbox.value = self._sort_by_updated
 
     def _schedule_header_rebuild(self) -> None:
-        """Queue a header rebuild to reflect column/sort changes."""
+        """열/정렬 변경 사항을 반영하기 위해 헤더 재구축을 대기열에 넣습니다."""
         self.run_worker(
             self._rebuild_header,
             exclusive=True,
@@ -1644,7 +1668,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         )
 
     async def _rebuild_header(self) -> None:
-        """Replace header cells to match current visible columns."""
+        """현재 표시되는 열과 일치하도록 머리글 셀을 바꿉니다."""
         try:
             header = self.query_one("#thread-header", Horizontal)
         except NoMatches:
@@ -1666,17 +1690,18 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             await header.mount(*cells)
 
     def _apply_sort(self) -> None:
-        """Sort filtered threads by the active sort key."""
+        """활성 정렬 키를 기준으로 필터링된 스레드를 정렬합니다."""
         key = _active_sort_key(self._sort_by_updated)
         self._filtered_threads.sort(
             key=lambda thread: thread.get(key) or "", reverse=True
         )
 
     def _move_selection(self, delta: int) -> None:
-        """Move selection by delta, updating only the affected rows.
+        """선택 항목을 델타별로 이동하여 영향을 받은 행만 업데이트합니다.
 
         Args:
-            delta: Positions to move (negative for up, positive for down).
+            delta: 이동할 위치(위는 음수, 아래는 양수)
+
         """
         if not self._filtered_threads or not self._option_widgets:
             return
@@ -1696,22 +1721,23 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             self._option_widgets[new_index].scroll_visible()
 
     def action_move_up(self) -> None:
-        """Move selection up."""
+        """선택 항목을 위로 이동합니다."""
         if self._confirming_delete:
             return
         self._move_selection(-1)
 
     def action_move_down(self) -> None:
-        """Move selection down."""
+        """선택 항목을 아래로 이동합니다."""
         if self._confirming_delete:
             return
         self._move_selection(1)
 
     def _visible_page_size(self) -> int:
-        """Return the number of thread options that fit in one visual page.
+        """하나의 시각적 페이지에 맞는 스레드 옵션 수를 반환합니다.
 
         Returns:
-            Number of thread options per page, at least 1.
+            페이지당 스레드 옵션 수(최소 1개)
+
         """
         default_page_size = 10
         try:
@@ -1729,7 +1755,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         return max(1, height)
 
     def action_page_up(self) -> None:
-        """Move selection up by one visible page."""
+        """선택 항목을 표시되는 한 페이지 위로 이동합니다."""
         if self._confirming_delete or not self._filtered_threads:
             return
         page = self._visible_page_size()
@@ -1739,7 +1765,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             self._move_selection(delta)
 
     def action_page_down(self) -> None:
-        """Move selection down by one visible page."""
+        """선택 항목을 표시되는 한 페이지 아래로 이동합니다."""
         if self._confirming_delete or not self._filtered_threads:
             return
         count = len(self._filtered_threads)
@@ -1750,7 +1776,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             self._move_selection(delta)
 
     def action_select(self) -> None:
-        """Confirm the highlighted thread and dismiss the selector."""
+        """강조표시된 스레드를 확인하고 선택기를 닫습니다."""
         if self._confirming_delete:
             return
         if self._filtered_threads:
@@ -1758,7 +1784,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             self.dismiss(thread_id)
 
     def action_focus_next_filter(self) -> None:
-        """Move focus through the filter and column-toggle controls."""
+        """필터 및 열 전환 컨트롤을 통해 포커스를 이동합니다."""
         if self._confirming_delete:
             return
         controls = self._filter_focus_order()
@@ -1771,7 +1797,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         controls[(index + 1) % len(controls)].focus()
 
     def action_focus_previous_filter(self) -> None:
-        """Move focus backward through the filter and column-toggle controls."""
+        """필터 및 열 전환 컨트롤을 통해 포커스를 뒤로 이동합니다."""
         if self._confirming_delete:
             return
         controls = self._filter_focus_order()
@@ -1784,7 +1810,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         controls[(index - 1) % len(controls)].focus()
 
     def action_toggle_sort(self) -> None:
-        """Toggle sort between updated_at and created_at."""
+        """update_at와 Created_at 사이의 정렬을 전환합니다."""
         if self._confirming_delete:
             return
         self._sort_by_updated = not self._sort_by_updated
@@ -1798,7 +1824,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         )
 
     def _persist_sort_order(self, order: str) -> None:
-        """Save sort-order preference to config, notifying on failure."""
+        """정렬 순서 기본 설정을 구성에 저장하고 실패 시 알림을 보냅니다."""
 
         async def _save() -> None:
             from deepagents_cli.model_config import save_thread_sort_order
@@ -1810,7 +1836,7 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
         self.run_worker(_save(), group="thread-selector-save")
 
     def action_delete_thread(self) -> None:
-        """Show delete confirmation for the highlighted thread."""
+        """강조표시된 스레드에 대한 삭제 확인을 표시합니다."""
         if self._confirming_delete:
             return
         if not self._filtered_threads:
@@ -1829,15 +1855,16 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
 
     @property
     def is_delete_confirmation_open(self) -> bool:
-        """Return whether the delete confirmation overlay is visible."""
+        """삭제 확인 오버레이가 표시되는지 여부를 반환합니다."""
         return self._confirming_delete
 
     def _on_delete_confirmed(self, thread_id: str, confirmed: bool | None) -> None:
-        """Handle the result from the delete confirmation modal.
+        """삭제 확인 모달의 결과를 처리합니다.
 
         Args:
-            thread_id: Thread ID that was targeted.
-            confirmed: Whether deletion was confirmed.
+            thread_id: 대상으로 지정된 스레드 ID입니다.
+            confirmed: 삭제 확인 여부.
+
         """
         self._confirming_delete = False
         if confirmed:
@@ -1850,10 +1877,11 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             self._get_filter_input().focus()
 
     async def _handle_delete_confirm(self, thread_id: str) -> None:
-        """Execute thread deletion after confirmation.
+        """확인 후 스레드 삭제를 실행합니다.
 
         Args:
-            thread_id: Thread ID to delete.
+            thread_id: 삭제할 스레드 ID입니다.
+
         """
         from deepagents_cli.sessions import delete_thread
 
@@ -1897,14 +1925,15 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             self.query_one("#thread-filter", Input).focus()
 
     def on_click(self, event: Click) -> None:  # noqa: PLR6301  # Textual event handler
-        """Open Rich-style hyperlinks on single click."""
+        """한 번의 클릭으로 리치 스타일 하이퍼링크를 엽니다."""
         open_style_link(event)
 
     def on_thread_option_clicked(self, event: ThreadOption.Clicked) -> None:
-        """Handle click on a thread option.
+        """스레드 옵션을 클릭하여 처리합니다.
 
         Args:
-            event: The clicked message with thread ID and index.
+            event: 스레드 ID와 인덱스가 포함된 클릭된 메시지입니다.
+
         """
         if self._confirming_delete:
             return
@@ -1913,5 +1942,5 @@ class ThreadSelectorScreen(ModalScreen[str | None]):
             self.dismiss(event.thread_id)
 
     def action_cancel(self) -> None:
-        """Cancel the selection."""
+        """선택을 취소합니다."""
         self.dismiss(None)

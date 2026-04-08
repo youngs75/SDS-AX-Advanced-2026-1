@@ -1,8 +1,8 @@
-"""Shared utility functions for memory backend implementations.
+"""메모리 백엔드 구현체들이 공유하는 유틸리티 함수 모음.
 
-This module contains both user-facing string formatters and structured
-helpers used by backends and the composite router. Structured helpers
-enable composition without fragile string parsing.
+이 모듈은 사용자에게 노출되는 문자열 포맷터와,
+백엔드 및 복합 라우터에서 사용하는 구조화 헬퍼 함수를 모두 포함합니다.
+구조화 헬퍼를 통해 취약한 문자열 파싱 없이 조합(composition)이 가능합니다.
 """
 
 import os
@@ -20,17 +20,17 @@ from deepagents.backends.protocol import FileData, FileInfo as _FileInfo, GrepMa
 EMPTY_CONTENT_WARNING = "System reminder: File exists but has empty contents"
 
 FileType = Literal["text", "image", "audio", "video", "file"]
-"""Classification of a file by extension."""
+"""파일을 확장자 기준으로 분류한 타입."""
 
 _EXTENSION_TO_FILE_TYPE: dict[str, FileType] = {
-    # Images (https://ai.google.dev/gemini-api/docs/image-understanding)
+    # 이미지 (https://ai.google.dev/gemini-api/docs/image-understanding)
     ".png": "image",
     ".jpeg": "image",
     ".jpg": "image",
     ".webp": "image",
     ".heic": "image",
     ".heif": "image",
-    # Video (https://ai.google.dev/gemini-api/docs/video-understanding)
+    # 동영상 (https://ai.google.dev/gemini-api/docs/video-understanding)
     ".mp4": "video",
     ".mpeg": "video",
     ".mov": "video",
@@ -40,49 +40,49 @@ _EXTENSION_TO_FILE_TYPE: dict[str, FileType] = {
     ".webm": "video",
     ".wmv": "video",
     ".3gpp": "video",
-    # Audio (https://ai.google.dev/gemini-api/docs/audio)
+    # 오디오 (https://ai.google.dev/gemini-api/docs/audio)
     ".wav": "audio",
     ".mp3": "audio",
     ".aiff": "audio",
     ".aac": "audio",
     ".ogg": "audio",
     ".flac": "audio",
-    # Files
+    # 파일
     ".pdf": "file",
     ".ppt": "file",
     ".pptx": "file",
 }
-"""Extension-to-type mapping for non-text files.
+"""텍스트가 아닌 파일의 확장자-타입 매핑.
 
-Derived from Google's multimodal API supported formats:
+Google 멀티모달 API 지원 포맷 기반:
 
-- Images: https://ai.google.dev/gemini-api/docs/image-understanding
-- Video: https://ai.google.dev/gemini-api/docs/video-understanding
-- Audio: https://ai.google.dev/gemini-api/docs/audio
+- 이미지: https://ai.google.dev/gemini-api/docs/image-understanding
+- 동영상: https://ai.google.dev/gemini-api/docs/video-understanding
+- 오디오: https://ai.google.dev/gemini-api/docs/audio
 """
 
 MAX_LINE_LENGTH = 5000
 LINE_NUMBER_WIDTH = 6
-TOOL_RESULT_TOKEN_LIMIT = 20000  # Same threshold as eviction
+TOOL_RESULT_TOKEN_LIMIT = 20000  # 축출(eviction) 임계값과 동일
 TRUNCATION_GUIDANCE = "... [results truncated, try being more specific with your parameters]"
 
-# Re-export protocol types for backwards compatibility
+# 하위 호환성을 위해 protocol 타입 재내보내기
 FileInfo = _FileInfo
 GrepMatch = _GrepMatch
 
 
 def _normalize_content(file_data: FileData) -> str:
-    """Normalize file_data content to a plain string.
+    """file_data의 content를 일반 문자열로 정규화합니다.
 
-    This is the single backwards-compatibility conversion point for the
-    legacy `list[str]` file format.  New code stores `content` as a
-    plain `str`; old data may still contain a list of lines.
+    레거시 `list[str]` 파일 포맷을 위한 단일 하위 호환 변환 지점입니다.
+    신규 코드는 `content`를 일반 `str`로 저장하지만,
+    기존 데이터에는 여전히 줄 목록(list of lines)이 담겨 있을 수 있습니다.
 
     Args:
-        file_data: FileData dict with `content` key.
+        file_data: `content` 키를 포함하는 FileData 딕셔너리.
 
     Returns:
-        Content as a single string.
+        단일 문자열로 변환된 content.
     """
     content = file_data["content"]
     if isinstance(content, list):
@@ -96,9 +96,9 @@ def _normalize_content(file_data: FileData) -> str:
 
 
 def sanitize_tool_call_id(tool_call_id: str) -> str:
-    r"""Sanitize tool_call_id to prevent path traversal and separator issues.
+    r"""tool_call_id를 정제하여 경로 탐색 및 구분자 문제를 방지합니다.
 
-    Replaces dangerous characters (., /, \) with underscores.
+    위험 문자(., /, \)를 언더스코어로 대체합니다.
     """
     return tool_call_id.replace(".", "_").replace("/", "_").replace("\\", "_")
 
@@ -107,16 +107,16 @@ def format_content_with_line_numbers(
     content: str | list[str],
     start_line: int = 1,
 ) -> str:
-    """Format file content with line numbers (cat -n style).
+    """파일 내용에 줄 번호를 붙여 포맷합니다 (cat -n 스타일).
 
-    Chunks lines longer than MAX_LINE_LENGTH with continuation markers (e.g., 5.1, 5.2).
+    MAX_LINE_LENGTH를 초과하는 줄은 연속 마커(예: 5.1, 5.2)로 청크 분할합니다.
 
     Args:
-        content: File content as string or list of lines
-        start_line: Starting line number (default: 1)
+        content: 문자열 또는 줄 목록 형태의 파일 내용
+        start_line: 시작 줄 번호 (기본값: 1)
 
     Returns:
-        Formatted content with line numbers and continuation markers
+        줄 번호와 연속 마커가 포함된 포맷된 내용
     """
     if isinstance(content, str):
         lines = content.split("\n")
@@ -132,17 +132,17 @@ def format_content_with_line_numbers(
         if len(line) <= MAX_LINE_LENGTH:
             result_lines.append(f"{line_num:{LINE_NUMBER_WIDTH}d}\t{line}")
         else:
-            # Split long line into chunks with continuation markers
+            # 긴 줄을 청크로 분할하고 연속 마커 부여
             num_chunks = (len(line) + MAX_LINE_LENGTH - 1) // MAX_LINE_LENGTH
             for chunk_idx in range(num_chunks):
                 start = chunk_idx * MAX_LINE_LENGTH
                 end = min(start + MAX_LINE_LENGTH, len(line))
                 chunk = line[start:end]
                 if chunk_idx == 0:
-                    # First chunk: use normal line number
+                    # 첫 번째 청크: 일반 줄 번호 사용
                     result_lines.append(f"{line_num:{LINE_NUMBER_WIDTH}d}\t{chunk}")
                 else:
-                    # Continuation chunks: use decimal notation (e.g., 5.1, 5.2)
+                    # 연속 청크: 소수점 표기법 사용 (예: 5.1, 5.2)
                     continuation_marker = f"{line_num}.{chunk_idx}"
                     result_lines.append(f"{continuation_marker:>{LINE_NUMBER_WIDTH}}\t{chunk}")
 
@@ -150,13 +150,13 @@ def format_content_with_line_numbers(
 
 
 def check_empty_content(content: str) -> str | None:
-    """Check if content is empty and return warning message.
+    """content가 비어 있는지 확인하고 경고 메시지를 반환합니다.
 
     Args:
-        content: Content to check
+        content: 검사할 내용
 
     Returns:
-        Warning message if empty, None otherwise
+        비어 있으면 경고 메시지, 그렇지 않으면 None.
     """
     if not content or content.strip() == "":
         return EMPTY_CONTENT_WARNING
@@ -164,32 +164,32 @@ def check_empty_content(content: str) -> str | None:
 
 
 def _get_file_type(path: str) -> FileType:
-    """Classify a file by its extension.
+    """파일 확장자로 파일 종류를 분류합니다.
 
     Args:
-        path: File path to classify.
+        path: 분류할 파일 경로.
 
     Returns:
-        One of `"text"`, `"image"`, `"audio"`, `"video"`, or `"file"`.
-        Defaults to `"text"` for unrecognized extensions.
+        `"text"`, `"image"`, `"audio"`, `"video"`, `"file"` 중 하나.
+        인식되지 않는 확장자는 `"text"`로 기본 처리합니다.
     """
     return _EXTENSION_TO_FILE_TYPE.get(PurePosixPath(path).suffix.lower(), "text")
 
 
 def _to_legacy_file_data(file_data: FileData) -> dict[str, Any]:
-    r"""Convert a FileData dict to the legacy (v1) storage format.
+    r"""FileData 딕셔너리를 레거시(v1) 저장 포맷으로 변환합니다.
 
-    The v1 format stores content as `list[str]` (lines split on `\\n`)
-    and omits the `encoding` field.  Use this when `file_format="v1"`
-    on a backend to preserve backwards compatibility with consumers that
-    expect `list[str]` content.
+    v1 포맷은 content를 `list[str]` (줄 단위로 `\\n` 분할)로 저장하며
+    `encoding` 필드를 포함하지 않습니다.
+    `list[str]` content를 기대하는 소비자와의 하위 호환성을 유지하려면
+    백엔드에서 `file_format="v1"` 사용 시 이 함수를 호출하십시오.
 
     Args:
-        file_data: Modern (v2) FileData with `content: str` and `encoding`.
+        file_data: `content: str`과 `encoding`이 포함된 현대(v2) FileData.
 
     Returns:
-        Dict with `content` as `list[str]`, plus `created_at` /
-        `modified_at` timestamps.  No `encoding` key.
+        `content`가 `list[str]`이고 `created_at` / `modified_at` 타임스탬프를
+        포함하는 딕셔너리. `encoding` 키 없음.
     """
     content = file_data["content"]
     result: dict[str, Any] = {
@@ -203,13 +203,13 @@ def _to_legacy_file_data(file_data: FileData) -> dict[str, Any]:
 
 
 def file_data_to_string(file_data: FileData) -> str:
-    """Convert FileData to plain string content.
+    """FileData를 일반 문자열 content로 변환합니다.
 
     Args:
-        file_data: FileData dict with 'content' key
+        file_data: 'content' 키를 포함하는 FileData 딕셔너리
 
     Returns:
-        Content as a single string.
+        단일 문자열로 변환된 content.
     """
     return _normalize_content(file_data)
 
@@ -219,15 +219,15 @@ def create_file_data(
     created_at: str | None = None,
     encoding: str = "utf-8",
 ) -> FileData:
-    """Create a FileData object with timestamps.
+    """타임스탬프가 포함된 FileData 객체를 생성합니다.
 
     Args:
-        content: File content as string (plain text or base64-encoded binary).
-        created_at: Optional creation timestamp (ISO format).
-        encoding: Content encoding — `"utf-8"` for text, `"base64"` for binary.
+        content: 문자열 형태의 파일 내용 (일반 텍스트 또는 base64 인코딩된 바이너리).
+        created_at: 선택적 생성 타임스탬프 (ISO 포맷).
+        encoding: 내용 인코딩 — 텍스트는 `"utf-8"`, 바이너리는 `"base64"`.
 
     Returns:
-        FileData dict with content, encoding, and timestamps.
+        content, encoding, 타임스탬프가 포함된 FileData 딕셔너리.
     """
     now = datetime.now(UTC).isoformat()
 
@@ -240,14 +240,14 @@ def create_file_data(
 
 
 def update_file_data(file_data: FileData, content: str) -> FileData:
-    """Update FileData with new content, preserving creation timestamp.
+    """새 content로 FileData를 갱신하되 생성 타임스탬프는 유지합니다.
 
     Args:
-        file_data: Existing FileData dict
-        content: New content as string
+        file_data: 기존 FileData 딕셔너리
+        content: 문자열 형태의 새 content
 
     Returns:
-        Updated FileData dict
+        갱신된 FileData 딕셔너리
     """
     now = datetime.now(UTC).isoformat()
 
@@ -266,19 +266,19 @@ def slice_read_response(
     offset: int,
     limit: int,
 ) -> str | ReadResult:
-    """Slice file data to the requested line range without formatting.
+    """요청한 줄 범위로 파일 데이터를 슬라이싱합니다 (포맷 미적용).
 
-    Returns raw text for the requested window. Line-number formatting
-    is applied downstream by the middleware layer.
+    요청된 창(window)에 해당하는 원시 텍스트를 반환합니다.
+    줄 번호 포맷은 미들웨어 레이어에서 후처리됩니다.
 
     Args:
-        file_data: FileData dict.
-        offset: Line offset (0-indexed).
-        limit: Maximum number of lines.
+        file_data: FileData 딕셔너리.
+        offset: 줄 오프셋 (0-인덱스 기반).
+        limit: 최대 줄 수.
 
     Returns:
-        Raw sliced content string on success, or `ReadResult` with
-        `error` set when the offset exceeds the file length.
+        성공 시 슬라이싱된 원시 content 문자열,
+        오프셋이 파일 길이를 초과하면 `error`가 설정된 `ReadResult`.
     """
     content = file_data_to_string(file_data)
 
@@ -301,19 +301,19 @@ def format_read_response(
     offset: int,
     limit: int,
 ) -> str:
-    """Format file data for read response with line numbers.
+    """줄 번호를 포함하여 읽기 응답용 파일 데이터를 포맷합니다.
 
     .. deprecated::
-        Use `slice_read_response` and apply
-        `format_content_with_line_numbers` separately.
+        `slice_read_response`를 사용하고
+        `format_content_with_line_numbers`를 별도로 적용하십시오.
 
     Args:
-        file_data: FileData dict
-        offset: Line offset (0-indexed)
-        limit: Maximum number of lines
+        file_data: FileData 딕셔너리
+        offset: 줄 오프셋 (0-인덱스 기반)
+        limit: 최대 줄 수
 
     Returns:
-        Formatted content or error message
+        포맷된 content 또는 오류 메시지
     """
     content = file_data_to_string(file_data)
     empty_msg = check_empty_content(content)
@@ -337,16 +337,16 @@ def perform_string_replacement(
     new_string: str,
     replace_all: bool = False,  # noqa: FBT001, FBT002
 ) -> tuple[str, int] | str:
-    """Perform string replacement with occurrence validation.
+    """발생 횟수 검증을 포함한 문자열 교체를 수행합니다.
 
     Args:
-        content: Original content
-        old_string: String to replace
-        new_string: Replacement string
-        replace_all: Whether to replace all occurrences
+        content: 원본 content
+        old_string: 교체할 문자열
+        new_string: 대체 문자열
+        replace_all: 모든 발생을 교체할지 여부
 
     Returns:
-        Tuple of (new_content, occurrences) on success, or error message string
+        성공 시 (new_content, occurrences) 튜플, 실패 시 오류 메시지 문자열
     """
     occurrences = content.count(old_string)
 
@@ -372,43 +372,42 @@ def truncate_if_too_long(result: str) -> str: ...
 
 
 def truncate_if_too_long(result: list[str] | str) -> list[str] | str:
-    """Truncate list or string result if it exceeds token limit (rough estimate: 4 chars/token)."""
+    """토큰 제한을 초과하면 리스트 또는 문자열 결과를 절삭합니다 (대략적인 추정: 4자/토큰)."""
     if isinstance(result, list):
         total_chars = sum(len(item) for item in result)
         if total_chars > TOOL_RESULT_TOKEN_LIMIT * 4:
             return result[: len(result) * TOOL_RESULT_TOKEN_LIMIT * 4 // total_chars] + [TRUNCATION_GUIDANCE]  # noqa: RUF005  # Concatenation preferred for clarity
         return result
-    # string
+    # 문자열 처리
     if len(result) > TOOL_RESULT_TOKEN_LIMIT * 4:
         return result[: TOOL_RESULT_TOKEN_LIMIT * 4] + "\n" + TRUNCATION_GUIDANCE
     return result
 
 
 def validate_path(path: str, *, allowed_prefixes: Sequence[str] | None = None) -> str:
-    r"""Validate and normalize file path for security.
+    r"""파일 경로를 보안상 검증하고 정규화합니다.
 
-    Ensures paths are safe to use by preventing directory traversal attacks
-    and enforcing consistent formatting. All paths are normalized to use
-    forward slashes and start with a leading slash.
+    디렉토리 탐색 공격을 방지하고 일관된 포맷을 강제함으로써
+    경로를 안전하게 사용할 수 있도록 합니다.
+    모든 경로는 슬래시로 정규화되며 앞에 슬래시가 붙습니다.
 
-    This function is designed for virtual filesystem paths and rejects
-    Windows absolute paths (e.g., `C:/...`, `F:/...`) to maintain consistency
-    and prevent path format ambiguity.
+    이 함수는 가상 파일시스템 경로를 위해 설계되었으며,
+    일관성 유지 및 경로 포맷 모호성 방지를 위해
+    Windows 절대 경로(예: `C:/...`, `F:/...`)를 거부합니다.
 
     Args:
-        path: The path to validate and normalize.
-        allowed_prefixes: Optional list of allowed path prefixes.
+        path: 검증 및 정규화할 경로.
+        allowed_prefixes: 허용된 경로 접두사 목록 (선택 사항).
 
-            If provided, the normalized path must start with one of
-            these prefixes.
+            지정하면 정규화된 경로가 이 중 하나로 시작해야 합니다.
 
     Returns:
-        Normalized canonical path starting with `/` and using forward slashes.
+        `/`로 시작하고 슬래시를 사용하는 정규화된 표준 경로.
 
     Raises:
-        ValueError: If path contains traversal sequences (`..` or `~`), is a
-            Windows absolute path (e.g., `C:/...`), or does not start with an
-            allowed prefix when `allowed_prefixes` is specified.
+        ValueError: 경로에 탐색 시퀀스(`..` 또는 `~`)가 포함되거나,
+            Windows 절대 경로(예: `C:/...`)이거나,
+            `allowed_prefixes` 지정 시 허용된 접두사로 시작하지 않으면 발생.
 
     Example:
         ```python
@@ -420,14 +419,14 @@ def validate_path(path: str, *, allowed_prefixes: Sequence[str] | None = None) -
         validate_path("/etc/file.txt", allowed_prefixes=["/data/"])  # Raises ValueError
         ```
     """
-    # Check for traversal as a path component (not substring) to avoid
-    # false-positive rejection of legitimate filenames like "foo..bar.txt"
+    # 부분 문자열이 아닌 경로 구성 요소로서의 탐색 문자를 확인하여
+    # "foo..bar.txt" 같은 정상 파일명을 잘못 거부하는 것을 방지
     parts = PurePosixPath(path.replace("\\", "/")).parts
     if ".." in parts or path.startswith("~"):
         msg = f"Path traversal not allowed: {path}"
         raise ValueError(msg)
 
-    # Reject Windows absolute paths (e.g., C:\..., D:/...)
+    # Windows 절대 경로 거부 (예: C:\..., D:/...)
     if re.match(r"^[a-zA-Z]:", path):
         msg = f"Windows absolute paths are not supported: {path}. Please use virtual paths starting with / (e.g., /workspace/file.txt)"
         raise ValueError(msg)
@@ -438,7 +437,7 @@ def validate_path(path: str, *, allowed_prefixes: Sequence[str] | None = None) -
     if not normalized.startswith("/"):
         normalized = f"/{normalized}"
 
-    # Defense-in-depth: verify normpath didn't produce traversal
+    # 심층 방어: normpath 이후에도 탐색이 발생하지 않았는지 검증
     if ".." in normalized.split("/"):
         msg = f"Path traversal detected after normalization: {path} -> {normalized}"
         raise ValueError(msg)
@@ -451,19 +450,20 @@ def validate_path(path: str, *, allowed_prefixes: Sequence[str] | None = None) -
 
 
 def _normalize_path(path: str | None) -> str:
-    """Normalize a path to canonical form.
+    """경로를 표준 형식으로 정규화합니다.
 
-    Converts path to absolute form starting with /, removes trailing slashes
-    (except for root), and validates that the path is not empty.
+    경로를 /로 시작하는 절대 형식으로 변환하고,
+    후행 슬래시를 제거하며(루트 제외),
+    경로가 비어 있지 않은지 검증합니다.
 
     Args:
-        path: Path to normalize (None defaults to "/")
+        path: 정규화할 경로 (None이면 "/"로 기본 처리)
 
     Returns:
-        Normalized path starting with / (without trailing slash unless it's root)
+        /로 시작하는 정규화된 경로 (루트가 아니면 후행 슬래시 없음)
 
     Raises:
-        ValueError: If path is invalid (empty string after strip)
+        ValueError: 경로가 유효하지 않으면 발생 (strip 후 빈 문자열)
 
     Example:
         _normalize_path(None) -> "/"
@@ -478,7 +478,7 @@ def _normalize_path(path: str | None) -> str:
 
     normalized = path if path.startswith("/") else "/" + path
 
-    # Only root should have trailing slash
+    # 루트만 후행 슬래시 허용
     if normalized != "/" and normalized.endswith("/"):
         normalized = normalized.rstrip("/")
 
@@ -486,31 +486,32 @@ def _normalize_path(path: str | None) -> str:
 
 
 def _filter_files_by_path(files: dict[str, Any], normalized_path: str) -> dict[str, Any]:
-    """Filter files dict by normalized path, handling exact file matches and directory prefixes.
+    """정규화된 경로로 files 딕셔너리를 필터링합니다.
+    정확한 파일 일치와 디렉토리 접두사 매칭을 모두 처리합니다.
 
-    Expects a normalized path from _normalize_path (no trailing slash except root).
+    _normalize_path에서 반환된 정규화된 경로를 입력으로 기대합니다 (루트 제외 후행 슬래시 없음).
 
     Args:
-        files: Dictionary mapping file paths to file data
-        normalized_path: Normalized path from _normalize_path (e.g., "/", "/dir", "/dir/file")
+        files: 파일 경로를 파일 데이터에 매핑하는 딕셔너리
+        normalized_path: _normalize_path에서 반환된 정규화된 경로 (예: "/", "/dir", "/dir/file")
 
     Returns:
-        Filtered dictionary of files matching the path
+        경로에 매칭되는 파일들의 필터링된 딕셔너리
 
     Example:
         files = {"/dir/file": {...}, "/dir/other": {...}}
         _filter_files_by_path(files, "/dir/file")  # Returns {"/dir/file": {...}}
         _filter_files_by_path(files, "/dir")       # Returns both files
     """
-    # Check if path matches an exact file
+    # 정확한 파일 일치 여부 확인
     if normalized_path in files:
         return {normalized_path: files[normalized_path]}
 
-    # Otherwise treat as directory prefix
+    # 일치하지 않으면 디렉토리 접두사로 처리
     if normalized_path == "/":
-        # Root directory - match all files starting with /
+        # 루트 디렉토리 — /로 시작하는 모든 파일 매칭
         return {fp: fd for fp, fd in files.items() if fp.startswith("/")}
-    # Non-root directory - add trailing slash for prefix matching
+    # 루트가 아닌 디렉토리 — 접두사 매칭을 위해 후행 슬래시 추가
     dir_prefix = normalized_path + "/"
     return {fp: fd for fp, fd in files.items() if fp.startswith(dir_prefix)}
 
@@ -520,16 +521,16 @@ def _glob_search_files(
     pattern: str,
     path: str = "/",
 ) -> str:
-    r"""Search files dict for paths matching glob pattern.
+    r"""글로브 패턴에 매칭되는 경로를 files 딕셔너리에서 검색합니다.
 
     Args:
-        files: Dictionary of file paths to FileData.
-        pattern: Glob pattern (e.g., "*.py", "**/*.ts").
-        path: Base path to search from.
+        files: 파일 경로를 FileData에 매핑하는 딕셔너리.
+        pattern: 글로브 패턴 (예: "*.py", "**/*.ts").
+        path: 검색 기준 경로.
 
     Returns:
-        Newline-separated file paths, sorted by modification time (most recent first).
-        Returns "No files found" if no matches.
+        수정 시간 내림차순으로 정렬된 줄바꿈 구분 파일 경로 목록.
+        매칭 없으면 "No files found" 반환.
 
     Example:
         ```python
@@ -545,26 +546,25 @@ def _glob_search_files(
 
     filtered = _filter_files_by_path(files, normalized_path)
 
-    # Respect standard glob semantics:
-    # - Patterns without path separators (e.g., "*.py") match only in the current
-    #   directory (non-recursive) relative to `path`.
-    # - Use "**" explicitly for recursive matching.
-    # Strip leading "/" from pattern since matching is done against relative paths.
+    # 표준 glob 시맨틱 준수:
+    # - 경로 구분자 없는 패턴 (예: "*.py")은 `path` 기준 현재 디렉토리에서만 매칭 (비재귀).
+    # - 재귀 매칭에는 명시적으로 "**" 사용.
+    # 상대 경로에 대해 매칭하므로 패턴 앞의 "/"를 제거.
     effective_pattern = pattern.lstrip("/")
 
     matches = []
     for file_path, file_data in filtered.items():
-        # Compute relative path for glob matching
-        # If normalized_path is "/dir", we want "/dir/file.txt" -> "file.txt"
-        # If normalized_path is "/dir/file.txt" (exact file), we want "file.txt"
+        # 글로브 매칭을 위한 상대 경로 계산
+        # normalized_path가 "/dir"이면 "/dir/file.txt" -> "file.txt"
+        # normalized_path가 "/dir/file.txt"이면 (정확한 파일) -> "file.txt"
         if normalized_path == "/":
-            relative = file_path[1:]  # Remove leading slash
+            relative = file_path[1:]  # 앞의 슬래시 제거
         elif file_path == normalized_path:
-            # Exact file match - use just the filename
+            # 정확한 파일 매칭 — 파일명만 사용
             relative = file_path.split("/")[-1]
         else:
-            # Directory prefix - strip the directory path
-            relative = file_path[len(normalized_path) + 1 :]  # +1 for the slash
+            # 디렉토리 접두사 — 디렉토리 경로 제거
+            relative = file_path[len(normalized_path) + 1 :]  # +1은 슬래시 제거 위한 것
 
         if wcglob.globmatch(relative, effective_pattern, flags=wcglob.BRACE | wcglob.GLOBSTAR):
             matches.append((file_path, file_data["modified_at"]))
@@ -581,14 +581,14 @@ def _format_grep_results(
     results: dict[str, list[tuple[int, str]]],
     output_mode: Literal["files_with_matches", "content", "count"],
 ) -> str:
-    """Format grep search results based on output mode.
+    """output_mode에 따라 grep 검색 결과를 포맷합니다.
 
     Args:
-        results: Dictionary mapping file paths to list of (line_num, line_content) tuples
-        output_mode: Output format - "files_with_matches", "content", or "count"
+        results: 파일 경로를 (줄 번호, 줄 내용) 튜플 목록에 매핑하는 딕셔너리
+        output_mode: 출력 형식 — "files_with_matches", "content", "count" 중 하나
 
     Returns:
-        Formatted string output
+        포맷된 문자열 출력
     """
     if output_mode == "files_with_matches":
         return "\n".join(sorted(results.keys()))
@@ -613,17 +613,17 @@ def _grep_search_files(
     glob: str | None = None,
     output_mode: Literal["files_with_matches", "content", "count"] = "files_with_matches",
 ) -> str:
-    r"""Search file contents for regex pattern.
+    r"""정규식 패턴으로 파일 내용을 검색합니다.
 
     Args:
-        files: Dictionary of file paths to FileData.
-        pattern: Regex pattern to search for.
-        path: Base path to search from.
-        glob: Optional glob pattern to filter files (e.g., "*.py").
-        output_mode: Output format - "files_with_matches", "content", or "count".
+        files: 파일 경로를 FileData에 매핑하는 딕셔너리.
+        pattern: 검색할 정규식 패턴.
+        path: 검색 기준 경로.
+        glob: 파일 필터링용 선택적 글로브 패턴 (예: "*.py").
+        output_mode: 출력 형식 — "files_with_matches", "content", "count" 중 하나.
 
     Returns:
-        Formatted search results. Returns "No matches found" if no results.
+        포맷된 검색 결과. 결과 없으면 "No matches found" 반환.
 
     Example:
         ```python
@@ -661,7 +661,7 @@ def _grep_search_files(
     return _format_grep_results(results, output_mode)
 
 
-# -------- Structured helpers for composition --------
+# -------- 조합을 위한 구조화 헬퍼 --------
 
 
 def grep_matches_from_files(
@@ -670,13 +670,13 @@ def grep_matches_from_files(
     path: str | None = None,
     glob: str | None = None,
 ) -> GrepResult:
-    """Return structured grep matches from an in-memory files mapping.
+    """인메모리 files 매핑에서 구조화된 grep 매칭 결과를 반환합니다.
 
-    Performs literal text search (not regex).
+    리터럴 텍스트 검색을 수행합니다 (정규식 아님).
 
-    Returns a GrepResult with matches on success.
-    We deliberately do not raise here to keep backends non-throwing in tool
-    contexts and preserve user-facing error messages.
+    성공 시 매칭 결과가 담긴 GrepResult를 반환합니다.
+    툴 컨텍스트에서 백엔드가 예외를 던지지 않도록
+    의도적으로 예외를 발생시키지 않으며, 사용자 대면 오류 메시지를 보존합니다.
     """
     try:
         normalized_path = _normalize_path(path)
@@ -692,13 +692,13 @@ def grep_matches_from_files(
     for file_path, file_data in filtered.items():
         content_str = _normalize_content(file_data)
         for line_num, line in enumerate(content_str.split("\n"), 1):
-            if pattern in line:  # Simple substring search for literal matching
+            if pattern in line:  # 리터럴 매칭을 위한 단순 부분 문자열 검색
                 matches.append({"path": file_path, "line": int(line_num), "text": line})
     return GrepResult(matches=matches)
 
 
 def build_grep_results_dict(matches: list[GrepMatch]) -> dict[str, list[tuple[int, str]]]:
-    """Group structured matches into the legacy dict form used by formatters."""
+    """구조화된 매칭 결과를 포매터에서 사용하는 레거시 딕셔너리 형태로 그룹화합니다."""
     grouped: dict[str, list[tuple[int, str]]] = {}
     for m in matches:
         grouped.setdefault(m["path"], []).append((m["line"], m["text"]))
@@ -709,7 +709,7 @@ def format_grep_matches(
     matches: list[GrepMatch],
     output_mode: Literal["files_with_matches", "content", "count"],
 ) -> str:
-    """Format structured grep matches using existing formatting logic."""
+    """기존 포맷팅 로직을 사용하여 구조화된 grep 매칭 결과를 포맷합니다."""
     if not matches:
         return "No matches found"
     return _format_grep_results(build_grep_results_dict(matches), output_mode)

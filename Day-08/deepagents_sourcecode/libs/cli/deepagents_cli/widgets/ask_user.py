@@ -1,7 +1,6 @@
-"""Render interactive `ask_user` questions inside the Textual app.
+"""Textual 앱 내에서 대화형 `ask_user` 질문을 렌더링하세요.
 
-This module turns structured question payloads into widgets that collect free
-text or multiple-choice answers and hand them back to the execution loop.
+이 모듈은 구조화된 질문 페이로드를 자유 텍스트 또는 객관식 답변을 수집하여 실행 루프로 다시 전달하는 위젯으로 변환합니다.
 """
 
 from __future__ import annotations
@@ -38,10 +37,10 @@ logger = logging.getLogger(__name__)
 
 
 class AskUserMenu(Container):
-    """Interactive widget for asking the user questions.
+    """사용자에게 질문하기 위한 대화형 위젯입니다.
 
-    Supports text input and multiple choice questions. Multiple choice
-    questions always include an "Other" option for free-form input.
+    텍스트 입력 및 객관식 질문을 지원합니다. 객관식 질문에는 항상 자유 형식 입력을 위한 "기타" 옵션이 포함됩니다.
+
     """
 
     can_focus = True
@@ -53,14 +52,14 @@ class AskUserMenu(Container):
     ]
 
     class Answered(Message):
-        """Message sent when user submits all answers."""
+        """사용자가 모든 답변을 제출하면 전송되는 메시지입니다."""
 
         def __init__(self, answers: list[str]) -> None:  # noqa: D107
             super().__init__()
             self.answers = answers
 
     class Cancelled(Message):
-        """Message sent when user cancels the ask_user prompt."""
+        """사용자가 Ask_user 프롬프트를 취소하면 전송되는 메시지입니다."""
 
         def __init__(self) -> None:  # noqa: D107
             super().__init__()
@@ -81,7 +80,7 @@ class AskUserMenu(Container):
         self._submitted = False
 
     def set_future(self, future: asyncio.Future[AskUserWidgetResult]) -> None:
-        """Set the future to resolve when user answers."""
+        """사용자가 응답할 때 해결할 미래를 설정합니다."""
         self._future = future
 
     def compose(self) -> ComposeResult:  # noqa: D102
@@ -120,7 +119,7 @@ class AskUserMenu(Container):
         self._set_active_question(0)
 
     def focus_active(self) -> None:
-        """Focus the current active question's input."""
+        """현재 활성 질문의 입력에 초점을 맞춥니다."""
         self._set_active_question(self._current_question)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:  # noqa: D102
@@ -136,7 +135,7 @@ class AskUserMenu(Container):
                 return
 
     def confirm_and_advance(self, index: int) -> None:
-        """Confirm the answer at `index` and advance to the next question."""
+        """`index`에서 답변을 확인하고 다음 질문으로 넘어갑니다."""
         self._answers[index] = self._question_widgets[index].get_answer()
         self._confirmed[index] = True
 
@@ -165,7 +164,7 @@ class AskUserMenu(Container):
                 return
 
     def _set_active_question(self, index: int) -> None:
-        """Update the visual indicator and focus for the active question."""
+        """활성 질문에 대한 시각적 표시기와 초점을 업데이트합니다."""
         self._current_question = index
         for i, qw in enumerate(self._question_widgets):
             if i == index:
@@ -185,12 +184,12 @@ class AskUserMenu(Container):
         self.post_message(self.Answered(self._answers))
 
     def action_next_question(self) -> None:
-        """Navigate to the next question without confirming."""
+        """확인하지 않고 다음 질문으로 이동합니다."""
         if self._current_question < len(self._question_widgets) - 1:
             self._set_active_question(self._current_question + 1)
 
     def action_previous_question(self) -> None:
-        """Navigate to the previous question without confirming."""
+        """확인하지 않고 이전 질문으로 이동합니다."""
         if self._current_question > 0:
             self._set_active_question(self._current_question - 1)
 
@@ -203,12 +202,12 @@ class AskUserMenu(Container):
         self.post_message(self.Cancelled())
 
     def on_blur(self, event: events.Blur) -> None:  # noqa: PLR6301  # Textual event handler
-        """Prevent blur from propagating and dismissing the menu."""
+        """블러가 메뉴를 전파하고 닫는 것을 방지합니다."""
         event.stop()
 
 
 class _ChoiceOption(Static):
-    """A single selectable choice option."""
+    """선택 가능한 단일 선택 옵션입니다."""
 
     def __init__(
         self, text: str, index: int, *, selected: bool = False, **kwargs: Any
@@ -219,25 +218,26 @@ class _ChoiceOption(Static):
         super().__init__(self._render(), classes="ask-user-choice", **kwargs)
 
     def toggle(self) -> None:
-        """Toggle the selected state."""
+        """선택한 상태를 전환합니다."""
         self.selected = not self.selected
         self.update(self._render())
 
     def select(self) -> None:
-        """Mark this choice as selected."""
+        """이 선택 항목을 선택됨으로 표시하세요."""
         self.selected = True
         self.update(self._render())
 
     def deselect(self) -> None:
-        """Mark this choice as deselected."""
+        """이 선택 항목을 선택 해제된 것으로 표시하세요."""
         self.selected = False
         self.update(self._render())
 
     def _render(self) -> Content:
-        """Build display content with cursor prefix.
+        """커서 접두사를 사용하여 표시 콘텐츠를 만듭니다.
 
         Returns:
-            Styled Content with selection cursor and label text.
+            선택 커서 및 레이블 텍스트가 있는 스타일이 지정된 콘텐츠입니다.
+
         """
         glyphs = get_glyphs()
         prefix = f"{glyphs.cursor} " if self.selected else "  "
@@ -245,7 +245,7 @@ class _ChoiceOption(Static):
 
 
 class _QuestionWidget(Vertical):
-    """Widget for a single question (text or multiple choice)."""
+    """단일 질문(텍스트 또는 객관식)을 위한 위젯입니다."""
 
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("up", "move_up", "Up", show=False),
@@ -307,7 +307,7 @@ class _QuestionWidget(Vertical):
             yield self._text_input
 
     def focus_input(self) -> None:
-        """Focus the appropriate input for this question."""
+        """이 질문에 대한 적절한 입력에 집중하세요."""
         if self._text_input:
             self._text_input.focus()
         elif self._is_other_selected and self._other_input:
@@ -316,7 +316,7 @@ class _QuestionWidget(Vertical):
             self.focus()
 
     def get_answer(self) -> str:
-        """Return the current answer text for this question."""
+        """이 질문에 대한 현재 답변 텍스트를 반환합니다."""
         if self._q_type == "text" or not self._choices:
             return self._text_input.value if self._text_input else ""
 
@@ -329,7 +329,7 @@ class _QuestionWidget(Vertical):
         return ""
 
     def action_move_up(self) -> None:
-        """Move selection up in the choice list."""
+        """선택 목록에서 선택 항목을 위로 이동합니다."""
         if self._q_type != "multiple_choice" or not self._choice_widgets:
             return
         if (
@@ -349,7 +349,7 @@ class _QuestionWidget(Vertical):
             self._update_choice_selection()
 
     def action_move_down(self) -> None:
-        """Move selection down in the choice list."""
+        """선택 목록에서 선택 항목을 아래로 이동합니다."""
         if self._q_type != "multiple_choice" or not self._choice_widgets:
             return
         max_idx = len(self._choice_widgets) - 1
@@ -359,7 +359,7 @@ class _QuestionWidget(Vertical):
             self._update_choice_selection()
 
     def action_select_or_submit(self) -> None:
-        """Confirm current choice or open the Other input."""
+        """현재 선택을 확인하거나 기타 입력을 엽니다."""
         if self._q_type == "multiple_choice" and self._choice_widgets:
             is_other = self._selected_choice == len(self._choices)
             if is_other:

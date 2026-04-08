@@ -1,7 +1,6 @@
-"""Summarize file mutations for approval and activity displays.
+"""승인 및 활동 표시를 위해 파일 변형을 요약합니다.
 
-The helpers in this module turn backend filesystem operations into stable
-preview objects, diffs, and human-readable status lines for the CLI UI.
+이 모듈의 도우미는 백엔드 파일 시스템 작업을 CLI UI에 대한 안정적인 미리 보기 개체, 차이점 및 사람이 읽을 수 있는 상태 줄로 전환합니다.
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ FileOpStatus = Literal["pending", "success", "error"]
 
 @dataclass
 class ApprovalPreview:
-    """Data used to render HITL previews."""
+    """HITL 미리보기를 렌더링하는 데 사용되는 데이터입니다."""
 
     title: str
     details: list[str]
@@ -32,10 +31,11 @@ class ApprovalPreview:
 
 
 def _safe_read(path: Path) -> str | None:
-    """Read file content, returning None on failure.
+    """파일 내용을 읽고, 실패하면 None을 반환합니다.
 
-    Returns:
-        File content as string, or None if reading fails.
+Returns:
+        파일 내용을 문자열로 표시하거나, 읽지 못하는 경우 없음입니다.
+
     """
     try:
         return path.read_text(encoding="utf-8")
@@ -45,10 +45,11 @@ def _safe_read(path: Path) -> str | None:
 
 
 def _count_lines(text: str) -> int:
-    """Count lines in text, treating empty strings as zero lines.
+    """텍스트의 줄 수를 세고 빈 문자열을 0줄로 처리합니다.
 
-    Returns:
-        Number of lines in the text.
+Returns:
+        텍스트의 줄 수입니다.
+
     """
     if not text:
         return 0
@@ -63,17 +64,18 @@ def compute_unified_diff(
     max_lines: int | None = 800,
     context_lines: int = 3,
 ) -> str | None:
-    """Compute a unified diff between before and after content.
+    """콘텐츠 전후의 통합된 차이를 계산합니다.
 
-    Args:
-        before: Original content
-        after: New content
-        display_path: Path for display in diff headers
-        max_lines: Maximum number of diff lines (None for unlimited)
-        context_lines: Number of context lines around changes (default 3)
+Args:
+        before: 원본 콘텐츠
+        after: 새로운 콘텐츠
+        display_path: diff 헤더에 표시할 경로
+        max_lines: 최대 차이점 줄 수(무제한인 경우 없음)
+        context_lines: 변경 사항 주변의 컨텍스트 줄 수(기본값 3)
 
-    Returns:
-        Unified diff string or None if no changes
+Returns:
+        통합 diff 문자열 또는 변경 사항이 없으면 없음
+
     """
     before_lines = before.splitlines()
     after_lines = after.splitlines()
@@ -98,7 +100,7 @@ def compute_unified_diff(
 
 @dataclass
 class FileOpMetrics:
-    """Line and byte level metrics for a file operation."""
+    """파일 작업에 대한 라인 및 바이트 수준 메트릭입니다."""
 
     lines_read: int = 0
     start_line: int | None = None
@@ -111,7 +113,7 @@ class FileOpMetrics:
 
 @dataclass
 class FileOperationRecord:
-    """Track a single filesystem tool call."""
+    """단일 파일 시스템 도구 호출을 추적합니다."""
 
     tool_name: str
     display_path: str
@@ -131,10 +133,11 @@ class FileOperationRecord:
 def resolve_physical_path(
     path_str: str | None, assistant_id: str | None
 ) -> Path | None:
-    """Convert a virtual/relative path to a physical filesystem path.
+    """가상/상대 경로를 실제 파일 시스템 경로로 변환합니다.
 
-    Returns:
-        Resolved physical Path, or None if path is empty or resolution fails.
+Returns:
+        확인된 물리적 경로 또는 경로가 비어 있거나 확인에 실패한 경우 없음입니다.
+
     """
     if not path_str:
         return None
@@ -154,10 +157,11 @@ def resolve_physical_path(
 
 
 def format_display_path(path_str: str | None) -> str:
-    """Format a path for display.
+    """표시할 경로의 형식을 지정합니다.
 
-    Returns:
-        Formatted path string suitable for display.
+Returns:
+        표시에 적합한 형식화된 경로 문자열입니다.
+
     """
     if not path_str:
         return "(unknown)"
@@ -175,10 +179,11 @@ def build_approval_preview(
     args: dict[str, Any],
     assistant_id: str | None,
 ) -> ApprovalPreview | None:
-    """Collect summary info and diff for HITL approvals.
+    """HITL 승인을 위한 요약 정보 및 차이점을 수집합니다.
 
-    Returns:
-        ApprovalPreview with diff and details, or None if tool not supported.
+Returns:
+        차이점 및 세부 정보가 포함된 ApprovalPreview 또는 도구가 지원되지 않는 경우 None입니다.
+
     """
     path_str = str(args.get("file_path") or args.get("path") or "")
     display_path = format_display_path(path_str)
@@ -275,12 +280,12 @@ def build_approval_preview(
 
 
 class FileOpTracker:
-    """Collect file operation metrics during a CLI interaction."""
+    """CLI 상호 작용 중에 파일 작업 지표를 수집합니다."""
 
     def __init__(
         self, *, assistant_id: str | None, backend: BackendProtocol | None = None
     ) -> None:
-        """Initialize the tracker."""
+        """추적기를 초기화합니다."""
         self.assistant_id = assistant_id
         self.backend = backend
         self.active: dict[str | None, FileOperationRecord] = {}
@@ -289,10 +294,10 @@ class FileOpTracker:
     def start_operation(
         self, tool_name: str, args: dict[str, Any], tool_call_id: str | None
     ) -> None:
-        """Begin tracking a file operation.
+        """파일 작업 추적을 시작합니다.
 
-        Creates a record for the operation and, for write/edit operations,
-        captures the file's content before modification.
+        작업에 대한 레코드를 생성하고 쓰기/편집 작업의 경우 수정하기 전에 파일 내용을 캡처합니다.
+
         """
         if tool_name not in {"read_file", "write_file", "edit_file"}:
             return
@@ -327,10 +332,11 @@ class FileOpTracker:
         self.active[tool_call_id] = record
 
     def complete_with_message(self, tool_message: Any) -> FileOperationRecord | None:  # noqa: ANN401  # Tool message type is dynamic
-        """Complete a file operation with the tool message result.
+        """도구 메시지 결과로 파일 작업을 완료합니다.
 
-        Returns:
-            The completed FileOperationRecord, or None if no matching operation.
+Returns:
+            완료된 FileOperationRecord 또는 일치하는 작업이 없는 경우 None입니다.
+
         """
         tool_call_id = getattr(tool_message, "tool_call_id", None)
         record = self.active.get(tool_call_id)
@@ -429,7 +435,7 @@ class FileOpTracker:
         return record
 
     def mark_hitl_approved(self, tool_name: str, args: dict[str, Any]) -> None:
-        """Mark operations matching tool_name and file_path as HIL-approved."""
+        """tool_name 및 file_path와 일치하는 작업을 HIL 승인으로 표시합니다."""
         file_path = args.get("file_path") or args.get("path")
         if not file_path:
             return
